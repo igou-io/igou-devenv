@@ -1,0 +1,8 @@
+{
+    "name": "igou-io Homelab",
+    "build": {
+        "dockerfile": "Dockerfile",
+        "context": "."
+    },
+    "remoteUser": "vscode"
+}
