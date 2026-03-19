@@ -8,17 +8,21 @@ ARCH=$(dpkg --print-architecture)
 # The devcontainer forwards the host's SSH agent via SSH_AUTH_SOCK.
 # This is required for cloning private repos (igou-inventory, etc.)
 # ---------------------------------------------------------------------------
-echo "==> Checking SSH agent forwarding..."
-if [ -n "${SSH_AUTH_SOCK:-}" ]; then
-    echo "    SSH_AUTH_SOCK is set: ${SSH_AUTH_SOCK}"
-    ssh-add -l 2>/dev/null && echo "    Agent has keys loaded" || echo "    WARNING: Agent is reachable but has no keys"
-else
-    echo "    WARNING: SSH_AUTH_SOCK is not set. Private repo clones will fail."
-    echo "    Make sure your SSH agent is running and Cursor is forwarding it."
-fi
+if [ -z "${CI:-}" ]; then
+    echo "==> Checking SSH agent forwarding..."
+    if [ -n "${SSH_AUTH_SOCK:-}" ]; then
+        echo "    SSH_AUTH_SOCK is set: ${SSH_AUTH_SOCK}"
+        ssh-add -l 2>/dev/null && echo "    Agent has keys loaded" || echo "    WARNING: Agent is reachable but has no keys"
+    else
+        echo "    WARNING: SSH_AUTH_SOCK is not set. Private repo clones will fail."
+        echo "    Make sure your SSH agent is running and Cursor is forwarding it."
+    fi
 
-# Always use SSH for GitHub so forwarded keys work
-git config --global url."git@github.com:".insteadOf "https://github.com/"
+    # Always use SSH for GitHub so forwarded keys work
+    git config --global url."git@github.com:".insteadOf "https://github.com/"
+else
+    echo "==> CI detected, skipping SSH agent check"
+fi
 
 # ---------------------------------------------------------------------------
 # Python tools (versions pinned in requirements.txt for Renovate tracking)
@@ -94,33 +98,37 @@ chmod +x /tmp/virtctl
 sudo mv /tmp/virtctl /usr/local/bin/virtctl
 
 # ---------------------------------------------------------------------------
-# Clone repos via SSH (requires agent forwarding)
+# Clone repos via SSH (requires agent forwarding) — skipped in CI
 # ---------------------------------------------------------------------------
-echo "==> Cloning igou-io repos into /workspace..."
+if [ -z "${CI:-}" ]; then
+    echo "==> Cloning igou-io repos into /workspace..."
 
-# Add GitHub to global known_hosts to avoid interactive prompts.
-# ~/.ssh is bind-mounted read-only, so write to the system-wide file instead.
-ssh-keyscan -t ed25519,rsa github.com 2>/dev/null | sudo tee -a /etc/ssh/ssh_known_hosts > /dev/null
+    # Add GitHub to global known_hosts to avoid interactive prompts.
+    # ~/.ssh is bind-mounted read-only, so write to the system-wide file instead.
+    ssh-keyscan -t ed25519,rsa github.com 2>/dev/null | sudo tee -a /etc/ssh/ssh_known_hosts > /dev/null
 
-REPOS=(
-    "igou-io/igou-kubernetes"
-    "igou-io/igou-ansible"
-    "igou-io/igou-infrastructure"
-    "igou-io/igou-openshift"
-    "igou-io/igou-containers"
-    # Private repos — require SSH agent forwarding
-    "igou-io/igou-inventory"
-    "igou-io/igou-kubernetes-private"
-)
-for repo in "${REPOS[@]}"; do
-    name=$(basename "$repo")
-    if [ ! -d "/workspace/${name}" ]; then
-        echo "    Cloning ${repo}..."
-        git clone "git@github.com:${repo}.git" "/workspace/${name}" || echo "    WARNING: Failed to clone ${repo} (is your SSH key forwarded?)"
-    else
-        echo "    ${name} already exists, skipping"
-    fi
-done
+    REPOS=(
+        "igou-io/igou-kubernetes"
+        "igou-io/igou-ansible"
+        "igou-io/igou-infrastructure"
+        "igou-io/igou-openshift"
+        "igou-io/igou-containers"
+        # Private repos — require SSH agent forwarding
+        "igou-io/igou-inventory"
+        "igou-io/igou-kubernetes-private"
+    )
+    for repo in "${REPOS[@]}"; do
+        name=$(basename "$repo")
+        if [ ! -d "/workspace/${name}" ]; then
+            echo "    Cloning ${repo}..."
+            git clone "git@github.com:${repo}.git" "/workspace/${name}" || echo "    WARNING: Failed to clone ${repo} (is your SSH key forwarded?)"
+        else
+            echo "    ${name} already exists, skipping"
+        fi
+    done
+else
+    echo "==> CI detected, skipping repo cloning"
+fi
 
 # ---------------------------------------------------------------------------
 # Shell configuration (mirrors your ansible playbook's bashrc setup)

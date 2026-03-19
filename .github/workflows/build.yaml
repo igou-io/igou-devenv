@@ -12,8 +12,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Create mount directories
+        run: |
+          mkdir -p ~/.ssh ~/.kube ~/.config/argocd ~/.terraform.d
+
       - name: Build devcontainer
         uses: devcontainers/ci@v0.3
+        env:
+          CI: true
         with:
           push: never
           runCmd: |

@@ -25,7 +25,8 @@
     "containerUser": "vscode",
     "containerEnv": {
         "SSH_AUTH_SOCK": "/tmp/ssh-agent.sock",
-        "HOME": "/home/vscode"
+        "HOME": "/home/vscode",
+        "CI": "${localEnv:CI}"
     },
     "remoteEnv": {
         "HOME": "/home/vscode"
