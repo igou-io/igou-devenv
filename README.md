@@ -1,28 +1,39 @@
 # igou-io devenv
 
 Reproducible development environment for homelab infrastructure work.
-Podman-native, Cursor as the IDE, SSH agent forwarding for private repos.
+Runs as a devcontainer via Cursor or the `devcontainer` CLI, with SSH agent
+forwarding for private repos.
 
 ## What's Inside
 
-**Languages & Runtimes:** Go, Python 3.12, Node.js (for Claude Code)
+**Languages & Runtimes:** Go, Python 3.12, Node.js
 
 **Kubernetes:** kubectl, helm, kustomize, ArgoCD CLI, kubeseal, flux, virtctl
 
 **Infrastructure:** Terraform, tflint, SOPS, age
 
-**Ansible (via pipx):** ansible, ansible-navigator, ansible-builder,
+**Ansible:** ansible, ansible-navigator, ansible-builder,
 ansible-rulebook, ansible-runner, ansible-lint, awxkit
 
 **OpenShift:** oc CLI
 
-**Container Tooling:** podman, buildah, skopeo (installed in container), plus
-Docker CLI (for compatibility — talks to host podman via socket)
+**Container Tooling:** podman, buildah, skopeo (native in container, runs
+privileged for nested container support), Docker CLI (via host socket)
 
 **General:** 1Password CLI, GitHub CLI, jq, yq, direnv, shellcheck, make,
 tree, p7zip, mkdocs-material
 
 **AI:** Claude Code (`claude` CLI)
+
+### How Tools Are Installed
+
+| Layer | What | Where to add |
+|---|---|---|
+| Dockerfile | apt packages (podman, buildah, skopeo, jq, etc.) | `.devcontainer/Dockerfile` |
+| Devcontainer Features | kubectl, helm, terraform, tflint, go, python, node, gh, docker CLI, claude-code | `.devcontainer/devcontainer.json` `features` block |
+| pip (post-create) | Ansible ecosystem, yq, mkdocs-material, kubernetes, jmespath | `.devcontainer/requirements.txt` |
+| Binary downloads (post-create) | ArgoCD, kustomize, kubeseal, flux, SOPS, oc, virtctl | `.devcontainer/post-create.sh` |
+| apt repo (post-create) | 1Password CLI | `.devcontainer/post-create.sh` |
 
 ## Quick Start
 
@@ -47,12 +58,12 @@ tree, p7zip, mkdocs-material
    ```bash
    eval "$(ssh-agent -s)"
    ssh-add ~/.ssh/id_ed25519   # or whichever key has GitHub access
-   # Verify:
-   ssh -T git@github.com
+   ssh -T git@github.com       # verify
    ```
-   The devcontainer bind-mounts your `SSH_AUTH_SOCK` into the container, so
-   the forwarded agent is available for git operations inside the container.
-5. **Cursor** with the **Cursor Dev Containers** extension (`anysphere.remote-containers`).
+5. **Cursor** with the **Dev Containers** extension, or **devcontainer CLI**:
+   ```bash
+   npm install -g @devcontainers/cli
+   ```
 6. **Cursor setting** to use podman — in Settings, set `dev.containers.dockerPath`
    to `podman`.
 7. Your credentials in the standard locations:
@@ -61,24 +72,35 @@ tree, p7zip, mkdocs-material
    - `~/.config/argocd/` — ArgoCD CLI config (create if missing: `mkdir -p ~/.config/argocd`)
    - `~/.terraform.d/` — Terraform plugin cache/credentials
 
-### Open the Environment
+### Open via Cursor
 
 ```bash
-git clone https://github.com/igou-io/devenv.git ~/devenv
-cd ~/devenv
+git clone https://github.com/igou-io/igou-devenv.git ~/igou-devenv
+cd ~/igou-devenv
 cursor .
 ```
 
-Or from the command palette (Ctrl+Shift+P): **Dev Containers: Reopen in Container**
+Then from the command palette (Ctrl+Shift+P): **Dev Containers: Reopen in Container**
+
+### Open via CLI
+
+```bash
+make up      # build and start the devcontainer
+make shell   # open a shell inside
+make down    # stop and remove the container
+```
+
+The Makefile automatically forwards your SSH agent if `SSH_AUTH_SOCK` is set
+and the socket exists.
 
 ### After First Build
 
 The `post-create.sh` script automatically:
-- Verifies SSH agent forwarding is working
-- Installs all CLI tools and Python packages via pipx
-- Installs 1Password CLI
+- Verifies SSH agent forwarding
+- Installs Python packages from `requirements.txt`
+- Installs 1Password CLI and pinned CLI tool versions
 - Clones all igou-io repos (public and private) into `/workspace/`
-- Configures bashrc with exports and aliases
+- Configures bashrc with exports, aliases, and direnv
 - Creates a `homelab.code-workspace` file
 
 Your repos will be at:
@@ -96,77 +118,72 @@ Your repos will be at:
 
 Open the workspace via **File > Open Workspace from File** → `/workspace/homelab.code-workspace`
 
-## How SSH Agent Forwarding Works
+## Makefile Targets
 
-Your local machine runs an SSH agent with your GitHub key. When you SSH into
-the mini PC (or when Cursor connects via Remote SSH), the agent is forwarded
-to the remote host. The devcontainer then bind-mounts the `SSH_AUTH_SOCK`
-from the host into the container at `/tmp/ssh-agent.sock` and sets the
-`SSH_AUTH_SOCK` environment variable to point there.
+| Target | Description |
+|---|---|
+| `make build` | Build the devcontainer image (cached) |
+| `make up` | Build and start the devcontainer |
+| `make rebuild` | Full rebuild from scratch (no cache) |
+| `make down` | Stop and remove the container |
+| `make shell` | Open a bash shell in the running container |
+| `make exec CMD="..."` | Run a one-off command in the container |
+| `make test` | Build Dockerfile and verify apt-installed tools |
+| `make clean` | Down + prune dangling images |
+| `make renovate-validate` | Validate `renovate.json` config |
+| `make renovate-dry-run` | Dry-run Renovate locally (requires `GITHUB_TOKEN`) |
 
-This means `git clone git@github.com:igou-io/igou-inventory.git` works inside
-the container using your local machine's key, without the key ever being
-copied to the remote host or into the container.
+## SSH Agent Forwarding
 
-**For this chain to work, ensure:**
+**Via Cursor:** The devcontainer bind-mounts `SSH_AUTH_SOCK` from the host into
+the container at `/tmp/ssh-agent.sock`. Cursor handles this when you have
+`ForwardAgent yes` in your SSH config.
+
+**Via Makefile:** The `make up`/`make rebuild` commands detect your
+`SSH_AUTH_SOCK` and pass it via `--mount` and `--remote-env`. If the socket
+doesn't exist (stale agent, different terminal), it's silently skipped — the
+container still starts but private repo cloning will warn.
+
+**For the forwarding chain to work:**
 1. Your local machine has `ssh-agent` running with your key
 2. Your SSH config for the remote host has `ForwardAgent yes`
 3. The host's `sshd_config` has `AllowAgentForwarding yes` (default on most distros)
 
-## How Podman Integration Works
+## Container Tooling
 
-The devcontainer mounts the host's podman socket at `/var/run/docker.sock` inside
-the container. This means:
-
-- `docker build`, `docker push`, etc. work via the Docker CLI — they talk to
-  podman on the host through the socket
-- `podman build`, `buildah bud`, `skopeo copy` also work natively
-- No daemon runs inside the container
-- `--userns=keep-id` ensures your host UID maps correctly into the container
-
-## Using Claude Code
+The container runs in `--privileged` mode, enabling podman to run containers
+natively inside:
 
 ```bash
-cd /workspace/igou-kubernetes
-claude
-
-# Or one-off commands
-claude "explain what this ArgoCD ApplicationSet does"
-claude "add a new app for cert-manager to the apps/ directory"
+podman build -t myimage .
+podman run --rm myimage
+buildah bud -t myimage .
 ```
 
-Running Claude Code inside the devcontainer is a good fit — it gets full access
-to your toolchain in an isolated environment, and you can run it with
-`--dangerously-skip-permissions` more comfortably knowing the blast radius is
-limited to the container.
+Podman is configured with `fuse-overlayfs` for storage and `slirp4netns` for
+rootless networking. Docker CLI is also available via the host socket
+(docker-outside-of-docker Feature).
 
-## Reprovisioning the Host
+## Dependency Management (Renovate)
 
-When you reprovision your mini PC, you need:
+All tool versions are pinned and managed by [Renovate](https://docs.renovatebot.com/):
 
-1. Podman (rootless) + socket enabled + podman-docker
-2. SSH server (with agent forwarding allowed)
-3. Cursor installed
-4. Your credentials (`~/.ssh`, `~/.kube`, etc.)
-5. This repo cloned
+- **Dockerfile base image** — pinned by digest, updated by Renovate's Docker manager
+- **Python packages** — pinned in `.devcontainer/requirements.txt`, updated by `pip_requirements` manager
+- **CLI binaries** — pinned in `post-create.sh` with `# renovate:` comments, updated by a custom regex manager using the `github-releases` datasource
 
+To test Renovate config locally:
 ```bash
-#!/usr/bin/env bash
-set -euo pipefail
-
-# Fedora/RHEL
-sudo dnf install -y podman podman-docker openssh-server
-systemctl --user enable --now podman.socket
-loginctl enable-linger $USER
-
-# Ensure SSH agent forwarding is allowed
-grep -q "AllowAgentForwarding yes" /etc/ssh/sshd_config || \
-    echo "AllowAgentForwarding yes" | sudo tee -a /etc/ssh/sshd_config
-
-mkdir -p ~/.ssh ~/.kube ~/.config/argocd ~/.terraform.d
-
-echo "Host ready. Clone devenv and open with: cursor ~/devenv"
+make renovate-validate                     # validate config syntax
+GITHUB_TOKEN=ghp_... make renovate-dry-run # see what would be updated
 ```
+
+## CI
+
+GitHub Actions builds the devcontainer on every push and PR to `main` using
+[devcontainers/ci](https://github.com/devcontainers/ci). The workflow builds
+the full image (Dockerfile + Features + post-create.sh) and runs tool
+verification inside the container.
 
 ## Customization
 
@@ -174,14 +191,13 @@ echo "Host ready. Clone devenv and open with: cursor ~/devenv"
 
 - **apt packages** → add to `Dockerfile`
 - **Devcontainer Features** → add to `devcontainer.json` `features` block
-- **pip/pipx packages** → add to `post-create.sh`
+- **Python packages** → add to `.devcontainer/requirements.txt` (pinned for Renovate)
+- **CLI binaries from GitHub** → add to `post-create.sh` with a `# renovate:` comment
 - **Cursor extensions** → add to `customizations.vscode.extensions` in `devcontainer.json`
 
 ### 1Password Integration
 
-The 1Password CLI is installed in the container. For workflows that use
-`op run` or `op inject` (like the `1p-envs/ocp.env` pattern from your
-ansible playbook), you'll need to authenticate inside the container:
+The 1Password CLI is installed in the container. Authenticate with:
 ```bash
 eval $(op signin)
 ```
@@ -197,10 +213,25 @@ Credentials are bind-mounted from the host. SSH keys are read-only; kubeconfig
 is read-write for context switching. The container never stores secrets in its
 image layers.
 
-For SOPS/age, mount your age key:
+For SOPS/age, add your age key mount to `devcontainer.json`:
 ```jsonc
-// Add to mounts in devcontainer.json
 "source=${localEnv:HOME}/.config/sops/age,target=/home/vscode/.config/sops/age,type=bind,readonly"
+```
+
+## Reprovisioning the Host
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Fedora/RHEL
+sudo dnf install -y podman podman-docker openssh-server
+systemctl --user enable --now podman.socket
+loginctl enable-linger $USER
+
+mkdir -p ~/.ssh ~/.kube ~/.config/argocd ~/.terraform.d
+
+echo "Host ready. Clone devenv and open with: cursor ~/igou-devenv"
 ```
 
 ## Troubleshooting
@@ -209,16 +240,23 @@ For SOPS/age, mount your age key:
 
 **Private repo clone fails with "Permission denied (publickey)":**
 ```bash
-# Inside the container, check if the agent is reachable:
+# Inside the container:
 ssh-add -l
-# If "Could not open a connection to your authentication agent":
 echo $SSH_AUTH_SOCK
 ls -la /tmp/ssh-agent.sock
 ```
-If the socket file doesn't exist, the agent wasn't forwarded. Check that:
+If the socket doesn't exist, the agent wasn't forwarded. Check that:
 - Your local `ssh-agent` is running and has keys (`ssh-add -l` locally)
 - Your SSH config for the host has `ForwardAgent yes`
 - You started Cursor *after* starting the agent
+
+**Stale SSH_AUTH_SOCK in another terminal:**
+The Makefile validates the socket exists before mounting. If `SSH_AUTH_SOCK`
+points to a dead socket, re-start your agent:
+```bash
+eval "$(ssh-agent -s)"
+ssh-add ~/.ssh/id_ed25519
+```
 
 ### Podman
 
@@ -229,19 +267,11 @@ export XDG_RUNTIME_DIR=/run/user/$(id -u)
 loginctl enable-linger $USER
 ```
 
-**Permission denied on bind mounts:** The `--userns=keep-id` runArg should
-handle this. Verify subuid/subgid: `cat /etc/subuid /etc/subgid`
-
-**SELinux denials:** The `--security-opt label=disable` runArg disables SELinux
-labeling. To keep SELinux enforcing, use `:Z` suffixes on bind mounts instead.
-
 ### Cursor + Devcontainers
 
 **"Reopen in Container" not appearing:** Open command palette (Ctrl+Shift+P) →
 `Dev Containers: Reopen in Container`
 
-**Extension calls `docker` despite `dockerPath` setting:** This is a known bug.
-The `podman-docker` package works around it.
+**Extension calls `docker` despite `dockerPath` setting:** Install `podman-docker`.
 
-**Extensions missing after connecting:** Rebuild the container via command
-palette → **Dev Containers: Rebuild Container**.
+**Extensions missing after connecting:** Command palette → **Dev Containers: Rebuild Container**.

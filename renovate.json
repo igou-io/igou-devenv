@@ -1,0 +1,18 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    "docker:pinDigests"
+  ],
+  "customManagers": [
+    {
+      "description": "Update pinned versions in shell scripts via '# renovate:' comments",
+      "customType": "regex",
+      "managerFilePatterns": ["/\\.sh$/"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: extractVersion=(?<extractVersion>\\S+))?\\n\\w+_VERSION=\"(?<currentValue>[^\"]+)\""
+      ],
+      "versioningTemplate": "semver"
+    }
+  ]
+}

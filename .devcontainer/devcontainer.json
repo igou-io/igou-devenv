@@ -4,5 +4,37 @@
         "dockerfile": "Dockerfile",
         "context": "."
     },
-    "remoteUser": "vscode"
+    "features": {
+        "ghcr.io/devcontainers/features/kubectl-helm-minikube:1": {
+            "minikube": "none"
+        },
+        "ghcr.io/devcontainers/features/node:1": {},
+        "ghcr.io/devcontainers/features/python:1": {
+            "installTools": false
+        },
+        "ghcr.io/devcontainers/features/terraform:1": {},
+        "ghcr.io/devcontainers/features/go:1": {},
+        "ghcr.io/devcontainers/features/github-cli:1": {},
+        "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {},
+        "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {}
+    },
+    "runArgs": [
+        "--privileged"
+    ],
+    "remoteUser": "vscode",
+    "containerUser": "vscode",
+    "containerEnv": {
+        "SSH_AUTH_SOCK": "/tmp/ssh-agent.sock",
+        "HOME": "/home/vscode"
+    },
+    "remoteEnv": {
+        "HOME": "/home/vscode"
+    },
+    "postCreateCommand": ".devcontainer/post-create.sh",
+    "mounts": [
+        "source=${localEnv:HOME}/.ssh,target=/home/vscode/.ssh,type=bind,readonly",
+        "source=${localEnv:HOME}/.kube,target=/home/vscode/.kube,type=bind",
+        "source=${localEnv:HOME}/.config/argocd,target=/home/vscode/.config/argocd,type=bind",
+        "source=${localEnv:HOME}/.terraform.d,target=/home/vscode/.terraform.d,type=bind"
+    ]
 }

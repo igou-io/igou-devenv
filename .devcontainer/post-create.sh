@@ -21,30 +21,10 @@ fi
 git config --global url."git@github.com:".insteadOf "https://github.com/"
 
 # ---------------------------------------------------------------------------
-# Python tools via pipx (matches your ansible playbook approach)
+# Python tools (versions pinned in requirements.txt for Renovate tracking)
 # ---------------------------------------------------------------------------
-echo "==> Installing pipx and Python tools..."
-sudo apt-get update && sudo apt-get install -y --no-install-recommends pipx
-sudo rm -rf /var/lib/apt/lists/*
-
-PIPX_PACKAGES=(
-    ansible
-    ansible-navigator
-    ansible-builder
-    ansible-rulebook
-    ansible-runner
-    ansible-lint
-    awxkit
-    yq
-    mkdocs-material
-)
-for pkg in "${PIPX_PACKAGES[@]}"; do
-    echo "    Installing ${pkg}..."
-    pipx install "${pkg}" --include-deps || echo "    WARNING: Failed to install ${pkg}"
-done
-
-# Inject useful Ansible deps into the ansible venv
-pipx inject ansible kubernetes jmespath || true
+echo "==> Installing Python tools..."
+pip install --break-system-packages -r "$(dirname "$0")/requirements.txt"
 
 # ---------------------------------------------------------------------------
 # 1Password CLI
@@ -58,30 +38,44 @@ sudo apt-get update && sudo apt-get install -y 1password-cli
 sudo rm -rf /var/lib/apt/lists/*
 
 # ---------------------------------------------------------------------------
-# CLI tools — binary installs
+# CLI tools — pinned versions managed by Renovate
 # ---------------------------------------------------------------------------
-echo "==> Installing ArgoCD CLI..."
-ARGOCD_VERSION=$(curl -s https://api.github.com/repos/argoproj/argo-cd/releases/latest | jq -r .tag_name)
+
+# renovate: datasource=github-releases depName=argoproj/argo-cd
+ARGOCD_VERSION="v3.3.0"
+echo "==> Installing ArgoCD CLI ${ARGOCD_VERSION}..."
 curl -sSL -o /tmp/argocd "https://github.com/argoproj/argo-cd/releases/download/${ARGOCD_VERSION}/argocd-linux-${ARCH}"
 chmod +x /tmp/argocd
 sudo mv /tmp/argocd /usr/local/bin/argocd
 
-echo "==> Installing kustomize..."
-curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
-sudo mv kustomize /usr/local/bin/
+# renovate: datasource=github-releases depName=kubernetes-sigs/kustomize extractVersion=^kustomize/(?<version>.*)$
+KUSTOMIZE_VERSION="v5.8.1"
+echo "==> Installing kustomize ${KUSTOMIZE_VERSION}..."
+curl -sSL -o /tmp/kustomize.tar.gz "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2F${KUSTOMIZE_VERSION}/kustomize_${KUSTOMIZE_VERSION}_linux_${ARCH}.tar.gz"
+tar -xzf /tmp/kustomize.tar.gz -C /tmp kustomize
+sudo mv /tmp/kustomize /usr/local/bin/
+rm /tmp/kustomize.tar.gz
 
-echo "==> Installing kubeseal..."
-KUBESEAL_VERSION=$(curl -s https://api.github.com/repos/bitnami-labs/sealed-secrets/releases/latest | jq -r .tag_name | sed 's/v//')
-curl -sSL -o /tmp/kubeseal.tar.gz "https://github.com/bitnami-labs/sealed-secrets/releases/download/v${KUBESEAL_VERSION}/kubeseal-${KUBESEAL_VERSION}-linux-${ARCH}.tar.gz"
+# renovate: datasource=github-releases depName=bitnami-labs/sealed-secrets
+KUBESEAL_VERSION="v0.36.1"
+echo "==> Installing kubeseal ${KUBESEAL_VERSION}..."
+KUBESEAL_VERSION_BARE="${KUBESEAL_VERSION#v}"
+curl -sSL -o /tmp/kubeseal.tar.gz "https://github.com/bitnami-labs/sealed-secrets/releases/download/${KUBESEAL_VERSION}/kubeseal-${KUBESEAL_VERSION_BARE}-linux-${ARCH}.tar.gz"
 tar -xzf /tmp/kubeseal.tar.gz -C /tmp kubeseal
 sudo mv /tmp/kubeseal /usr/local/bin/
 rm /tmp/kubeseal.tar.gz
 
-echo "==> Installing flux CLI..."
-curl -s https://fluxcd.io/install.sh | bash
+# renovate: datasource=github-releases depName=fluxcd/flux2
+FLUX_VERSION="v2.8.3"
+echo "==> Installing flux CLI ${FLUX_VERSION}..."
+curl -sSL -o /tmp/flux.tar.gz "https://github.com/fluxcd/flux2/releases/download/${FLUX_VERSION}/flux_${FLUX_VERSION#v}_linux_${ARCH}.tar.gz"
+tar -xzf /tmp/flux.tar.gz -C /tmp flux
+sudo mv /tmp/flux /usr/local/bin/
+rm /tmp/flux.tar.gz
 
-echo "==> Installing SOPS..."
-SOPS_VERSION=$(curl -s https://api.github.com/repos/getsops/sops/releases/latest | jq -r .tag_name)
+# renovate: datasource=github-releases depName=getsops/sops
+SOPS_VERSION="v3.12.2"
+echo "==> Installing SOPS ${SOPS_VERSION}..."
 curl -sSL -o /tmp/sops "https://github.com/getsops/sops/releases/download/${SOPS_VERSION}/sops-${SOPS_VERSION}.linux.${ARCH}"
 chmod +x /tmp/sops
 sudo mv /tmp/sops /usr/local/bin/sops
@@ -92,27 +86,21 @@ tar -xzf /tmp/oc.tar.gz -C /tmp oc
 sudo mv /tmp/oc /usr/local/bin/
 rm /tmp/oc.tar.gz
 
-echo "==> Installing virtctl..."
-VIRTCTL_VERSION=$(curl -s https://api.github.com/repos/kubevirt/kubevirt/releases/latest | jq -r .tag_name)
+# renovate: datasource=github-releases depName=kubevirt/kubevirt
+VIRTCTL_VERSION="v1.7.2"
+echo "==> Installing virtctl ${VIRTCTL_VERSION}..."
 curl -sSL -o /tmp/virtctl "https://github.com/kubevirt/kubevirt/releases/download/${VIRTCTL_VERSION}/virtctl-${VIRTCTL_VERSION}-linux-${ARCH}"
 chmod +x /tmp/virtctl
 sudo mv /tmp/virtctl /usr/local/bin/virtctl
-
-echo "==> Installing Claude Code (npm)..."
-if command -v npm &> /dev/null; then
-    sudo npm install -g @anthropic-ai/claude-code
-else
-    echo "    npm not found, skipping Claude Code install"
-fi
 
 # ---------------------------------------------------------------------------
 # Clone repos via SSH (requires agent forwarding)
 # ---------------------------------------------------------------------------
 echo "==> Cloning igou-io repos into /workspace..."
 
-# Add GitHub to known_hosts to avoid interactive prompts
-mkdir -p /home/vscode/.ssh
-ssh-keyscan -t ed25519,rsa github.com >> /home/vscode/.ssh/known_hosts 2>/dev/null
+# Add GitHub to global known_hosts to avoid interactive prompts.
+# ~/.ssh is bind-mounted read-only, so write to the system-wide file instead.
+ssh-keyscan -t ed25519,rsa github.com 2>/dev/null | sudo tee -a /etc/ssh/ssh_known_hosts > /dev/null
 
 REPOS=(
     "igou-io/igou-kubernetes"
@@ -169,7 +157,7 @@ cat > /workspace/homelab.code-workspace << 'EOF'
         { "path": "igou-containers" }
     ],
     "settings": {
-        "ansible.python.interpreterPath": "/home/vscode/.local/share/pipx/venvs/ansible/bin/python3",
+        "ansible.python.interpreterPath": "/usr/local/python/current/bin/python3",
         "files.trimTrailingWhitespace": true,
         "files.associations": {
             "**/group_vars/**/*": "jinja-yaml",
