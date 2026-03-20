@@ -23,7 +23,8 @@
     "runArgs": [
         "--privileged",
         "--device=/dev/fuse",
-        "--device=/dev/net/tun"
+        "--device=/dev/net/tun",
+        "--network=host"
     ],
     "remoteUser": "igou",
     "containerUser": "igou",
@@ -37,10 +38,12 @@
     },
     "initializeCommand": ".devcontainer/init.sh",
     "onCreateCommand": {
-        "pip": "pip install --break-system-packages -r .devcontainer/requirements.txt"
+        "pip": "pip install --break-system-packages -r /workspace/igou-devenv/.devcontainer/requirements.txt"
     },
-    "postCreateCommand": ".devcontainer/post-create.sh",
-    "postStartCommand": ".devcontainer/post-start.sh",
+    "postCreateCommand": "/workspace/igou-devenv/.devcontainer/post-create.sh",
+    "postStartCommand": "/workspace/igou-devenv/.devcontainer/post-start.sh",
+    "workspaceMount": "source=${localWorkspaceFolder},target=/workspace/igou-devenv,type=bind",
+    "workspaceFolder": "/workspace",
     "mounts": [
         "source=${localEnv:HOME}/.ssh,target=/home/igou/.ssh,type=bind,readonly",
         "source=${localEnv:HOME}/.kube,target=/home/igou/.kube,type=bind",

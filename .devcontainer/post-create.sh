@@ -74,7 +74,8 @@ BASHRC
         { "path": "igou-kubernetes-private" },
         { "path": "igou-infrastructure" },
         { "path": "igou-openshift" },
-        { "path": "igou-containers" }
+        { "path": "igou-containers" },
+        { "path": "igou-devenv" }
     ]
 }
 EOF

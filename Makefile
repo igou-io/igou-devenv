@@ -4,7 +4,7 @@ WORKSPACE    = $(CURDIR)
 # Resolve SSH agent mount at shell level: only mount if the socket file exists
 SSH_MOUNT = $(shell [ -S "$$SSH_AUTH_SOCK" ] && echo '--mount type=bind,source=$(SSH_AUTH_SOCK),target=/tmp/ssh-agent.sock --remote-env SSH_AUTH_SOCK=/tmp/ssh-agent.sock')
 
-.PHONY: build up down exec shell test test-podman clean rebuild help renovate-validate renovate-dry-run
+.PHONY: build up down restart exec shell test test-podman clean rebuild help renovate-validate renovate-dry-run
 
 ## Build the devcontainer image (with cache)
 build:
@@ -13,6 +13,9 @@ build:
 ## Build and start the devcontainer
 up:
 	$(DEVCONTAINER) up --workspace-folder $(WORKSPACE) $(SSH_MOUNT)
+
+## Restart the devcontainer (recreate without rebuilding image)
+restart: down up
 
 ## Rebuild from scratch (no cache, removes existing container)
 rebuild:
