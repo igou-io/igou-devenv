@@ -7,6 +7,6 @@ ansible-runner==2.4.3
 ansible-lint==26.3.0
 awxkit==24.6.1
 yq==3.4.3
-mkdocs-material==9.7.5
+mkdocs-material==9.7.6
 kubernetes==35.0.0
 jmespath==1.1.0
