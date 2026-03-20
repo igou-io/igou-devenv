@@ -49,6 +49,14 @@ export ANSIBLE_INVENTORY=/workspace/igou-inventory
 export ANSIBLE_HOST_KEY_CHECKING=False
 export PATH=$PATH:/home/igou/.local/bin:/home/igou/bin
 
+# Prompt: user ➜ dir (git branch)
+__git_branch() {
+    local branch
+    branch=$(git symbolic-ref --short HEAD 2>/dev/null)
+    [ -n "$branch" ] && printf ' (%s)' "$branch"
+}
+PS1='\[\e[1;36m\]\u \[\e[1;33m\]➜ \[\e[1;34m\]\w\[\e[0;35m\]$(__git_branch)\[\e[0m\] $ '
+
 # Aliases
 alias k=kubectl
 
