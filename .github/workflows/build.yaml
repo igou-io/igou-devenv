@@ -21,7 +21,6 @@ jobs:
             kubectl version --client
             helm version --short
             terraform version
-            go version
             gh --version
             python3 --version
             node --version

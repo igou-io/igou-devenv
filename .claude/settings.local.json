@@ -24,7 +24,14 @@
       "Bash(curl -sL https://containers.dev/)",
       "Bash(curl -sL https://containers.dev/implementors/json_reference/)",
       "Bash(curl -sL https://containers.dev/implementors/spec/)",
-      "Bash(chmod:*)"
+      "Bash(chmod:*)",
+      "Bash(docker image:*)",
+      "Bash(docker history:*)",
+      "Bash(docker run:*)",
+      "Bash(gh repo:*)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(docker build:*)",
+      "Bash(docker rmi:*)"
     ]
   }
 }

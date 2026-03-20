@@ -1,7 +1,7 @@
 FROM mcr.microsoft.com/devcontainers/base:ubuntu@sha256:8b4bcf1724083458f8be40f620459d8f36f37a6e44ed1f75c75aa49c51850863
 
 # Tools installed via Features (see devcontainer.json):
-#   kubectl, helm, terraform, tflint, go, python, gh, docker-in-docker, claude-code
+#   kubectl, helm, terraform, python, node, gh, docker-outside-of-docker, claude-code
 
 # Additional packages from apt — includes podman/buildah/skopeo for
 # native OCI image workflows alongside the Docker CLI compatibility
@@ -23,7 +23,44 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     openssh-client \
     iputils-ping \
     nfs-common \
-    && rm -rf /var/lib/apt/lists/*
+    adb \
+    dnsutils \
+    file \
+    htop \
+    iperf3 \
+    iozone3 \
+    minicom \
+    rsync \
+    screen \
+    tmux \
+    tftp-hpa \
+    unzip \
+    vim \
+    xorriso \
+    arp-scan \
+    fping \
+    ipmitool \
+    iproute2 \
+    lvm2 \
+    mdadm \
+    mtr-tiny \
+    nmap \
+    netcat-openbsd \
+    parted \
+    python3-netaddr \
+    smartmontools \
+    snmp \
+    socat \
+    strace \
+    sysstat \
+    tcpdump \
+    traceroute \
+    tshark \
+    whois \
+    wireguard-tools \
+    yamllint \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -rf /usr/share/doc /usr/share/man /usr/share/i18n/locales /usr/share/locale
 
 # ---------------------------------------------------------------------------
 # 1Password CLI (installed via apt repo)

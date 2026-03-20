@@ -5,6 +5,9 @@
         "context": "."
     },
     "features": {
+        "ghcr.io/devcontainers/features/git:1": {
+            "version": "os-provided"
+        },
         "ghcr.io/devcontainers/features/kubectl-helm-minikube:1": {
             "minikube": "none"
         },
@@ -13,7 +16,6 @@
             "installTools": false
         },
         "ghcr.io/devcontainers/features/terraform:1": {},
-        "ghcr.io/devcontainers/features/go:1": {},
         "ghcr.io/devcontainers/features/github-cli:1": {},
         "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {},
         "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {}
