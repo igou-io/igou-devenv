@@ -52,17 +52,6 @@ for tool in "${APT_TOOLS[@]}" "${BINARY_TOOLS[@]}"; do
 done
 
 echo ""
-echo "==> Checking /workspace directory exists and is owned by vscode..."
-OWNER=$(podman run --rm "$IMAGE" stat -c '%U' /workspace)
-if [[ "$OWNER" == "vscode" ]]; then
-    echo "  [OK] /workspace owned by vscode"
-    PASS=$((PASS + 1))
-else
-    echo "  [FAIL] /workspace owned by $OWNER (expected vscode)"
-    FAIL=$((FAIL + 1))
-fi
-
-echo ""
 echo "==> Results: $PASS passed, $FAIL failed"
 
 podman rmi "$IMAGE" &>/dev/null

@@ -3,6 +3,12 @@ FROM mcr.microsoft.com/devcontainers/base:ubuntu@sha256:8b4bcf1724083458f8be40f6
 # Tools installed via Features (see devcontainer.json):
 #   kubectl, helm, terraform, python, node, gh, docker-outside-of-docker, claude-code
 
+# Create igou user with UID 1000 to match host, replacing the default vscode user
+RUN userdel -r vscode && \
+    groupadd -g 1000 igou && \
+    useradd -m -s /bin/bash -u 1000 -g 1000 -G sudo igou && \
+    echo "igou ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/igou
+
 # Additional packages from apt — includes podman/buildah/skopeo for
 # native OCI image workflows alongside the Docker CLI compatibility
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -118,13 +124,11 @@ RUN set -eux; \
     chmod +x /usr/local/bin/virtctl
 
 # Configure podman for rootless operation inside a container
-RUN mkdir -p /home/vscode/.config/containers && \
-    echo '[storage]' > /home/vscode/.config/containers/storage.conf && \
-    echo 'driver = "overlay"' >> /home/vscode/.config/containers/storage.conf && \
-    echo '[storage.options.overlay]' >> /home/vscode/.config/containers/storage.conf && \
-    echo 'mount_program = "/usr/bin/fuse-overlayfs"' >> /home/vscode/.config/containers/storage.conf && \
-    chown -R vscode:vscode /home/vscode/.config/containers
+RUN mkdir -p /home/igou/.config/containers && \
+    echo '[storage]' > /home/igou/.config/containers/storage.conf && \
+    echo 'driver = "overlay"' >> /home/igou/.config/containers/storage.conf && \
+    echo '[storage.options.overlay]' >> /home/igou/.config/containers/storage.conf && \
+    echo 'mount_program = "/usr/bin/fuse-overlayfs"' >> /home/igou/.config/containers/storage.conf && \
+    chown -R igou:igou /home/igou/.config/containers
 
-# Create workspace directory for cloning repos
-RUN mkdir -p /workspace && chown vscode:vscode /workspace
 WORKDIR /workspace

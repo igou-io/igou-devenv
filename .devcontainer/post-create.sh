@@ -42,12 +42,12 @@ fi
 if [ -z "${CI:-}" ]; then
     echo "==> Configuring shell..."
 
-    cat >> /home/vscode/.bashrc << 'BASHRC'
+    cat >> /home/igou/.bashrc << 'BASHRC'
 
 # --- igou-io devenv config ---
 export ANSIBLE_INVENTORY=/workspace/igou-inventory
 export ANSIBLE_HOST_KEY_CHECKING=False
-export PATH=$PATH:/home/vscode/.local/bin:/home/vscode/bin
+export PATH=$PATH:/home/igou/.local/bin:/home/igou/bin
 
 # Aliases
 alias k=kubectl

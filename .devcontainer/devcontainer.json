@@ -30,15 +30,15 @@
         "seccomp=unconfined",
         "apparmor=unconfined"
     ],
-    "remoteUser": "vscode",
-    "containerUser": "vscode",
+    "remoteUser": "igou",
+    "containerUser": "igou",
     "containerEnv": {
         "SSH_AUTH_SOCK": "/tmp/ssh-agent.sock",
-        "HOME": "/home/vscode",
+        "HOME": "/home/igou",
         "CI": "${localEnv:CI}"
     },
     "remoteEnv": {
-        "HOME": "/home/vscode"
+        "HOME": "/home/igou"
     },
     "initializeCommand": ".devcontainer/init.sh",
     "onCreateCommand": {
@@ -47,10 +47,11 @@
     "postCreateCommand": ".devcontainer/post-create.sh",
     "postStartCommand": ".devcontainer/post-start.sh",
     "mounts": [
-        "source=${localEnv:HOME}/.ssh,target=/home/vscode/.ssh,type=bind,readonly",
-        "source=${localEnv:HOME}/.kube,target=/home/vscode/.kube,type=bind",
-        "source=${localEnv:HOME}/.config/argocd,target=/home/vscode/.config/argocd,type=bind",
-        "source=${localEnv:HOME}/.terraform.d,target=/home/vscode/.terraform.d,type=bind"
+        "source=${localEnv:HOME}/.ssh,target=/home/igou/.ssh,type=bind,readonly",
+        "source=${localEnv:HOME}/.kube,target=/home/igou/.kube,type=bind",
+        "source=${localEnv:HOME}/.config/argocd,target=/home/igou/.config/argocd,type=bind",
+        "source=${localEnv:HOME}/.terraform.d,target=/home/igou/.terraform.d,type=bind",
+        "source=${localEnv:HOME}/workspace,target=/workspace,type=bind"
     ],
     "customizations": {
         "vscode": {
