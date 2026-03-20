@@ -21,14 +21,9 @@
         "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {}
     },
     "runArgs": [
-        "--cap-add=SYS_ADMIN",
-        "--cap-add=MKNOD",
-        "--cap-add=NET_ADMIN",
-        "--device=/dev/fuse"
-    ],
-    "securityOpt": [
-        "seccomp=unconfined",
-        "apparmor=unconfined"
+        "--privileged",
+        "--device=/dev/fuse",
+        "--device=/dev/net/tun"
     ],
     "remoteUser": "igou",
     "containerUser": "igou",

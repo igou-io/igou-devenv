@@ -129,6 +129,6 @@ RUN mkdir -p /home/igou/.config/containers && \
     echo 'driver = "overlay"' >> /home/igou/.config/containers/storage.conf && \
     echo '[storage.options.overlay]' >> /home/igou/.config/containers/storage.conf && \
     echo 'mount_program = "/usr/bin/fuse-overlayfs"' >> /home/igou/.config/containers/storage.conf && \
-    chown -R igou:igou /home/igou/.config/containers
+    chown -R igou:igou /home/igou/.config
 
 WORKDIR /workspace

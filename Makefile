@@ -4,7 +4,7 @@ WORKSPACE    = $(CURDIR)
 # Resolve SSH agent mount at shell level: only mount if the socket file exists
 SSH_MOUNT = $(shell [ -S "$$SSH_AUTH_SOCK" ] && echo '--mount type=bind,source=$(SSH_AUTH_SOCK),target=/tmp/ssh-agent.sock --remote-env SSH_AUTH_SOCK=/tmp/ssh-agent.sock')
 
-.PHONY: build up down exec shell test clean rebuild help renovate-validate renovate-dry-run
+.PHONY: build up down exec shell test test-podman clean rebuild help renovate-validate renovate-dry-run
 
 ## Build the devcontainer image (with cache)
 build:
@@ -42,6 +42,23 @@ exec:
 ## Build the Dockerfile and check apt-installed tools
 test:
 	./test.sh
+
+## Test podman pull, run, and build inside the devcontainer
+test-podman:
+	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) bash -c ' \
+		set -e; \
+		echo "==> podman pull..."; \
+		podman pull docker.io/library/alpine:latest; \
+		echo "==> podman run..."; \
+		podman run --rm docker.io/library/alpine:latest echo "hello from podman"; \
+		echo "==> podman build..."; \
+		TMP=$$(mktemp -d); \
+		echo "FROM docker.io/library/alpine:latest" > $$TMP/Containerfile; \
+		podman build -t podman-test:local $$TMP; \
+		podman rmi -f podman-test:local docker.io/library/alpine:latest; \
+		rm -rf $$TMP; \
+		echo "==> All podman tests passed" \
+	'
 
 ## Remove the devcontainer and clean up dangling images
 clean: down
