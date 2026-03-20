@@ -40,7 +40,7 @@ RUN curl -sS https://downloads.1password.com/linux/keys/1password.asc | \
 # ---------------------------------------------------------------------------
 
 # renovate: datasource=github-releases depName=argoproj/argo-cd
-ARG ARGOCD_VERSION="v3.3.0"
+ARG ARGOCD_VERSION="v3.3.4"
 # renovate: datasource=github-releases depName=kubernetes-sigs/kustomize extractVersion=^kustomize/(?<version>.*)$
 ARG KUSTOMIZE_VERSION="v5.8.1"
 # renovate: datasource=github-releases depName=bitnami-labs/sealed-secrets
