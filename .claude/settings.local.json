@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(devcontainer:*)",
+      "Bash(make rebuild:*)",
+      "Bash(make up:*)",
+      "Bash(make down:*)",
+      "Bash(echo \"==> With valid SSH_AUTH_SOCK:\")",
+      "Bash(make -n up)",
+      "Bash(echo \"==> With stale SSH_AUTH_SOCK:\")",
+      "Bash(SSH_AUTH_SOCK=/tmp/nonexistent/agent.123 make -n up)",
+      "Bash(echo \"==> With unset SSH_AUTH_SOCK:\")",
+      "Bash(unset SSH_AUTH_SOCK)",
+      "Bash(git config:*)",
+      "WebFetch(domain:github.com)",
+      "WebSearch",
+      "WebFetch(domain:containers.dev)",
+      "Bash(pip index:*)",
+      "Bash(docker manifest:*)",
+      "Bash(skopeo inspect:*)",
+      "WebFetch(domain:docs.renovatebot.com)",
+      "Bash(make renovate-validate:*)",
+      "Bash(make renovate-dry-run:*)",
+      "Bash(curl -sL https://containers.dev/)",
+      "Bash(curl -sL https://containers.dev/implementors/json_reference/)",
+      "Bash(curl -sL https://containers.dev/implementors/spec/)",
+      "Bash(chmod:*)"
+    ]
+  }
+}

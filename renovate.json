@@ -6,11 +6,11 @@
   ],
   "customManagers": [
     {
-      "description": "Update pinned versions in shell scripts via '# renovate:' comments",
+      "description": "Update pinned versions in shell scripts and Dockerfiles via '# renovate:' comments",
       "customType": "regex",
-      "managerFilePatterns": ["/\\.sh$/"],
+      "managerFilePatterns": ["/\\.sh$/", "/Dockerfile$/"],
       "matchStrings": [
-        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: extractVersion=(?<extractVersion>\\S+))?\\n\\w+_VERSION=\"(?<currentValue>[^\"]+)\""
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: extractVersion=(?<extractVersion>\\S+))?\\n(?:ARG )?\\w+_VERSION=\"(?<currentValue>[^\"]+)\""
       ],
       "versioningTemplate": "semver"
     }

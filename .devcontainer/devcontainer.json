@@ -19,7 +19,14 @@
         "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {}
     },
     "runArgs": [
-        "--privileged"
+        "--cap-add=SYS_ADMIN",
+        "--cap-add=MKNOD",
+        "--cap-add=NET_ADMIN",
+        "--device=/dev/fuse"
+    ],
+    "securityOpt": [
+        "seccomp=unconfined",
+        "apparmor=unconfined"
     ],
     "remoteUser": "vscode",
     "containerUser": "vscode",
@@ -31,11 +38,44 @@
     "remoteEnv": {
         "HOME": "/home/vscode"
     },
+    "initializeCommand": ".devcontainer/init.sh",
+    "onCreateCommand": {
+        "pip": "pip install --break-system-packages -r .devcontainer/requirements.txt"
+    },
     "postCreateCommand": ".devcontainer/post-create.sh",
+    "postStartCommand": ".devcontainer/post-start.sh",
     "mounts": [
         "source=${localEnv:HOME}/.ssh,target=/home/vscode/.ssh,type=bind,readonly",
         "source=${localEnv:HOME}/.kube,target=/home/vscode/.kube,type=bind",
         "source=${localEnv:HOME}/.config/argocd,target=/home/vscode/.config/argocd,type=bind",
         "source=${localEnv:HOME}/.terraform.d,target=/home/vscode/.terraform.d,type=bind"
-    ]
+    ],
+    "customizations": {
+        "vscode": {
+            "settings": {
+                "ansible.python.interpreterPath": "/usr/local/python/current/bin/python3",
+                "files.trimTrailingWhitespace": true,
+                "files.associations": {
+                    "**/group_vars/**/*": "jinja-yaml",
+                    "**/host_vars/**/*": "jinja-yaml",
+                    "**/roles/**/*.yml": "ansible",
+                    "**/playbooks/**/*.yml": "ansible",
+                    "**/roles/**/*.yaml": "ansible",
+                    "**/playbooks/**/*.yaml": "ansible",
+                    "ansible.cfg": "ini",
+                    "**/*.yaml": "yaml",
+                    "**/*.yml": "yaml"
+                },
+                "yaml.schemas": {
+                    "kubernetes": [
+                        "igou-kubernetes/apps/**/*.yaml",
+                        "igou-kubernetes/base/**/*.yaml",
+                        "igou-kubernetes/bootstrap/**/*.yaml",
+                        "igou-kubernetes/config/**/*.yaml"
+                    ],
+                    "https://squidfunk.github.io/mkdocs-material/schema.json": "mkdocs.yml"
+                }
+            }
+        }
+    }
 }

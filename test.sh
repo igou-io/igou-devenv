@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Test the devcontainer image build and verify apt-installed tools.
+# Test the devcontainer image build and verify installed tools.
 # Note: devcontainer Features (kubectl, helm, terraform, etc.) are applied by
 # Cursor/the devcontainer CLI at open time and are not tested here.
 set -euo pipefail
@@ -25,12 +25,23 @@ APT_TOOLS=(
     gpg
     tree
     ssh
+    op
+)
+
+BINARY_TOOLS=(
+    argocd
+    kustomize
+    kubeseal
+    flux
+    sops
+    oc
+    virtctl
 )
 
 PASS=0
 FAIL=0
 
-for tool in "${APT_TOOLS[@]}"; do
+for tool in "${APT_TOOLS[@]}" "${BINARY_TOOLS[@]}"; do
     if podman run --rm "$IMAGE" which "$tool" &>/dev/null; then
         echo "  [OK] $tool"
         PASS=$((PASS + 1))

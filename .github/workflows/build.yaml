@@ -12,14 +12,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Create mount directories
-        run: |
-          mkdir -p ~/.ssh ~/.kube ~/.config/argocd ~/.terraform.d
-
       - name: Build devcontainer
         uses: devcontainers/ci@v0.3
-        env:
-          CI: true
         with:
           push: never
           runCmd: |
@@ -38,6 +32,7 @@ jobs:
             kubeseal --version
             flux --version
             sops --version
+            op --version
             virtctl version --client
             podman --version
             buildah --version
