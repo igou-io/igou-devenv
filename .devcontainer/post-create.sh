@@ -131,11 +131,12 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Shell configuration (mirrors your ansible playbook's bashrc setup)
+# Shell configuration and workspace file — skipped in CI
 # ---------------------------------------------------------------------------
-echo "==> Configuring shell..."
+if [ -z "${CI:-}" ]; then
+    echo "==> Configuring shell..."
 
-cat >> /home/vscode/.bashrc << 'BASHRC'
+    cat >> /home/vscode/.bashrc << 'BASHRC'
 
 # --- igou-io devenv config ---
 export ANSIBLE_INVENTORY=/workspace/igou-inventory
@@ -149,11 +150,8 @@ alias k=kubectl
 eval "$(direnv hook bash)"
 BASHRC
 
-# ---------------------------------------------------------------------------
-# Workspace file for Cursor multi-root workspace
-# ---------------------------------------------------------------------------
-echo "==> Writing workspace file..."
-cat > /workspace/homelab.code-workspace << 'EOF'
+    echo "==> Writing workspace file..."
+    cat > /workspace/homelab.code-workspace << 'EOF'
 {
     "folders": [
         { "path": "igou-ansible" },
@@ -190,5 +188,8 @@ cat > /workspace/homelab.code-workspace << 'EOF'
     }
 }
 EOF
+else
+    echo "==> CI detected, skipping shell config and workspace file"
+fi
 
 echo "==> Setup complete!"
