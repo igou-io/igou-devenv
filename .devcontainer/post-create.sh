@@ -57,6 +57,18 @@ __git_branch() {
 }
 PS1='\[\e[1;36m\]\u \[\e[1;33m\]➜ \[\e[1;34m\]\w\[\e[0;35m\]$(__git_branch)\[\e[0m\] $ '
 
+# Auto-heal stale SSH agent sockets (Cursor/VS Code reconnect bug)
+_fix_ssh_auth_sock() {
+    [ -e "${SSH_AUTH_SOCK:-}" ] && ssh-add -l &>/dev/null && return
+    for sock in $(ls -t /tmp/cursor-remote-ssh-auth-*.sock /tmp/vscode-ssh-auth-*.sock /tmp/ssh-*/agent.* 2>/dev/null); do
+        if SSH_AUTH_SOCK="$sock" ssh-add -l &>/dev/null; then
+            export SSH_AUTH_SOCK="$sock"
+            return
+        fi
+    done
+}
+PROMPT_COMMAND="_fix_ssh_auth_sock${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
+
 # Aliases
 alias k=kubectl
 
@@ -75,7 +87,9 @@ BASHRC
         { "path": "igou-infrastructure" },
         { "path": "igou-openshift" },
         { "path": "igou-containers" },
-        { "path": "igou-devenv" }
+        { "path": "igou-devenv" },
+        { "path": "rosa-gitops" },
+        { "path": "rosa-gitops-example-team" }
     ]
 }
 EOF

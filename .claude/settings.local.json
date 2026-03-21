@@ -31,7 +31,8 @@
       "Bash(gh repo:*)",
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(docker build:*)",
-      "Bash(docker rmi:*)"
+      "Bash(docker rmi:*)",
+      "WebFetch(domain:forum.cursor.com)"
     ]
   }
 }

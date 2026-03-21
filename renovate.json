@@ -2,8 +2,13 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended",
-    "docker:pinDigests"
+    "docker:pinDigests",
+    "group:all",
+    ":automergePr",
+    "schedule:weekly"
   ],
+  "schedule": ["before 1am on sunday"],
+  "separateMajorMinor": false,
   "customManagers": [
     {
       "description": "Update pinned versions in shell scripts and Dockerfiles via '# renovate:' comments",
