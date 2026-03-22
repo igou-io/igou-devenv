@@ -90,9 +90,21 @@ use() {
         ls "${envdir}"/*.env 2>/dev/null | xargs -n1 basename | sed 's/\.env$//'
         return 1
     fi
-    # If env references a kubeconfig, write it to a temp file
+    # Prevent stacking the same env twice (e.g. aws/aws/aws)
+    if [[ ",${OP_ENV_LIST:-}," == *",${1},"* ]]; then
+        echo "Environment '${1}' is already active"
+        return 1
+    fi
+    # Block if a kubeconfig env is already active
     local kubeconfig_ref
     kubeconfig_ref=$(grep '^KUBECONFIG_DATA=' "$envfile" | cut -d= -f2)
+    if [ -n "$kubeconfig_ref" ] && [ -n "${KUBECONFIG:-}" ]; then
+        echo "A kubeconfig environment is already active (${OP_ENV})"
+        echo "Exit the current environment first, or use k8s-unset"
+        return 1
+    fi
+    local new_env="${OP_ENV:+${OP_ENV}/}${1}"
+    local new_list="${OP_ENV_LIST:+${OP_ENV_LIST},}${1}"
     if [ -n "$kubeconfig_ref" ]; then
         local tmpkube tmpenv
         tmpkube=$(mktemp /tmp/kubeconfig.XXXXXX)
@@ -100,10 +112,10 @@ use() {
         op read "$kubeconfig_ref" | base64 -d > "$tmpkube"
         # Strip KUBECONFIG_DATA so it's not exposed as an env var
         grep -v '^KUBECONFIG_DATA=' "$envfile" > "$tmpenv"
-        OP_ENV="$new_env" KUBECONFIG="$tmpkube" op run --env-file="$tmpenv" -- bash
+        OP_ENV="$new_env" OP_ENV_LIST="$new_list" KUBECONFIG="$tmpkube" op run --env-file="$tmpenv" -- bash
         rm -f "$tmpkube" "$tmpenv"
     else
-        OP_ENV="$new_env" op run --env-file="$envfile" -- bash
+        OP_ENV="$new_env" OP_ENV_LIST="$new_list" op run --env-file="$envfile" -- bash
     fi
 }
 
@@ -129,9 +141,16 @@ awx job_templates list
 use k8s-serviceaccount
 ansible-playbook deploy.yml
 
-# Stack environments
+# Stack environments (different envs only)
 use k3s                 # k8s context
 use aap-homelab         # now has k8s + aap vars
+
+# Duplicate envs are rejected
+use k3s                 # "Environment 'k3s' is already active"
+
+# Two kubeconfig envs cannot be stacked
+use k3s                 # sets KUBECONFIG
+use openshift           # "A kubeconfig environment is already active (k3s)"
 
 # Clear k8s context mid-session for SA testing
 k8s-unset
