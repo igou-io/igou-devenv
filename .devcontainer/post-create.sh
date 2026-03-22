@@ -49,27 +49,19 @@ export ANSIBLE_INVENTORY=/workspace/igou-inventory
 export ANSIBLE_HOST_KEY_CHECKING=False
 export PATH=$PATH:/home/igou/.local/bin:/home/igou/bin
 
-# Record base shell level so the prompt only shows depth from use() subshells.
-# Only set if not inherited from a use() parent (OP_ENV indicates a use() subshell).
-[ -z "${OP_ENV:-}" ] && export _BASE_SHLVL="$SHLVL"
-
-# Prompt: user (env) [depth] ➜ dir (git branch)
+# Prompt: user (env) ➜ dir (git branch)
 __prompt_command() {
     local exit_code=$?
     local reset='\e[0m' cyan='\e[1;36m' yellow='\e[1;33m' blue='\e[1;34m' purple='\e[0;35m' green='\e[1;32m'
-    local ps1_prefix=""
+    local env_info=""
     if [ -n "${OP_ENV:-}" ]; then
-        ps1_prefix+=" \[$green\](${OP_ENV})\[$reset\]"
-    fi
-    local depth=$(( SHLVL - ${_BASE_SHLVL:-SHLVL} ))
-    if [ "$depth" -gt 0 ]; then
-        ps1_prefix+=" \[$yellow\][+${depth}]\[$reset\]"
+        env_info=" \[$green\](${OP_ENV})\[$reset\]"
     fi
     local branch
     branch=$(git symbolic-ref --short HEAD 2>/dev/null)
     local git_info=""
     [ -n "$branch" ] && git_info=" \[$purple\]($branch)\[$reset\]"
-    PS1="${ps1_prefix:+${ps1_prefix} }\[$cyan\]\u \[$yellow\]➜ \[$blue\]\w${git_info}\[$reset\] \$ "
+    PS1="\[$cyan\]\u${env_info} \[$yellow\]➜ \[$blue\]\w${git_info}\[$reset\] \$ "
     return $exit_code
 }
 PROMPT_COMMAND="__prompt_command${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
