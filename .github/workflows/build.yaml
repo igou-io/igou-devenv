@@ -16,4 +16,4 @@ jobs:
         uses: devcontainers/ci@v0.3
         with:
           push: never
-          runCmd: ./test-tools.sh
+          runCmd: /workspace/igou-devenv/test-tools.sh
