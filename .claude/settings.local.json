@@ -32,7 +32,8 @@
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(docker build:*)",
       "Bash(docker rmi:*)",
-      "WebFetch(domain:forum.cursor.com)"
+      "WebFetch(domain:forum.cursor.com)",
+      "WebFetch(domain:developer.1password.com)"
     ]
   }
 }

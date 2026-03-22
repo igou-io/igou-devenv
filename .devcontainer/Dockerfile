@@ -3,8 +3,11 @@ FROM mcr.microsoft.com/devcontainers/base:ubuntu@sha256:8b4bcf1724083458f8be40f6
 # Tools installed via Features (see devcontainer.json):
 #   kubectl, helm, terraform, python, node, gh, docker-outside-of-docker, claude-code
 
-# Create igou user with UID 1000 to match host, replacing the default vscode user
-RUN userdel -r vscode && \
+# Create igou user with UID 1000 to match host.
+# Reassign vscode (UID 1000 in base image) to a different UID first, then create igou.
+# vscode is kept because Cursor/VS Code reference it from base image metadata.
+RUN usermod -u 65534 -o vscode && \
+    groupmod -g 65534 -o vscode && \
     groupadd -g 1000 igou && \
     useradd -m -s /bin/bash -u 1000 -g 1000 -G sudo igou && \
     echo "igou ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/igou

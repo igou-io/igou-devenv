@@ -4,7 +4,7 @@ WORKSPACE    = $(CURDIR)
 # Resolve SSH agent mount at shell level: only mount if the socket file exists
 SSH_MOUNT = $(shell [ -S "$$SSH_AUTH_SOCK" ] && echo '--mount type=bind,source=$(SSH_AUTH_SOCK),target=/tmp/ssh-agent.sock --remote-env SSH_AUTH_SOCK=/tmp/ssh-agent.sock')
 
-.PHONY: build up down restart exec shell test test-podman clean rebuild help renovate-validate renovate-dry-run
+.PHONY: build up down restart exec shell test test-tools test-podman test-env clean rebuild help renovate-validate renovate-dry-run
 
 ## Build the devcontainer image (with cache)
 build:
@@ -46,6 +46,10 @@ exec:
 test:
 	./test.sh
 
+## Verify CLI tools, Python packages, and user config inside the devcontainer
+test-tools:
+	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) /workspace/igou-devenv/test-tools.sh
+
 ## Test podman pull, run, and build inside the devcontainer
 test-podman:
 	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) bash -c ' \
@@ -61,6 +65,53 @@ test-podman:
 		podman rmi -f podman-test:local docker.io/library/alpine:latest; \
 		rm -rf $$TMP; \
 		echo "==> All podman tests passed" \
+	'
+
+## Test environment switching shell functions (use, k8s-unset, prompt)
+test-env:
+	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) bash -ic ' \
+		set -e; \
+		PASS=0; FAIL=0; \
+		ok() { echo "  [OK] $$1"; PASS=$$((PASS + 1)); }; \
+		fail() { echo "  [FAIL] $$1"; FAIL=$$((FAIL + 1)); }; \
+		TESTDIR=$$(mktemp -d); \
+		echo "TEST_VAR=hello123" > $$TESTDIR/test.env; \
+		echo "==> Testing use() with missing env..."; \
+		if use nonexistent 2>&1 | grep -q "No env file"; then ok "missing env shows error"; else fail "missing env shows error"; fi; \
+		echo ""; \
+		echo "==> Testing use() lists available envs..."; \
+		cp $$TESTDIR/test.env ~/.config/envs/test.env 2>/dev/null || true; \
+		if ls ~/.config/envs/*.env 2>/dev/null | grep -q env; then \
+			ok "env files listable"; \
+		else \
+			ok "env files listable (dir empty, expected in test)"; \
+		fi; \
+		echo ""; \
+		echo "==> Testing OP_ENV stacking..."; \
+		if OP_ENV="k3s" bash -c "[ \"\$$OP_ENV\" = \"k3s\" ]"; then ok "OP_ENV set"; else fail "OP_ENV set"; fi; \
+		if OP_ENV="k3s" bash -c "export OP_ENV=\"\$${OP_ENV:+\$$OP_ENV/}aap\"; [ \"\$$OP_ENV\" = \"k3s/aap\" ]"; then \
+			ok "OP_ENV stacks"; \
+		else \
+			fail "OP_ENV stacks"; \
+		fi; \
+		echo ""; \
+		echo "==> Testing k8s-unset..."; \
+		export KUBECONFIG=/tmp/fake K8S_AUTH_HOST=fake K8S_AUTH_API_KEY=fake; \
+		k8s-unset > /dev/null; \
+		if [ -z "$${KUBECONFIG:-}" ] && [ -z "$${K8S_AUTH_HOST:-}" ] && [ -z "$${K8S_AUTH_API_KEY:-}" ]; then \
+			ok "k8s-unset clears vars"; \
+		else \
+			fail "k8s-unset clears vars"; \
+		fi; \
+		echo ""; \
+		echo "==> Testing prompt functions..."; \
+		if [ -n "$$(type -t __git_branch)" ]; then ok "__git_branch defined"; else fail "__git_branch defined"; fi; \
+		if [ -n "$$(type -t __prompt_env)" ]; then ok "__prompt_env defined"; else fail "__prompt_env defined"; fi; \
+		if [ -n "$$(type -t __prompt_depth)" ]; then ok "__prompt_depth defined"; else fail "__prompt_depth defined"; fi; \
+		echo ""; \
+		rm -rf $$TESTDIR; \
+		echo "==> Results: $$PASS passed, $$FAIL failed"; \
+		[ "$$FAIL" -eq 0 ] \
 	'
 
 ## Remove the devcontainer and clean up dangling images

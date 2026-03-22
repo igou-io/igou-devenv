@@ -45,10 +45,14 @@
     "workspaceMount": "source=${localWorkspaceFolder},target=/workspace/igou-devenv,type=bind",
     "workspaceFolder": "/workspace",
     "mounts": [
+        "source=${localEnv:HOME}/.claude,target=/home/igou/.claude,type=bind",
+        "source=${localEnv:HOME}/.claude.json,target=/home/igou/.claude.json,type=bind",
         "source=${localEnv:HOME}/.ssh,target=/home/igou/.ssh,type=bind,readonly",
         "source=${localEnv:HOME}/.kube,target=/home/igou/.kube,type=bind",
         "source=${localEnv:HOME}/.config/argocd,target=/home/igou/.config/argocd,type=bind",
         "source=${localEnv:HOME}/.terraform.d,target=/home/igou/.terraform.d,type=bind",
+        "source=${localEnv:HOME}/.config/op,target=/home/igou/.config/op,type=bind,readonly",
+        "source=${localEnv:HOME}/.config/envs,target=/home/igou/.config/envs,type=bind,readonly",
         "source=${localEnv:HOME}/workspace,target=/workspace,type=bind",
         "source=${localEnv:HOME}/rosa-gitops,target=/workspace/rosa-gitops,type=bind",
         "source=${localEnv:HOME}/rosa-gitops-example-team,target=/workspace/rosa-gitops-example-team,type=bind"

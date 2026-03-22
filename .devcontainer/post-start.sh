@@ -47,3 +47,14 @@ fi
 
 # Always use SSH for GitHub so forwarded keys work
 git config --global url."git@github.com:".insteadOf "https://github.com/"
+
+# ---------------------------------------------------------------------------
+# Restore Claude Code config if missing (backup lives in mounted ~/.claude/)
+# ---------------------------------------------------------------------------
+if [ ! -f "$HOME/.claude.json" ] && [ -d "$HOME/.claude/backups" ]; then
+    BACKUP=$(ls -t "$HOME/.claude/backups/.claude.json.backup."* 2>/dev/null | head -1)
+    if [ -n "$BACKUP" ]; then
+        cp "$BACKUP" "$HOME/.claude.json"
+        echo "==> Restored Claude config from backup"
+    fi
+fi

@@ -16,23 +16,4 @@ jobs:
         uses: devcontainers/ci@v0.3
         with:
           push: never
-          runCmd: |
-            echo "==> Verifying tools..."
-            kubectl version --client
-            helm version --short
-            terraform version
-            gh --version
-            python3 --version
-            node --version
-            claude --version
-            ansible --version
-            argocd version --client --short
-            kustomize version
-            kubeseal --version
-            flux --version
-            sops --version
-            op --version
-            virtctl version --client
-            podman --version
-            buildah --version
-            skopeo --version
+          runCmd: ./test-tools.sh
