@@ -16,12 +16,20 @@ echo "  test-podman"
 echo "========================================="
 "$DIR/test-podman.sh"
 
-echo ""
-echo "========================================="
-echo "  test-env"
-echo "========================================="
-# test-env requires interactive shell for .bashrc functions
-bash -i "$DIR/test-env.sh"
+if [ -z "${CI:-}" ]; then
+    echo ""
+    echo "========================================="
+    echo "  test-env"
+    echo "========================================="
+    # test-env requires interactive shell for .bashrc functions
+    # Skipped in CI — post-create.sh only configures shell outside CI
+    bash -i "$DIR/test-env.sh"
+else
+    echo ""
+    echo "========================================="
+    echo "  test-env (skipped in CI)"
+    echo "========================================="
+fi
 
 echo ""
 echo "========================================="
