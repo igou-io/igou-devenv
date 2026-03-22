@@ -92,10 +92,16 @@ else
     fail "whoami is igou (got $(whoami))"
 fi
 
-if [ "$(id -u)" = "1000" ]; then
-    ok "UID is 1000"
+if [ "$(id -u)" != "0" ]; then
+    ok "UID is non-root ($(id -u))"
 else
-    fail "UID is 1000 (got $(id -u))"
+    fail "UID is non-root (got 0)"
+fi
+
+if [ "$(stat -c %u /home/igou)" = "$(id -u)" ]; then
+    ok "home dir owned by current UID"
+else
+    fail "home dir owned by current UID (dir=$(stat -c %u /home/igou), user=$(id -u))"
 fi
 
 if sudo -n true 2>/dev/null; then

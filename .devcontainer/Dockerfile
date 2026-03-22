@@ -3,7 +3,8 @@ FROM mcr.microsoft.com/devcontainers/base:ubuntu@sha256:8b4bcf1724083458f8be40f6
 # Tools installed via Features (see devcontainer.json):
 #   kubectl, helm, terraform, python, node, gh, docker-outside-of-docker, claude-code
 
-# Create igou user with UID 1000 to match host.
+# Create igou user. UID 1000 is a conventional default; the devcontainer runtime's
+# updateRemoteUserUID remaps it to match the host user at startup.
 # Reassign vscode (UID 1000 in base image) to a different UID first, then create igou.
 # vscode is kept because Cursor/VS Code reference it from base image metadata.
 RUN usermod -u 65534 -o vscode && \
