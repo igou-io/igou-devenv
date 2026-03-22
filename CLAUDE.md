@@ -18,8 +18,8 @@ This repo is a reproducible development environment for homelab infrastructure w
 └── requirements.txt     # Pinned Python packages (Ansible ecosystem, yq, mkdocs-material)
 envs/                    # 1Password env files (op:// references only, no secrets) for use() function
 Makefile                 # Devcontainer lifecycle: build, up, down, shell, test, renovate targets
+test-tools.sh            # Shared test script: verifies CLI tools, Python packages, user config (used by make test-tools and CI)
 renovate.json            # Renovate config with custom regex manager for Dockerfile ARGs and shell script version pins
-test.sh                  # Dockerfile-only build test verifying apt and binary-installed tools
 .github/workflows/build.yaml  # CI: builds full devcontainer on push/PR via devcontainers/ci
 ```
 
@@ -56,10 +56,18 @@ make rebuild            # Full rebuild from scratch (no cache)
 make down               # Stop and remove the container
 make shell              # Open bash shell in running container
 make exec CMD="..."     # Run a one-off command in the container
-make test               # Build Dockerfile and verify apt + binary tools
+make test               # Run all tests (alias for test-all)
+make test-all           # Run all tests (test-tools, test-podman, test-env)
+make test-tools         # Verify CLI tools, Python packages, and user config
+make test-podman        # Test podman pull, run, and build
+make test-env           # Test environment switching functions
 make renovate-validate  # Validate renovate.json config
 GITHUB_TOKEN=... make renovate-dry-run  # Dry-run Renovate locally
 ```
+
+## Pre-push Requirements
+
+**Do not push changes to the remote unless `make rebuild` followed by `make test` passes locally**, unless the user explicitly asks to push anyway. This ensures CLI tools, podman, and environment switching all work before changes reach `main`.
 
 ## Linting
 

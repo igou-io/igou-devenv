@@ -4,7 +4,8 @@ WORKSPACE    = $(CURDIR)
 # Resolve SSH agent mount at shell level: only mount if the socket file exists
 SSH_MOUNT = $(shell [ -S "$$SSH_AUTH_SOCK" ] && echo '--mount type=bind,source=$(SSH_AUTH_SOCK),target=/tmp/ssh-agent.sock --remote-env SSH_AUTH_SOCK=/tmp/ssh-agent.sock')
 
-.PHONY: build up down restart exec shell test test-tools test-podman test-env clean rebuild help renovate-validate renovate-dry-run
+.PHONY: build up down restart exec shell test test-all test-tools test-podman test-env clean rebuild help renovate-validate renovate-dry-run
+
 
 ## Build the devcontainer image (with cache)
 build:
@@ -42,9 +43,11 @@ shell:
 exec:
 	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) $(CMD)
 
-## Build the Dockerfile and check apt-installed tools
-test:
-	./test.sh
+## Run all tests (tools, podman, env)
+test-all: test-tools test-podman test-env
+
+## Alias for test-all
+test: test-all
 
 ## Verify CLI tools, Python packages, and user config inside the devcontainer
 test-tools:
