@@ -18,7 +18,8 @@ This repo is a reproducible development environment for homelab infrastructure w
 └── requirements.txt     # Pinned Python packages (Ansible ecosystem, yq, mkdocs-material)
 envs/                    # 1Password env files (op:// references only, no secrets) for use() function
 Makefile                 # Devcontainer lifecycle: build, up, down, shell, test, renovate targets
-test-tools.sh            # Shared test script: verifies CLI tools, Python packages, user config (used by make test-tools and CI)
+tests/
+└── test-tools.sh        # Shared test script: verifies CLI tools, Python packages, user config (used by make test-tools and CI)
 renovate.json            # Renovate config with custom regex manager for Dockerfile ARGs and shell script version pins
 .github/workflows/build.yaml  # CI: builds full devcontainer on push/PR via devcontainers/ci
 ```

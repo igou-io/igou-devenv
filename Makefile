@@ -51,7 +51,7 @@ test: test-all
 
 ## Verify CLI tools, Python packages, and user config inside the devcontainer
 test-tools:
-	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) /workspace/igou-devenv/test-tools.sh
+	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) /workspace/igou-devenv/tests/test-tools.sh
 
 ## Test podman pull, run, and build inside the devcontainer
 test-podman:
