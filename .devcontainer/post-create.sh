@@ -49,19 +49,30 @@ export ANSIBLE_INVENTORY=/workspace/igou-inventory
 export ANSIBLE_HOST_KEY_CHECKING=False
 export PATH=$PATH:/home/igou/.local/bin:/home/igou/bin
 
+# Record base shell level so the prompt only shows depth from use() subshells.
+# Only set if not inherited from a use() parent (OP_ENV indicates a use() subshell).
+[ -z "${OP_ENV:-}" ] && export _BASE_SHLVL="$SHLVL"
+
 # Prompt: user (env) [depth] ➜ dir (git branch)
-__git_branch() {
+__prompt_command() {
+    local exit_code=$?
+    local reset='\e[0m' cyan='\e[1;36m' yellow='\e[1;33m' blue='\e[1;34m' purple='\e[0;35m' green='\e[1;32m'
+    local ps1_prefix=""
+    if [ -n "${OP_ENV:-}" ]; then
+        ps1_prefix+=" \[$green\](${OP_ENV})\[$reset\]"
+    fi
+    local depth=$(( SHLVL - ${_BASE_SHLVL:-SHLVL} ))
+    if [ "$depth" -gt 0 ]; then
+        ps1_prefix+=" \[$yellow\][+${depth}]\[$reset\]"
+    fi
     local branch
     branch=$(git symbolic-ref --short HEAD 2>/dev/null)
-    [ -n "$branch" ] && printf ' (%s)' "$branch"
+    local git_info=""
+    [ -n "$branch" ] && git_info=" \[$purple\]($branch)\[$reset\]"
+    PS1="${ps1_prefix:+${ps1_prefix} }\[$cyan\]\u \[$yellow\]➜ \[$blue\]\w${git_info}\[$reset\] \$ "
+    return $exit_code
 }
-__prompt_env() {
-    [ -n "${OP_ENV:-}" ] && printf ' \[\e[1;32m\](%s)\[\e[0m\]' "$OP_ENV"
-}
-__prompt_depth() {
-    [ "${SHLVL:-1}" -gt 1 ] && printf ' \[\e[0;33m\][%s]\[\e[0m\]' "$SHLVL"
-}
-PS1='$(__prompt_env)$(__prompt_depth) \[\e[1;36m\]\u \[\e[1;33m\]➜ \[\e[1;34m\]\w\[\e[0;35m\]$(__git_branch)\[\e[0m\] $ '
+PROMPT_COMMAND="__prompt_command${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
 
 # Auto-heal stale SSH agent sockets (Cursor/VS Code reconnect bug)
 _fix_ssh_auth_sock() {
@@ -92,11 +103,14 @@ use() {
     local kubeconfig_ref
     kubeconfig_ref=$(grep '^KUBECONFIG_DATA=' "$envfile" | cut -d= -f2)
     if [ -n "$kubeconfig_ref" ]; then
-        local tmpkube
+        local tmpkube tmpenv
         tmpkube=$(mktemp /tmp/kubeconfig.XXXXXX)
-        op read "$kubeconfig_ref" > "$tmpkube"
-        OP_ENV="$new_env" KUBECONFIG="$tmpkube" op run --env-file="$envfile" -- bash
-        rm -f "$tmpkube"
+        tmpenv=$(mktemp /tmp/env.XXXXXX)
+        op read "$kubeconfig_ref" | base64 -d > "$tmpkube"
+        # Strip KUBECONFIG_DATA from env file so it's not exposed as an env var
+        grep -v '^KUBECONFIG_DATA=' "$envfile" > "$tmpenv"
+        OP_ENV="$new_env" KUBECONFIG="$tmpkube" op run --env-file="$tmpenv" -- bash
+        rm -f "$tmpkube" "$tmpenv"
     else
         OP_ENV="$new_env" op run --env-file="$envfile" -- bash
     fi

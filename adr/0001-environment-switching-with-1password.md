@@ -41,7 +41,18 @@ Use 1Password CLI (`op run`) with per-environment `.env` files containing secret
 
 ### Secret reference format
 
-`.env` files contain only `op://` references, never plaintext secrets:
+`.env` files contain only `op://` references, never plaintext secrets.
+
+`KUBECONFIG_DATA` is a special key: its value is a base64-encoded kubeconfig stored in
+1Password (since 1Password does not support multi-line secrets). The `use()` function
+fetches it via `op read`, decodes it with `base64 -d`, and writes it to a temp file
+that `KUBECONFIG` points to. The `KUBECONFIG_DATA` line is stripped from the env file
+before `op run` so the raw content is never exposed as an environment variable.
+
+To store a kubeconfig in 1Password:
+```bash
+base64 -w0 < ~/.kube/config   # copy the output into the 1Password field
+```
 
 ```bash
 # Example: k3s.env
@@ -82,13 +93,16 @@ use() {
     local kubeconfig_ref
     kubeconfig_ref=$(grep '^KUBECONFIG_DATA=' "$envfile" | cut -d= -f2)
     if [ -n "$kubeconfig_ref" ]; then
-        local tmpkube
+        local tmpkube tmpenv
         tmpkube=$(mktemp /tmp/kubeconfig.XXXXXX)
-        op read "$kubeconfig_ref" > "$tmpkube"
-        KUBECONFIG="$tmpkube" op run --env-file="$envfile" -- bash
-        rm -f "$tmpkube"
+        tmpenv=$(mktemp /tmp/env.XXXXXX)
+        op read "$kubeconfig_ref" | base64 -d > "$tmpkube"
+        # Strip KUBECONFIG_DATA so it's not exposed as an env var
+        grep -v '^KUBECONFIG_DATA=' "$envfile" > "$tmpenv"
+        OP_ENV="$new_env" KUBECONFIG="$tmpkube" op run --env-file="$tmpenv" -- bash
+        rm -f "$tmpkube" "$tmpenv"
     else
-        op run --env-file="$envfile" -- bash
+        OP_ENV="$new_env" op run --env-file="$envfile" -- bash
     fi
 }
 
@@ -128,10 +142,10 @@ Secrets are stored in 1Password with a consistent naming convention:
 
 ```
 Vault: Homelab
-├── k3s/kubeconfig              # kubeconfig file content
+├── k3s/kubeconfig              # base64-encoded kubeconfig
 ├── k3s-aws/access-key          # AWS access key ID
 ├── k3s-aws/secret-key          # AWS secret access key
-├── openshift/kubeconfig
+├── openshift/kubeconfig         # base64-encoded kubeconfig
 ├── openshift-aws/access-key
 ├── openshift-aws/secret-key
 ├── aap-homelab/hostname        # https://controller.example.com
@@ -161,7 +175,7 @@ The `op` CLI authenticates via `OP_SERVICE_ACCOUNT_TOKEN`, which is stored at `~
 
 - Requires 1Password service account with access to all referenced vaults
 - Each `use` invocation spawns a subshell — nested environments add shell depth
-- Kubeconfig-as-file requires `op read` + temp file since `kubectl` expects a file path, not env var content
+- Kubeconfig-as-file requires `op read` + `base64 -d` + temp file since `kubectl` expects a file path and 1Password doesn't support multi-line secrets
 - Service account token must be present on the host at `~/.config/op/service-account-token`
 
 ### Security considerations

@@ -105,9 +105,8 @@ test-env:
 		fi; \
 		echo ""; \
 		echo "==> Testing prompt functions..."; \
-		if [ -n "$$(type -t __git_branch)" ]; then ok "__git_branch defined"; else fail "__git_branch defined"; fi; \
-		if [ -n "$$(type -t __prompt_env)" ]; then ok "__prompt_env defined"; else fail "__prompt_env defined"; fi; \
-		if [ -n "$$(type -t __prompt_depth)" ]; then ok "__prompt_depth defined"; else fail "__prompt_depth defined"; fi; \
+		if [ -n "$$(type -t __prompt_command)" ]; then ok "__prompt_command defined"; else fail "__prompt_command defined"; fi; \
+		if echo "$$PROMPT_COMMAND" | grep -q __prompt_command; then ok "PROMPT_COMMAND set"; else fail "PROMPT_COMMAND set"; fi; \
 		echo ""; \
 		rm -rf $$TESTDIR; \
 		echo "==> Results: $$PASS passed, $$FAIL failed"; \
