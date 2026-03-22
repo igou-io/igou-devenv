@@ -98,6 +98,8 @@ ARG FLUX_VERSION="v2.8.3"
 ARG SOPS_VERSION="v3.12.2"
 # renovate: datasource=github-releases depName=kubevirt/kubevirt
 ARG VIRTCTL_VERSION="v1.7.2"
+# renovate: datasource=github-releases depName=yannh/kubeconform
+ARG KUBECONFORM_VERSION="v0.6.7"
 
 RUN set -eux; \
     ARCH=$(dpkg --print-architecture); \
@@ -125,7 +127,10 @@ RUN set -eux; \
     # virtctl
     curl -sSL -o /usr/local/bin/virtctl \
       "https://github.com/kubevirt/kubevirt/releases/download/${VIRTCTL_VERSION}/virtctl-${VIRTCTL_VERSION}-linux-${ARCH}" && \
-    chmod +x /usr/local/bin/virtctl
+    chmod +x /usr/local/bin/virtctl; \
+    # kubeconform
+    curl -sSL "https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/kubeconform-linux-${ARCH}.tar.gz" \
+      | tar -xz -C /usr/local/bin kubeconform
 
 # Configure podman for rootless operation inside a container
 RUN mkdir -p /home/igou/.config/containers && \
