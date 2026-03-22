@@ -12,8 +12,8 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Build devcontainer
+      - name: Build and test devcontainer
         uses: devcontainers/ci@v0.3
         with:
           push: never
-          runCmd: /workspace/igou-devenv/tests/test-tools.sh
+          runCmd: /workspace/igou-devenv/tests/run-all.sh
