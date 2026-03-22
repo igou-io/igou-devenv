@@ -125,6 +125,16 @@ k8s-unset() {
     echo "Kubernetes vars unset"
 }
 
+# Re-enable Cursor/VS Code shell integration in subshells (use() spawns child bash)
+if [ "$TERM_PROGRAM" = "vscode" ]; then
+    _si_path=""
+    for _cmd in cursor code; do
+        _si_path=$($_cmd --locate-shell-integration-path bash 2>/dev/null) && break
+    done
+    [ -n "$_si_path" ] && . "$_si_path"
+    unset _si_path _cmd
+fi
+
 # Aliases
 alias k=kubectl
 
