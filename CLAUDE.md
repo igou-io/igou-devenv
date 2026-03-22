@@ -16,6 +16,7 @@ This repo is a reproducible development environment for homelab infrastructure w
 ├── post-create.sh       # Clones repos via SSH, configures shell, writes workspace file
 ├── post-start.sh        # SSH agent forwarding check (runs every container start)
 └── requirements.txt     # Pinned Python packages (Ansible ecosystem, yq, mkdocs-material)
+envs/                    # 1Password env files (op:// references only, no secrets) for use() function
 Makefile                 # Devcontainer lifecycle: build, up, down, shell, test, renovate targets
 renovate.json            # Renovate config with custom regex manager for Dockerfile ARGs and shell script version pins
 test.sh                  # Dockerfile-only build test verifying apt and binary-installed tools

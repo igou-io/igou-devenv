@@ -32,7 +32,7 @@ Use 1Password CLI (`op run`) with per-environment `.env` files containing secret
 ### Architecture
 
 ```
-~/.config/envs/              # Host-side, mounted into container
+envs/                        # Checked into the repo (no secrets, only op:// refs)
 ├── k3s.env                  # op:// references for k3s cluster
 ├── openshift.env            # op:// references for OpenShift cluster
 ├── aap-homelab.env          # op:// references for AAP controller
@@ -82,11 +82,12 @@ K8S_AUTH_VERIFY_SSL=false
 
 ```bash
 use() {
-    local envfile="$HOME/.config/envs/${1}.env"
+    local envdir="/workspace/igou-devenv/envs"
+    local envfile="${envdir}/${1}.env"
     if [ ! -f "$envfile" ]; then
         echo "No env file: $envfile"
         echo "Available:"
-        ls ~/.config/envs/*.env 2>/dev/null | xargs -n1 basename | sed 's/\.env$//'
+        ls "${envdir}"/*.env 2>/dev/null | xargs -n1 basename | sed 's/\.env$//'
         return 1
     fi
     # If env references a kubeconfig, write it to a temp file
@@ -167,7 +168,7 @@ The `op` CLI authenticates via `OP_SERVICE_ACCOUNT_TOKEN`, which is stored at `~
 - **Secrets never on disk**: `op run` injects them only for the subprocess lifetime; kubeconfig temp files are cleaned up on exit
 - **Subshell isolation**: `exit` cleanly removes all secrets from the environment
 - **Composable**: nest `use` calls to combine environments (k8s + aap)
-- **`.env` files are safe to commit**: they contain only `op://` references, not secrets
+- **`.env` files are version-controlled**: they live in `envs/` in the repo — no host mount needed, and they contain only `op://` references, never secrets
 - **Easy to audit**: `env | grep -E 'AWS|KUBE|CONTROLLER'` shows what's active
 - **Consistent pattern**: same mechanism for Kubernetes, AWS, AAP, Ansible vaults, and service accounts
 
@@ -180,6 +181,6 @@ The `op` CLI authenticates via `OP_SERVICE_ACCOUNT_TOKEN`, which is stored at `~
 
 ### Security considerations
 
-- `.env` files contain no secrets and can live in version control or on the host filesystem
+- `.env` files contain no secrets and are checked into the repo (`envs/` directory)
 - Temp kubeconfig files are created with `mktemp` (mode 600) and deleted on subshell exit
 - `OP_SERVICE_ACCOUNT_TOKEN` is the single credential to protect — it is mounted read-only from the host

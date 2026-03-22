@@ -80,11 +80,10 @@ test-env:
 		if use nonexistent 2>&1 | grep -q "No env file"; then ok "missing env shows error"; else fail "missing env shows error"; fi; \
 		echo ""; \
 		echo "==> Testing use() lists available envs..."; \
-		cp $$TESTDIR/test.env ~/.config/envs/test.env 2>/dev/null || true; \
-		if ls ~/.config/envs/*.env 2>/dev/null | grep -q env; then \
+		if ls /workspace/igou-devenv/envs/*.env 2>/dev/null | grep -q env; then \
 			ok "env files listable"; \
 		else \
-			ok "env files listable (dir empty, expected in test)"; \
+			fail "env files listable"; \
 		fi; \
 		echo ""; \
 		echo "==> Testing OP_ENV stacking..."; \

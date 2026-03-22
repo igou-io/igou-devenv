@@ -91,11 +91,12 @@ PROMPT_COMMAND="_fix_ssh_auth_sock${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
 
 # Environment switching via 1Password (see adr/0001)
 use() {
-    local envfile="$HOME/.config/envs/${1}.env"
+    local envdir="/workspace/igou-devenv/envs"
+    local envfile="${envdir}/${1}.env"
     if [ ! -f "$envfile" ]; then
         echo "No env file: $envfile"
         echo "Available:"
-        ls ~/.config/envs/*.env 2>/dev/null | xargs -n1 basename | sed 's/\.env$//'
+        ls "${envdir}"/*.env 2>/dev/null | xargs -n1 basename | sed 's/\.env$//'
         return 1
     fi
     local new_env="${OP_ENV:+${OP_ENV}/}${1}"
