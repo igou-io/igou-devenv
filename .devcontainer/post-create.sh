@@ -125,14 +125,18 @@ k8s-unset() {
     echo "Kubernetes vars unset"
 }
 
-# Re-enable Cursor/VS Code shell integration in subshells (use() spawns child bash)
+# Re-enable Cursor/VS Code shell integration in subshells (use() spawns child bash).
+# Cache the resolved path in VSCODE_SHELL_INTEGRATION_PATH so nested shells don't
+# re-execute cursor/code (which can hang in op run subshells).
 if [ "$TERM_PROGRAM" = "vscode" ]; then
-    _si_path=""
-    for _cmd in cursor code; do
-        _si_path=$($_cmd --locate-shell-integration-path bash 2>/dev/null) && break
-    done
-    [ -n "$_si_path" ] && . "$_si_path"
-    unset _si_path _cmd
+    if [ -z "${VSCODE_SHELL_INTEGRATION_PATH:-}" ]; then
+        for _cmd in cursor code; do
+            VSCODE_SHELL_INTEGRATION_PATH=$($_cmd --locate-shell-integration-path bash 2>/dev/null) && break
+        done
+        export VSCODE_SHELL_INTEGRATION_PATH
+        unset _cmd
+    fi
+    [ -n "${VSCODE_SHELL_INTEGRATION_PATH:-}" ] && . "$VSCODE_SHELL_INTEGRATION_PATH"
 fi
 
 # Aliases
