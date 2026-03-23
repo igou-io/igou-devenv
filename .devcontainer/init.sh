@@ -11,8 +11,12 @@ for dir in "$HOME/.claude" "$HOME/.ssh" "$HOME/.kube" "$HOME/.config/argocd" "$H
     fi
 done
 
-# Ensure .claude.json exists for bind mount (file, not directory)
+# Ensure file-based bind mounts exist (files, not directories)
 if [ ! -f "$HOME/.claude.json" ]; then
     echo '{}' > "$HOME/.claude.json"
     echo "[init] Created $HOME/.claude.json"
+fi
+if [ ! -f "$HOME/.gitconfig" ]; then
+    touch "$HOME/.gitconfig"
+    echo "[init] Created $HOME/.gitconfig"
 fi

@@ -47,6 +47,7 @@
     "mounts": [
         "source=${localEnv:HOME}/.claude,target=/home/igou/.claude,type=bind",
         "source=${localEnv:HOME}/.claude.json,target=/home/igou/.claude.json,type=bind",
+        "source=${localEnv:HOME}/.gitconfig,target=/home/igou/.gitconfig,type=bind,readonly",
         "source=${localEnv:HOME}/.ssh,target=/home/igou/.ssh,type=bind,readonly",
         "source=${localEnv:HOME}/.kube,target=/home/igou/.kube,type=bind",
         "source=${localEnv:HOME}/.config/argocd,target=/home/igou/.config/argocd,type=bind",

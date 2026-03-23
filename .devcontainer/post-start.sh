@@ -45,8 +45,8 @@ else
     echo "    Make sure your SSH agent is running and Cursor is forwarding it."
 fi
 
-# Always use SSH for GitHub so forwarded keys work
-git config --global url."git@github.com:".insteadOf "https://github.com/"
+# Use SSH for GitHub so forwarded keys work (skip if .gitconfig is read-only mount)
+git config --global url."git@github.com:".insteadOf "https://github.com/" 2>/dev/null || true
 
 # ---------------------------------------------------------------------------
 # Restore Claude Code config if missing (backup lives in mounted ~/.claude/)
