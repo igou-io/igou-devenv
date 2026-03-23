@@ -6,34 +6,36 @@ forwarding for private repos.
 
 ## What's Inside
 
-**Languages & Runtimes:** Go, Python 3.12, Node.js
+**Kubernetes:** kubectl, helm, kustomize, ArgoCD CLI, kubeseal, flux, virtctl,
+kubeconform, kube-burner, kube-burner-ocp, tkn (Tekton)
 
-**Kubernetes:** kubectl, helm, kustomize, ArgoCD CLI, kubeseal, flux, virtctl
-
-**Infrastructure:** Terraform, tflint, SOPS, age
+**Infrastructure:** Terraform, SOPS, age, rclone
 
 **Ansible:** ansible, ansible-navigator, ansible-builder,
-ansible-rulebook, ansible-runner, ansible-lint, awxkit
+ansible-runner, ansible-lint
 
-**OpenShift:** oc CLI
+**OpenShift:** oc CLI, crc (OpenShift Local)
 
 **Container Tooling:** podman, buildah, skopeo (native in container, runs
 privileged for nested container support), Docker CLI (via host socket)
 
-**General:** 1Password CLI, GitHub CLI, jq, yq, direnv, shellcheck, make,
-tree, p7zip, mkdocs-material
+**Cloud & Storage:** AWS CLI (via env switching), MinIO client (mc)
 
-**AI:** Claude Code (`claude` CLI)
+**CI/CD:** GitHub CLI, act (local GitHub Actions)
+
+**General:** 1Password CLI, jq, yq, direnv, shellcheck, yamllint, make,
+tree, nmap, tmux, vim, htop
+
+**AI:** Claude Code (`claude` CLI — native binary)
 
 ### How Tools Are Installed
 
 | Layer | What | Where to add |
 |---|---|---|
-| Dockerfile | apt packages (podman, buildah, skopeo, jq, etc.) | `.devcontainer/Dockerfile` |
-| Devcontainer Features | kubectl, helm, terraform, tflint, go, python, node, gh, docker CLI, claude-code | `.devcontainer/devcontainer.json` `features` block |
-| pip (post-create) | Ansible ecosystem, yq, mkdocs-material, kubernetes, jmespath | `.devcontainer/requirements.txt` |
-| Binary downloads (post-create) | ArgoCD, kustomize, kubeseal, flux, SOPS, oc, virtctl | `.devcontainer/post-create.sh` |
-| apt repo (post-create) | 1Password CLI | `.devcontainer/post-create.sh` |
+| Dockerfile (apt) | podman, buildah, skopeo, jq, direnv, 1Password CLI, etc. | `.devcontainer/Dockerfile` |
+| Dockerfile (binary downloads) | ArgoCD, kustomize, kubeseal, flux, SOPS, oc, virtctl, act, crc, kube-burner, tkn, mc, rclone, claude-code | `.devcontainer/Dockerfile` (ARG + RUN) |
+| Devcontainer Features | kubectl, helm, terraform, python, gh, docker CLI | `devcontainer.json` `features` block |
+| pip (onCreateCommand) | Ansible ecosystem, yq, mkdocs-material | `.devcontainer/requirements.txt` |
 
 ## Quick Start
 
@@ -69,8 +71,11 @@ tree, p7zip, mkdocs-material
 7. Your credentials in the standard locations:
    - `~/.ssh/` — SSH keys and config
    - `~/.kube/` — Kubernetes configs
-   - `~/.config/argocd/` — ArgoCD CLI config (create if missing: `mkdir -p ~/.config/argocd`)
+   - `~/.gitconfig` — Git identity (mounted read-only)
+   - `~/.config/argocd/` — ArgoCD CLI config
+   - `~/.config/op/service-account-token` — 1Password service account token
    - `~/.terraform.d/` — Terraform plugin cache/credentials
+   - `~/.claude/` and `~/.claude.json` — Claude Code config
 
 ### Open via Cursor
 
@@ -96,11 +101,10 @@ and the socket exists.
 ### After First Build
 
 The `post-create.sh` script automatically:
-- Verifies SSH agent forwarding
-- Installs Python packages from `requirements.txt`
-- Installs 1Password CLI and pinned CLI tool versions
+- Adds GitHub to known_hosts
 - Clones all igou-io repos (public and private) into `/workspace/`
-- Configures bashrc with exports, aliases, and direnv
+- Configures `.bashrc` with prompt, environment switching, aliases, and direnv
+- Symlinks `bin/` into `~/bin` (on PATH) for custom scripts
 - Creates a `homelab.code-workspace` file
 
 Your repos will be at:
@@ -108,6 +112,9 @@ Your repos will be at:
 /workspace/
 ├── igou-ansible/
 ├── igou-containers/
+├── igou-devenv/           (this repo)
+│   ├── bin/               (symlinked to ~/bin, on PATH)
+│   └── envs/              (1Password env files for use())
 ├── igou-infrastructure/
 ├── igou-inventory/          (private)
 ├── igou-kubernetes/
@@ -117,6 +124,25 @@ Your repos will be at:
 ```
 
 Open the workspace via **File > Open Workspace from File** → `/workspace/homelab.code-workspace`
+
+## Environment Switching
+
+The `use` shell function switches between infrastructure environments using
+1Password for secret resolution. See [ADR-0001](adr/0001-environment-switching-with-1password.md)
+for full details.
+
+```bash
+use                     # list available environments
+use ocp-hub             # activate OpenShift hub (spawns subshell with secrets)
+use ansible             # stack Ansible vault on top
+exit                    # back to ocp-hub
+exit                    # back to clean shell
+
+k8s-unset               # clear KUBECONFIG and K8S_AUTH_* vars
+```
+
+Environment files live in `envs/` and contain only `op://` references — no
+secrets are stored in the repo.
 
 ## Makefile Targets
 
@@ -128,7 +154,10 @@ Open the workspace via **File > Open Workspace from File** → `/workspace/homel
 | `make down` | Stop and remove the container |
 | `make shell` | Open a bash shell in the running container |
 | `make exec CMD="..."` | Run a one-off command in the container |
-| `make test` | Build Dockerfile and verify apt-installed tools |
+| `make test` | Run all tests (tools, podman, env) |
+| `make test-tools` | Verify CLI tools, Python packages, and user config |
+| `make test-podman` | Test podman pull, run, and build |
+| `make test-env` | Test environment switching functions |
 | `make clean` | Down + prune dangling images |
 | `make renovate-validate` | Validate `renovate.json` config |
 | `make renovate-dry-run` | Dry-run Renovate locally (requires `GITHUB_TOKEN`) |
@@ -148,6 +177,9 @@ container still starts but private repo cloning will warn.
 1. Your local machine has `ssh-agent` running with your key
 2. Your SSH config for the remote host has `ForwardAgent yes`
 3. The host's `sshd_config` has `AllowAgentForwarding yes` (default on most distros)
+
+The shell prompt auto-heals stale SSH agent sockets on every prompt via
+`_fix_ssh_auth_sock` in PROMPT_COMMAND.
 
 ## Container Tooling
 
@@ -170,7 +202,7 @@ All tool versions are pinned and managed by [Renovate](https://docs.renovatebot.
 
 - **Dockerfile base image** — pinned by digest, updated by Renovate's Docker manager
 - **Python packages** — pinned in `.devcontainer/requirements.txt`, updated by `pip_requirements` manager
-- **CLI binaries** — pinned in `post-create.sh` with `# renovate:` comments, updated by a custom regex manager using the `github-releases` datasource
+- **CLI binaries** — pinned in `Dockerfile` with `# renovate:` comments, updated by a custom regex manager using the `github-releases` datasource
 
 To test Renovate config locally:
 ```bash
@@ -182,8 +214,8 @@ GITHUB_TOKEN=ghp_... make renovate-dry-run # see what would be updated
 
 GitHub Actions builds the devcontainer on every push and PR to `main` using
 [devcontainers/ci](https://github.com/devcontainers/ci). The workflow builds
-the full image (Dockerfile + Features + post-create.sh) and runs tool
-verification inside the container.
+the full image (Dockerfile + Features + lifecycle hooks) and runs the full
+test suite (`tests/run-all.sh`) inside the container.
 
 ## Customization
 
@@ -192,31 +224,24 @@ verification inside the container.
 - **apt packages** → add to `Dockerfile`
 - **Devcontainer Features** → add to `devcontainer.json` `features` block
 - **Python packages** → add to `.devcontainer/requirements.txt` (pinned for Renovate)
-- **CLI binaries from GitHub** → add to `post-create.sh` with a `# renovate:` comment
+- **CLI binaries from GitHub** → add to `Dockerfile` with a `# renovate:` ARG comment
+- **Custom scripts** → add to `bin/` (symlinked to `~/bin`, on PATH)
 - **Cursor extensions** → add to `customizations.vscode.extensions` in `devcontainer.json`
 
 ### 1Password Integration
 
-The 1Password CLI is installed in the container. Authenticate with:
-```bash
-eval $(op signin)
-```
+The 1Password CLI authenticates via `OP_SERVICE_ACCOUNT_TOKEN`, sourced
+automatically from `~/.config/op/service-account-token` (bind-mounted
+read-only from the host).
 
-For the Ansible vault password via 1Password:
-```bash
-export ANSIBLE_VAULT_PASSWORD_FILE=/workspace/igou-ansible/.vaultpassword.sh
-```
+Use the `use` function for environment switching — see
+[ADR-0001](adr/0001-environment-switching-with-1password.md).
 
 ### Secrets Management
 
-Credentials are bind-mounted from the host. SSH keys are read-only; kubeconfig
-is read-write for context switching. The container never stores secrets in its
-image layers.
-
-For SOPS/age, add your age key mount to `devcontainer.json`:
-```jsonc
-"source=${localEnv:HOME}/.config/sops/age,target=/home/vscode/.config/sops/age,type=bind,readonly"
-```
+Credentials are bind-mounted from the host. SSH keys and `.gitconfig` are
+read-only; kubeconfig is read-write for context switching. The container
+never stores secrets in its image layers.
 
 ## Reprovisioning the Host
 
@@ -229,7 +254,9 @@ sudo dnf install -y podman podman-docker openssh-server
 systemctl --user enable --now podman.socket
 loginctl enable-linger $USER
 
-mkdir -p ~/.ssh ~/.kube ~/.config/argocd ~/.terraform.d
+mkdir -p ~/.ssh ~/.kube ~/.config/argocd ~/.config/op ~/.terraform.d ~/.claude
+echo '{}' > ~/.claude.json
+touch ~/.gitconfig
 
 echo "Host ready. Clone devenv and open with: cursor ~/igou-devenv"
 ```
@@ -275,3 +302,11 @@ loginctl enable-linger $USER
 **Extension calls `docker` despite `dockerPath` setting:** Install `podman-docker`.
 
 **Extensions missing after connecting:** Command palette → **Dev Containers: Rebuild Container**.
+
+### Environment Switching
+
+**`use` hangs:** Set `BASHRC_DEBUG=1` before the `use` call to trace shell
+startup and identify which `.bashrc` section is blocking:
+```bash
+BASHRC_DEBUG=1 use ocp-hub
+```

@@ -10,17 +10,23 @@ This repo is a reproducible development environment for homelab infrastructure w
 
 ```
 .devcontainer/
-├── Dockerfile           # apt packages, 1Password CLI, CLI binary downloads (ArgoCD, kustomize, kubeseal, flux, SOPS, oc, virtctl)
-├── devcontainer.json    # devcontainer config; Features, lifecycle hooks, editor customizations, security settings
+├── Dockerfile           # apt packages, 1Password CLI, CLI binary downloads, claude-code (native)
+├── devcontainer.json    # devcontainer config; Features, lifecycle hooks, editor customizations
 ├── init.sh              # Host-side initializeCommand: creates mount directories if missing
-├── post-create.sh       # Clones repos via SSH, configures shell, writes workspace file
+├── post-create.sh       # Clones repos via SSH, configures shell (.bashrc), writes workspace file
 ├── post-start.sh        # SSH agent forwarding check (runs every container start)
 └── requirements.txt     # Pinned Python packages (Ansible ecosystem, yq, mkdocs-material)
+adr/                     # Architecture Decision Records
+bin/                     # Custom scripts (symlinked to ~/bin, on PATH)
 envs/                    # 1Password env files (op:// references only, no secrets) for use() function
 Makefile                 # Devcontainer lifecycle: build, up, down, shell, test, renovate targets
 tests/
-└── test-tools.sh        # Shared test script: verifies CLI tools, Python packages, user config (used by make test-tools and CI)
-renovate.json            # Renovate config with custom regex manager for Dockerfile ARGs and shell script version pins
+├── run-all.sh           # Runs all test suites
+├── test-tools.sh        # Verifies CLI tools, Python packages, user config
+├── test-podman.sh       # Tests podman pull, run, and build
+├── test-env.sh          # Tests environment switching functions (uses mock op)
+└── mock-op.sh           # Mock 1Password CLI for test-env
+renovate.json            # Renovate config with custom regex manager for Dockerfile ARGs
 .github/workflows/build.yaml  # CI: builds full devcontainer on push/PR via devcontainers/ci
 ```
 
@@ -29,7 +35,7 @@ renovate.json            # Renovate config with custom regex manager for Dockerf
 | Layer | What | Where to add |
 |---|---|---|
 | Dockerfile (apt) | podman, buildah, skopeo, jq, direnv, 1Password CLI, etc. | `.devcontainer/Dockerfile` |
-| Dockerfile (binary downloads) | ArgoCD, kustomize, kubeseal, flux, SOPS, oc, virtctl, claude-code, etc. | `.devcontainer/Dockerfile` (ARG + RUN) |
+| Dockerfile (binary downloads) | ArgoCD, kustomize, kubeseal, flux, SOPS, oc, virtctl, act, crc, kube-burner, tkn, mc, rclone, claude-code | `.devcontainer/Dockerfile` (ARG + RUN) |
 | Devcontainer Features | kubectl, helm, terraform, python, gh, docker CLI | `devcontainer.json` `features` block |
 | pip (onCreateCommand) | Ansible ecosystem, yq, mkdocs-material | `.devcontainer/requirements.txt` |
 
@@ -80,8 +86,10 @@ shellcheck .devcontainer/post-create.sh .devcontainer/post-start.sh .devcontaine
 
 - **Lifecycle hook separation**: Tool installs are cached in Docker layers (Dockerfile) or run once after Features (onCreateCommand). Workspace setup (repo cloning, shell config) runs in postCreateCommand. SSH agent checks run every start via postStartCommand.
 - **SSH agent forwarding**: `devcontainer.json` sets `containerEnv.SSH_AUTH_SOCK` to `/tmp/ssh-agent.sock`. The Makefile dynamically mounts the host socket only if it exists (`[ -S "$SSH_AUTH_SOCK" ]`), avoiding errors from stale sockets.
-- **Podman-in-container**: Uses `SYS_ADMIN`, `MKNOD`, `NET_ADMIN` capabilities with `/dev/fuse` device, `seccomp=unconfined`, and `apparmor=unconfined` for nested container support without full `--privileged`.
+- **Podman-in-container**: Uses `--privileged` with `/dev/fuse` and `/dev/net/tun` devices for nested container support.
 - **pip over pipx**: Python packages installed directly via pip since isolation is unnecessary in a disposable container.
-- **`~/.ssh` is read-only**: GitHub known_hosts must be written to `/etc/ssh/ssh_known_hosts` via `sudo tee`.
+- **Read-only mounts**: `~/.ssh`, `~/.gitconfig`, and `~/.config/op` are bind-mounted read-only. GitHub known_hosts must be written to `/etc/ssh/ssh_known_hosts` via `sudo tee`.
 - **`podman-docker` required on host**: Cursor's devcontainer extension calls `docker` under the hood.
 - **CI compatibility**: `init.sh` creates mount directories on any host (including CI runners). Scripts check `$CI` to skip SSH-dependent operations.
+- **Environment switching via `op inject`**: Uses `op inject` for one-shot secret resolution + `env` to spawn bash, avoiding `op run` wrapper nesting deadlocks. See [ADR-0001](adr/0001-environment-switching-with-1password.md).
+- **Claude Code native binary**: Installed via `curl https://claude.ai/install.sh` instead of the deprecated npm package, removing the Node.js dependency.

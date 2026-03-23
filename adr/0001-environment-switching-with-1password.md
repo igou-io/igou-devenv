@@ -6,7 +6,7 @@ Accepted
 
 ## Date
 
-2026-03-21
+2026-03-21 (updated 2026-03-22)
 
 ## Context
 
@@ -152,6 +152,9 @@ k8s-unset() {
 ### Usage
 
 ```bash
+# List available environments
+use
+
 # Activate an environment (spawns subshell with secrets)
 use k3s
 kubectl get nodes
@@ -221,6 +224,7 @@ The `op` CLI authenticates via `OP_SERVICE_ACCOUNT_TOKEN`, which is stored at `~
 - Each `use` invocation spawns a subshell — nested environments add shell depth
 - Kubeconfig-as-file requires `op read` + `base64 -d` + temp file since `kubectl` expects a file path and 1Password doesn't support multi-line secrets
 - Service account token must be present on the host at `~/.config/op/service-account-token`
+- Uses `op inject` + `env` instead of `op run` wrapper — resolved secrets are visible in the process environment (acceptable in a local devcontainer), but this avoids `op run` nesting deadlocks
 
 ### Security considerations
 

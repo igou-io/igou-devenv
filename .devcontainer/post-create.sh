@@ -67,7 +67,7 @@ __prompt_command() {
 PROMPT_COMMAND="__prompt_command${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
 
 # Auto-heal stale SSH agent sockets (Cursor/VS Code reconnect bug).
-# Uses timeout to prevent hanging on broken sockets in nested op run subshells.
+# Uses timeout to prevent hanging on broken sockets in use() subshells.
 _fix_ssh_auth_sock() {
     [ -e "${SSH_AUTH_SOCK:-}" ] && timeout 2 ssh-add -l &>/dev/null && return
     for sock in $(ls -t /tmp/cursor-remote-ssh-auth-*.sock /tmp/vscode-ssh-auth-*.sock /tmp/ssh-*/agent.* 2>/dev/null); do
@@ -151,8 +151,8 @@ k8s-unset() {
 }
 
 # Re-enable Cursor/VS Code shell integration in subshells (use() spawns child bash).
-# The cursor/code CLI hangs inside op run subshells, so we cache the resolved path
-# to a file (env vars may not survive op run) and never call the CLI in subshells.
+# The cursor/code CLI can hang in subshells, so we cache the resolved path to a
+# file and only run CLI discovery in the top-level shell (no OP_ENV set).
 # Set BASHRC_DEBUG=1 to trace shell startup (useful for diagnosing hangs).
 if [ -n "${BASHRC_DEBUG:-}" ]; then
     echo "[bashrc] starting shell integration block" >&2

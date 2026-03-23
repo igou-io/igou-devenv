@@ -1,7 +1,7 @@
 FROM mcr.microsoft.com/devcontainers/base:ubuntu@sha256:8b4bcf1724083458f8be40f620459d8f36f37a6e44ed1f75c75aa49c51850863
 
 # Tools installed via Features (see devcontainer.json):
-#   kubectl, helm, terraform, python, node, gh, docker-outside-of-docker, claude-code
+#   kubectl, helm, terraform, python, gh, docker-outside-of-docker
 
 # Create igou user. UID 1000 is a conventional default; the devcontainer runtime's
 # updateRemoteUserUID remaps it to match the host user at startup.
