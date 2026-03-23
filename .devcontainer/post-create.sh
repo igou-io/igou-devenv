@@ -66,11 +66,12 @@ __prompt_command() {
 }
 PROMPT_COMMAND="__prompt_command${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
 
-# Auto-heal stale SSH agent sockets (Cursor/VS Code reconnect bug)
+# Auto-heal stale SSH agent sockets (Cursor/VS Code reconnect bug).
+# Uses timeout to prevent hanging on broken sockets in nested op run subshells.
 _fix_ssh_auth_sock() {
-    [ -e "${SSH_AUTH_SOCK:-}" ] && ssh-add -l &>/dev/null && return
+    [ -e "${SSH_AUTH_SOCK:-}" ] && timeout 2 ssh-add -l &>/dev/null && return
     for sock in $(ls -t /tmp/cursor-remote-ssh-auth-*.sock /tmp/vscode-ssh-auth-*.sock /tmp/ssh-*/agent.* 2>/dev/null); do
-        if SSH_AUTH_SOCK="$sock" ssh-add -l &>/dev/null; then
+        if SSH_AUTH_SOCK="$sock" timeout 2 ssh-add -l &>/dev/null; then
             export SSH_AUTH_SOCK="$sock"
             return
         fi
@@ -82,8 +83,15 @@ PROMPT_COMMAND="_fix_ssh_auth_sock${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
 [ -f ~/.config/op/service-account-token ] && export OP_SERVICE_ACCOUNT_TOKEN=$(cat ~/.config/op/service-account-token)
 
 # Environment switching via 1Password (see adr/0001)
+# Uses "op inject" to resolve secrets then spawns bash via env, avoiding
+# "op run" as a process wrapper — nested op run deadlocks.
 use() {
     local envdir="/workspace/igou-devenv/envs"
+    if [ -z "${1:-}" ]; then
+        echo "Available environments:"
+        ls "${envdir}"/*.env 2>/dev/null | xargs -n1 basename | sed 's/\.env$//'
+        return 0
+    fi
     local envfile="${envdir}/${1}.env"
     if [ ! -f "$envfile" ]; then
         echo "No env file: $envfile"
@@ -106,17 +114,34 @@ use() {
     fi
     local new_env="${OP_ENV:+${OP_ENV}/}${1}"
     local new_list="${OP_ENV_LIST:+${OP_ENV_LIST},}${1}"
+
+    # Resolve op:// references via op inject (one-shot, no wrapper process).
+    # Skip op inject if the env file only contained KUBECONFIG_DATA.
+    local remaining
+    remaining=$(grep -v '^KUBECONFIG_DATA=' "$envfile")
+
+    local env_args=("OP_ENV=$new_env" "OP_ENV_LIST=$new_list")
+    if [ -n "$remaining" ]; then
+        local resolved
+        resolved=$(echo "$remaining" | op inject) || {
+            echo "Failed to resolve secrets for ${1}"
+            return 1
+        }
+        while IFS= read -r line; do
+            [[ -z "$line" || "$line" == \#* ]] && continue
+            env_args+=("$line")
+        done <<< "$resolved"
+    fi
+
     if [ -n "$kubeconfig_ref" ]; then
-        local tmpkube tmpenv
+        local tmpkube
         tmpkube=$(mktemp /tmp/kubeconfig.XXXXXX)
-        tmpenv=$(mktemp /tmp/env.XXXXXX)
         op read "$kubeconfig_ref" | base64 -d > "$tmpkube"
-        # Strip KUBECONFIG_DATA from env file so it's not exposed as an env var
-        grep -v '^KUBECONFIG_DATA=' "$envfile" > "$tmpenv"
-        OP_ENV="$new_env" OP_ENV_LIST="$new_list" KUBECONFIG="$tmpkube" op run --env-file="$tmpenv" -- bash
-        rm -f "$tmpkube" "$tmpenv"
+        env_args+=("KUBECONFIG=$tmpkube")
+        env "${env_args[@]}" bash
+        rm -f "$tmpkube"
     else
-        OP_ENV="$new_env" OP_ENV_LIST="$new_list" op run --env-file="$envfile" -- bash
+        env "${env_args[@]}" bash
     fi
 }
 
@@ -126,17 +151,31 @@ k8s-unset() {
 }
 
 # Re-enable Cursor/VS Code shell integration in subshells (use() spawns child bash).
-# Cache the resolved path in VSCODE_SHELL_INTEGRATION_PATH so nested shells don't
-# re-execute cursor/code (which can hang in op run subshells).
+# The cursor/code CLI hangs inside op run subshells, so we cache the resolved path
+# to a file (env vars may not survive op run) and never call the CLI in subshells.
+# Set BASHRC_DEBUG=1 to trace shell startup (useful for diagnosing hangs).
+if [ -n "${BASHRC_DEBUG:-}" ]; then
+    echo "[bashrc] starting shell integration block" >&2
+fi
 if [ "$TERM_PROGRAM" = "vscode" ]; then
-    if [ -z "${VSCODE_SHELL_INTEGRATION_PATH:-}" ]; then
+    _vsi_cache="/tmp/.vscode-shell-integration-path"
+    if [ -z "${VSCODE_SHELL_INTEGRATION_PATH:-}" ] && [ -f "$_vsi_cache" ]; then
+        VSCODE_SHELL_INTEGRATION_PATH=$(cat "$_vsi_cache")
+        export VSCODE_SHELL_INTEGRATION_PATH
+    fi
+    if [ -z "${VSCODE_SHELL_INTEGRATION_PATH:-}" ] && [ -z "${OP_ENV:-}" ]; then
         for _cmd in cursor code; do
             VSCODE_SHELL_INTEGRATION_PATH=$($_cmd --locate-shell-integration-path bash 2>/dev/null) && break
         done
         export VSCODE_SHELL_INTEGRATION_PATH
+        [ -n "${VSCODE_SHELL_INTEGRATION_PATH:-}" ] && echo "$VSCODE_SHELL_INTEGRATION_PATH" > "$_vsi_cache"
         unset _cmd
     fi
     [ -n "${VSCODE_SHELL_INTEGRATION_PATH:-}" ] && . "$VSCODE_SHELL_INTEGRATION_PATH"
+    unset _vsi_cache
+fi
+if [ -n "${BASHRC_DEBUG:-}" ]; then
+    echo "[bashrc] shell integration done, starting direnv" >&2
 fi
 
 # Aliases
@@ -144,6 +183,9 @@ alias k=kubectl
 
 # direnv
 eval "$(direnv hook bash)"
+if [ -n "${BASHRC_DEBUG:-}" ]; then
+    echo "[bashrc] direnv done, bashrc complete" >&2
+fi
 BASHRC
 
     echo "==> Writing workspace file..."
@@ -166,5 +208,10 @@ EOF
 else
     echo "==> CI detected, skipping shell config and workspace file"
 fi
+
+# ---------------------------------------------------------------------------
+# Symlink bin/ scripts into ~/bin (already on PATH via .bashrc)
+# ---------------------------------------------------------------------------
+ln -sfn /workspace/igou-devenv/bin /home/igou/bin
 
 echo "==> Setup complete!"

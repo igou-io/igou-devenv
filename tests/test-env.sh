@@ -53,8 +53,8 @@ KUBECONFIG_DATA=op://Homelab/test-cluster/kubeconfig
 AWS_DEFAULT_REGION=eu-west-1
 EOF
 
-# Override the envdir used by use() for testing
-# Redefine use() to point at our test fixtures
+# Override the envdir used by use() for testing.
+# Mirrors the real use() logic but runs TEST_USE_CMD instead of interactive bash.
 _original_use=$(declare -f use)
 eval "test_use() {
     local envdir=\"$TESTDIR/envs\"
@@ -80,16 +80,34 @@ eval "test_use() {
     fi
     local new_env=\"\${OP_ENV:+\${OP_ENV}/}\${1}\"
     local new_list=\"\${OP_ENV_LIST:+\${OP_ENV_LIST},}\${1}\"
+
+    # Resolve op:// references via op inject (matches real use() implementation).
+    # Skip op inject if the env file only contained KUBECONFIG_DATA.
+    local remaining
+    remaining=\$(grep -v '^KUBECONFIG_DATA=' \"\$envfile\")
+
+    local env_args=(\"OP_ENV=\$new_env\" \"OP_ENV_LIST=\$new_list\")
+    if [ -n \"\$remaining\" ]; then
+        local resolved
+        resolved=\$(echo \"\$remaining\" | op inject) || {
+            echo \"Failed to resolve secrets for \${1}\"
+            return 1
+        }
+        while IFS= read -r line; do
+            [[ -z \"\$line\" || \"\$line\" == \\#* ]] && continue
+            env_args+=(\"\$line\")
+        done <<< \"\$resolved\"
+    fi
+
     if [ -n \"\$kubeconfig_ref\" ]; then
-        local tmpkube tmpenv
+        local tmpkube
         tmpkube=\$(mktemp /tmp/kubeconfig.XXXXXX)
-        tmpenv=\$(mktemp /tmp/env.XXXXXX)
         op read \"\$kubeconfig_ref\" | base64 -d > \"\$tmpkube\"
-        grep -v '^KUBECONFIG_DATA=' \"\$envfile\" > \"\$tmpenv\"
-        OP_ENV=\"\$new_env\" OP_ENV_LIST=\"\$new_list\" KUBECONFIG=\"\$tmpkube\" op run --env-file=\"\$tmpenv\" -- bash -c \"\${TEST_USE_CMD:-true}\"
-        rm -f \"\$tmpkube\" \"\$tmpenv\"
+        env_args+=(\"KUBECONFIG=\$tmpkube\")
+        env \"\${env_args[@]}\" bash -c \"\${TEST_USE_CMD:-true}\"
+        rm -f \"\$tmpkube\"
     else
-        OP_ENV=\"\$new_env\" OP_ENV_LIST=\"\$new_list\" op run --env-file=\"\$envfile\" -- bash -c \"\${TEST_USE_CMD:-true}\"
+        env \"\${env_args[@]}\" bash -c \"\${TEST_USE_CMD:-true}\"
     fi
 }"
 
@@ -243,10 +261,10 @@ if grep -q "op read op://Homelab/test-cluster/kubeconfig" "$MOCK_OP_LOG"; then
 else
     fail "op read called for kubeconfig"
 fi
-if grep -q "op run --env-file=" "$MOCK_OP_LOG"; then
-    ok "op run called with env file"
+if grep -q "op inject" "$MOCK_OP_LOG"; then
+    ok "op inject called to resolve secrets"
 else
-    fail "op run called with env file"
+    fail "op inject called to resolve secrets"
 fi
 
 # =========================================================================

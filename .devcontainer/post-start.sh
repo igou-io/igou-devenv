@@ -16,19 +16,19 @@ fi
 # ---------------------------------------------------------------------------
 find_working_ssh_sock() {
     # Try current socket first
-    if [ -n "${SSH_AUTH_SOCK:-}" ] && ssh-add -l &>/dev/null; then
+    if [ -n "${SSH_AUTH_SOCK:-}" ] && timeout 2 ssh-add -l &>/dev/null; then
         return 0
     fi
     # Scan cursor/vscode symlinks, newest first
     for sock in $(ls -t /tmp/cursor-remote-ssh-auth-*.sock /tmp/vscode-ssh-auth-*.sock 2>/dev/null); do
-        if SSH_AUTH_SOCK="$sock" ssh-add -l &>/dev/null; then
+        if SSH_AUTH_SOCK="$sock" timeout 2 ssh-add -l &>/dev/null; then
             export SSH_AUTH_SOCK="$sock"
             return 0
         fi
     done
     # Fallback to raw ssh-agent sockets
     for sock in $(ls -t /tmp/ssh-*/agent.* 2>/dev/null); do
-        if SSH_AUTH_SOCK="$sock" ssh-add -l &>/dev/null; then
+        if SSH_AUTH_SOCK="$sock" timeout 2 ssh-add -l &>/dev/null; then
             export SSH_AUTH_SOCK="$sock"
             return 0
         fi

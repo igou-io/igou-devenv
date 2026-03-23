@@ -35,7 +35,8 @@
       "WebFetch(domain:forum.cursor.com)",
       "WebFetch(domain:developer.1password.com)",
       "Bash(make test-env:*)",
-      "Bash(make test:*)"
+      "Bash(make test:*)",
+      "WebFetch(domain:api.github.com)"
     ]
   }
 }

@@ -1,0 +1,38 @@
+#!/bin/bash
+# Refresh all ArgoCD applications in parallel
+
+set -euo pipefail
+
+MAX_PARALLEL=${1:-10}
+
+apps=$(argocd app list -o name)
+
+if [[ -z "$apps" ]]; then
+  echo "No ArgoCD apps found."
+  exit 0
+fi
+
+total=$(echo "$apps" | wc -l)
+echo "Refreshing $total apps (max $MAX_PARALLEL parallel)..."
+
+count=0
+pids=()
+app_names=()
+
+for app in $apps; do
+  argocd app get "$app" --hard-refresh > /dev/null 2>&1 &
+  pids+=($!)
+  app_names+=("$app")
+  count=$((count + 1))
+
+  # Throttle to MAX_PARALLEL concurrent jobs
+  if (( count % MAX_PARALLEL == 0 )); then
+    wait "${pids[@]}"
+    pids=()
+  fi
+done
+
+# Wait for remaining
+wait "${pids[@]}" 2>/dev/null
+
+echo "Done. Refreshed $total apps."

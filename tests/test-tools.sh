@@ -20,7 +20,6 @@ declare -A TOOLS=(
     [terraform]="terraform version"
     [gh]="gh --version"
     [python3]="python3 --version"
-    [node]="node --version"
     [claude]="claude --version"
     [ansible]="ansible --version"
     [argocd]="argocd version --client --short"
@@ -44,6 +43,13 @@ declare -A TOOLS=(
     [tmux]="tmux -V"
     [htop]="htop --version"
     [make]="make --version"
+    [act]="act --version"
+    [crc]="crc version"
+    [kube-burner]="kube-burner version"
+    [kube-burner-ocp]="kube-burner-ocp version"
+    [tkn]="tkn version --client"
+    [mc]="mc --version"
+    [rclone]="rclone version"
 )
 
 for tool in $(echo "${!TOOLS[@]}" | tr ' ' '\n' | sort); do

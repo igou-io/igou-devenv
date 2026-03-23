@@ -27,7 +27,7 @@ Previously, credentials were managed by manually copy/pasting tokens and kubecon
 
 ## Decision
 
-Use 1Password CLI (`op run`) with per-environment `.env` files containing secret references (`op://` URIs). A shell function `use <env>` spawns a subshell with secrets injected for the duration of the session.
+Use 1Password CLI (`op inject`) with per-environment `.env` files containing secret references (`op://` URIs). A shell function `use <env>` resolves secrets and spawns a subshell with them injected for the duration of the session.
 
 ### Architecture
 
@@ -46,8 +46,8 @@ envs/                        # Checked into the repo (no secrets, only op:// ref
 `KUBECONFIG_DATA` is a special key: its value is a base64-encoded kubeconfig stored in
 1Password (since 1Password does not support multi-line secrets). The `use()` function
 fetches it via `op read`, decodes it with `base64 -d`, and writes it to a temp file
-that `KUBECONFIG` points to. The `KUBECONFIG_DATA` line is stripped from the env file
-before `op run` so the raw content is never exposed as an environment variable.
+that `KUBECONFIG` points to. The `KUBECONFIG_DATA` line is stripped before resolving
+so the raw content is never exposed as an environment variable.
 
 To store a kubeconfig in 1Password:
 ```bash
@@ -81,8 +81,15 @@ K8S_AUTH_VERIFY_SSL=false
 ### Shell function
 
 ```bash
+# Uses "op inject" to resolve secrets then spawns bash via env, avoiding
+# "op run" as a process wrapper — nested op run deadlocks.
 use() {
     local envdir="/workspace/igou-devenv/envs"
+    if [ -z "${1:-}" ]; then
+        echo "Available environments:"
+        ls "${envdir}"/*.env 2>/dev/null | xargs -n1 basename | sed 's/\.env$//'
+        return 0
+    fi
     local envfile="${envdir}/${1}.env"
     if [ ! -f "$envfile" ]; then
         echo "No env file: $envfile"
@@ -105,17 +112,34 @@ use() {
     fi
     local new_env="${OP_ENV:+${OP_ENV}/}${1}"
     local new_list="${OP_ENV_LIST:+${OP_ENV_LIST},}${1}"
+
+    # Resolve op:// references via op inject (one-shot, no wrapper process).
+    # Skip op inject if the env file only contained KUBECONFIG_DATA.
+    local remaining
+    remaining=$(grep -v '^KUBECONFIG_DATA=' "$envfile")
+
+    local env_args=("OP_ENV=$new_env" "OP_ENV_LIST=$new_list")
+    if [ -n "$remaining" ]; then
+        local resolved
+        resolved=$(echo "$remaining" | op inject) || {
+            echo "Failed to resolve secrets for ${1}"
+            return 1
+        }
+        while IFS= read -r line; do
+            [[ -z "$line" || "$line" == \#* ]] && continue
+            env_args+=("$line")
+        done <<< "$resolved"
+    fi
+
     if [ -n "$kubeconfig_ref" ]; then
-        local tmpkube tmpenv
+        local tmpkube
         tmpkube=$(mktemp /tmp/kubeconfig.XXXXXX)
-        tmpenv=$(mktemp /tmp/env.XXXXXX)
         op read "$kubeconfig_ref" | base64 -d > "$tmpkube"
-        # Strip KUBECONFIG_DATA so it's not exposed as an env var
-        grep -v '^KUBECONFIG_DATA=' "$envfile" > "$tmpenv"
-        OP_ENV="$new_env" OP_ENV_LIST="$new_list" KUBECONFIG="$tmpkube" op run --env-file="$tmpenv" -- bash
-        rm -f "$tmpkube" "$tmpenv"
+        env_args+=("KUBECONFIG=$tmpkube")
+        env "${env_args[@]}" bash
+        rm -f "$tmpkube"
     else
-        OP_ENV="$new_env" OP_ENV_LIST="$new_list" op run --env-file="$envfile" -- bash
+        env "${env_args[@]}" bash
     fi
 }
 
@@ -184,7 +208,7 @@ The `op` CLI authenticates via `OP_SERVICE_ACCOUNT_TOKEN`, which is stored at `~
 
 ### Benefits
 
-- **Secrets never on disk**: `op run` injects them only for the subprocess lifetime; kubeconfig temp files are cleaned up on exit
+- **Secrets never on disk**: `op inject` resolves them at subshell start; kubeconfig temp files are cleaned up on exit
 - **Subshell isolation**: `exit` cleanly removes all secrets from the environment
 - **Composable**: nest `use` calls to combine environments (k8s + aap)
 - **`.env` files are version-controlled**: they live in `envs/` in the repo — no host mount needed, and they contain only `op://` references, never secrets
