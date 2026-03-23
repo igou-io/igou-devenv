@@ -45,8 +45,6 @@ if [ -z "${CI:-}" ]; then
     cat >> /home/igou/.bashrc << 'BASHRC'
 
 # --- igou-io devenv config ---
-export ANSIBLE_INVENTORY=/workspace/igou-inventory
-export ANSIBLE_HOST_KEY_CHECKING=False
 export PATH=$PATH:/home/igou/.local/bin:/home/igou/bin
 
 # Prompt: user (env) ➜ dir (git branch)
@@ -148,6 +146,13 @@ use() {
 k8s-unset() {
     unset KUBECONFIG KUBECONFIG_DATA K8S_AUTH_HOST K8S_AUTH_API_KEY K8S_AUTH_VERIFY_SSL
     echo "Kubernetes vars unset"
+}
+
+ansible-unset() {
+    while IFS='=' read -r name _; do
+        [[ "$name" == ANSIBLE_* ]] && unset "$name"
+    done < <(env)
+    echo "Ansible vars unset"
 }
 
 # Re-enable Cursor/VS Code shell integration in subshells (use() spawns child bash).
