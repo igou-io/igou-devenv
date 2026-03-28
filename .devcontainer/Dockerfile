@@ -1,7 +1,7 @@
 FROM mcr.microsoft.com/devcontainers/base:ubuntu@sha256:8b4bcf1724083458f8be40f620459d8f36f37a6e44ed1f75c75aa49c51850863
 
 # Tools installed via Features (see devcontainer.json):
-#   kubectl, helm, terraform, python, gh, docker-outside-of-docker
+#   kubectl, helm, terraform, python, node, gh, docker-outside-of-docker
 
 # Create igou user. UID 1000 is a conventional default; the devcontainer runtime's
 # updateRemoteUserUID remaps it to match the host user at startup.
@@ -133,8 +133,8 @@ RUN set -eux; \
     curl -sSL -o /usr/local/bin/sops \
       "https://github.com/getsops/sops/releases/download/${SOPS_VERSION}/sops-${SOPS_VERSION}.linux.${ARCH}" && \
     chmod +x /usr/local/bin/sops; \
-    # OpenShift CLI (oc)
-    curl -sSL https://mirror.openshift.com/pub/openshift-v4/clients/oc/latest/linux/oc.tar.gz \
+    # OpenShift CLI (oc) https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/latest/
+    curl -sSL https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/latest/openshift-client-linux.tar.gz \
       | tar -xz -C /usr/local/bin oc; \
     # virtctl
     curl -sSL -o /usr/local/bin/virtctl \

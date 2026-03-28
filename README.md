@@ -34,7 +34,7 @@ tree, nmap, tmux, vim, htop
 |---|---|---|
 | Dockerfile (apt) | podman, buildah, skopeo, jq, direnv, 1Password CLI, etc. | `.devcontainer/Dockerfile` |
 | Dockerfile (binary downloads) | ArgoCD, kustomize, kubeseal, flux, SOPS, oc, virtctl, act, crc, kube-burner, tkn, mc, rclone, claude-code | `.devcontainer/Dockerfile` (ARG + RUN) |
-| Devcontainer Features | kubectl, helm, terraform, python, gh, docker CLI | `devcontainer.json` `features` block |
+| Devcontainer Features | kubectl, helm, terraform, python, node, gh, docker CLI | `devcontainer.json` `features` block |
 | pip (onCreateCommand) | Ansible ecosystem, yq, mkdocs-material | `.devcontainer/requirements.txt` |
 
 ## Quick Start
@@ -161,6 +161,48 @@ secrets are stored in the repo.
 | `make clean` | Down + prune dangling images |
 | `make renovate-validate` | Validate `renovate.json` config |
 | `make renovate-dry-run` | Dry-run Renovate locally (requires `GITHUB_TOKEN`) |
+| `make claude-build` | Build the Claude container image (UBI9) |
+| `make claude-rebuild` | Rebuild Claude container from scratch |
+| `make claude-test` | Run tool verification in the Claude container |
+
+## Claude Container
+
+A separate UBI9-based container for running Claude Code sessions against
+infrastructure repos. Runs rootless via podman from inside the devcontainer,
+with selective credential injection per session.
+
+### Build
+
+```bash
+make claude-build       # build the image
+make claude-test        # verify all tools
+```
+
+### Usage
+
+The `claude-run` script (in `bin/`, on PATH) launches the container:
+
+```bash
+claude-run                          # launch claude with current directory mounted
+claude-run -e ocp-rosa              # resolve ocp-rosa secrets, inject as env vars
+claude-run -e ocp-hub -e ansible    # stack multiple environments
+claude-run --shell                  # drop to bash instead of claude
+claude-run -e aws -- --resume       # pass flags through to claude
+```
+
+Credentials are resolved via `op inject` in the devcontainer before being
+passed as plain environment variables to the Claude container. The container
+never has direct access to 1Password.
+
+### Differences from the devcontainer
+
+| | Devcontainer | Claude Container |
+|---|---|---|
+| Base image | Ubuntu (devcontainers/base) | UBI9 |
+| Container engine | podman, buildah, skopeo, Docker CLI | None (no nested containers) |
+| Devcontainer Features | kubectl, helm, terraform, python, node, gh, docker | Installed via binary downloads |
+| Privileged mode | Yes (for nested podman) | No (rootless via `--userns=keep-id`) |
+| Launched via | Cursor / `make up` | `claude-run` from inside devcontainer |
 
 ## SSH Agent Forwarding
 

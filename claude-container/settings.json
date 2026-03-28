@@ -1,0 +1,21 @@
+{
+  "sandbox": {
+    "enabled": true,
+    "enableWeakerNestedSandbox": true,
+    "failIfUnavailable": false,
+    "allowUnsandboxedCommands": false,
+    "filesystem": {
+      "allowWrite": ["."],
+      "denyWrite": ["~/.local/bin", "~/.bashrc", "~/.profile", "~/.bash_profile"]
+    },
+    "network": {
+      "allowedDomains": [
+        "api.anthropic.com",
+        "claude.ai",
+        "statsig.anthropic.com",
+        "sentry.io",
+        "github.com"
+      ]
+    }
+  }
+}

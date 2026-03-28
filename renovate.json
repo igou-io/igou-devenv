@@ -13,7 +13,7 @@
     {
       "description": "Update pinned versions in shell scripts and Dockerfiles via '# renovate:' comments",
       "customType": "regex",
-      "managerFilePatterns": ["/\\.sh$/", "/Dockerfile$/"],
+      "managerFilePatterns": ["/\\.sh$/", "/Dockerfile$/", "/Containerfile$/"],
       "matchStrings": [
         "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: extractVersion=(?<extractVersion>\\S+))?\\n(?:ARG )?\\w+_VERSION=\"(?<currentValue>[^\"]+)\""
       ],

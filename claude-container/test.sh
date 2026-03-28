@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
-# Verify installed tools, user config, and Python packages.
-# Runs inside the devcontainer — used by both `make test-tools` and CI.
+# Verify installed tools, user config, and Python packages in the claude container.
+# Adapted from tests/test-tools.sh — excludes podman/buildah/skopeo/docker.
 set -euo pipefail
+
+export PATH="$HOME/.local/bin:$PATH"
 
 PASS=0
 FAIL=0
@@ -17,76 +19,91 @@ echo "==> Verifying CLI tools..."
 declare -A TOOLS=(
     [kubectl]="kubectl version --client"
     [helm]="helm version --short"
-    [terraform]="terraform version"
     [gh]="gh --version"
     [python3]="python3 --version"
-    [node]="node --version"
     [claude]="claude --version"
     [ansible]="ansible --version"
     [argocd]="argocd version --client --short"
     [kustomize]="kustomize version"
-    [kubeseal]="kubeseal --version"
-    [flux]="flux --version"
-    [sops]="sops --version"
-    [op]="op --version"
     [virtctl]="virtctl version --client"
     [kubeconform]="kubeconform -v"
-    [podman]="podman --version"
-    [buildah]="buildah --version"
-    [skopeo]="skopeo --version"
     [jq]="jq --version"
-    [direnv]="direnv version"
-    [shellcheck]="shellcheck --version"
     [yamllint]="yamllint --version"
     [nmap]="nmap --version"
     [dig]="dig -v"
-    [vim]="vim --version"
-    [tmux]="tmux -V"
-    [htop]="htop --version"
     [make]="make --version"
-    [act]="act --version"
-    [crc]="crc version"
-    [kube-burner]="kube-burner version"
-    [kube-burner-ocp]="kube-burner-ocp version"
-    [tkn]="tkn version --client"
+    [tkn]="tkn version"
     [mc]="mc --version"
-    [rclone]="rclone version"
+    [rclone]="rclone --version"
+    [kubernetes-mcp-server]="kubernetes-mcp-server --version"
 )
 
 for tool in $(echo "${!TOOLS[@]}" | tr ' ' '\n' | sort); do
-    version=$(${TOOLS[$tool]} 2>&1 | head -1 || true)
-    if [ -n "$version" ]; then
+    if version=$(${TOOLS[$tool]} 2>&1 | head -1) && [ -n "$version" ]; then
         ok "$tool — $version"
     else
-        fail "$tool"
+        fail "$tool — ${version:-no output}"
     fi
 done
 
 # ---------------------------------------------------------------------------
-# Python packages
+# Python packages (pip removed — verify via importability)
 # ---------------------------------------------------------------------------
 echo ""
 echo "==> Verifying Python packages..."
 
-PIP_PACKAGES=(
-    ansible
-    ansible-navigator
-    ansible-builder
-    ansible-lint
-    ansible-runner
-    yq
-    mkdocs-material
-    kubernetes
-    jmespath
+declare -A PY_PACKAGES=(
+    [ansible]="import ansible; print(ansible.__version__)"
+    [ansible-lint]="from ansiblelint import __version__; print(__version__)"
+    [ansible-runner]="import ansible_runner; print('ok')"
+    [yq]="import yq; print('ok')"
+    [kubernetes]="import kubernetes; print(kubernetes.__version__)"
+    [jmespath]="import jmespath; print(jmespath.__version__)"
 )
 
-for pkg in "${PIP_PACKAGES[@]}"; do
-    if pip show "$pkg" &>/dev/null; then
-        ok "pip: $pkg"
+for pkg in $(echo "${!PY_PACKAGES[@]}" | tr ' ' '\n' | sort); do
+    if version=$(python3 -c "${PY_PACKAGES[$pkg]}" 2>&1); then
+        ok "python: $pkg — $version"
     else
-        fail "pip: $pkg"
+        fail "python: $pkg — ${version:-no output}"
     fi
 done
+
+# ---------------------------------------------------------------------------
+# Hardening — package managers removed, paths locked
+# ---------------------------------------------------------------------------
+echo ""
+echo "==> Verifying hardening..."
+
+if ! command -v pip &>/dev/null && ! command -v pip3 &>/dev/null; then
+    ok "pip/pip3 not available"
+else
+    fail "pip/pip3 not available (found: $(which pip pip3 2>/dev/null))"
+fi
+
+if ! command -v ansible-galaxy &>/dev/null; then
+    ok "ansible-galaxy not available"
+else
+    fail "ansible-galaxy not available"
+fi
+
+if ! command -v dnf &>/dev/null && ! command -v rpm &>/dev/null; then
+    ok "dnf/rpm not available"
+else
+    fail "dnf/rpm not available"
+fi
+
+if [ ! -w "$HOME/.local/bin" ]; then
+    ok "~/.local/bin is read-only"
+else
+    fail "~/.local/bin is read-only (writable)"
+fi
+
+if python3 -c "import site; assert not site.ENABLE_USER_SITE" 2>/dev/null; then
+    ok "PYTHONNOUSERSITE active"
+else
+    fail "PYTHONNOUSERSITE active"
+fi
 
 # ---------------------------------------------------------------------------
 # User and permissions
@@ -110,12 +127,6 @@ if [ "$(stat -c %u /home/igou)" = "$(id -u)" ]; then
     ok "home dir owned by current UID"
 else
     fail "home dir owned by current UID (dir=$(stat -c %u /home/igou), user=$(id -u))"
-fi
-
-if sudo -n true 2>/dev/null; then
-    ok "passwordless sudo"
-else
-    fail "passwordless sudo"
 fi
 
 # ---------------------------------------------------------------------------

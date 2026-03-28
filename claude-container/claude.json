@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "kubernetes": {
+      "command": "kubernetes-mcp-server",
+      "args": []
+    }
+  }
+}

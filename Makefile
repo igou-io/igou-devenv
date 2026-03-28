@@ -4,7 +4,7 @@ WORKSPACE    = $(CURDIR)
 # Resolve SSH agent mount at shell level: only mount if the socket file exists
 SSH_MOUNT = $(shell [ -S "$$SSH_AUTH_SOCK" ] && echo '--mount type=bind,source=$(SSH_AUTH_SOCK),target=/tmp/ssh-agent.sock --remote-env SSH_AUTH_SOCK=/tmp/ssh-agent.sock')
 
-.PHONY: build up down restart exec shell test test-all test-tools test-podman test-env clean rebuild help renovate-validate renovate-dry-run
+.PHONY: build up down restart exec shell test test-all test-tools test-podman test-env clean rebuild help renovate-validate renovate-dry-run claude-build claude-rebuild claude-test claude-test-run
 
 
 ## Build the devcontainer image (with cache)
@@ -86,6 +86,40 @@ renovate-dry-run:
 		-e LOG_LEVEL=debug \
 		renovate/renovate \
 		--platform=local
+
+## Build the Claude container image (with cache)
+claude-build:
+	podman build -t claude-devenv -f claude-container/Containerfile claude-container/
+
+## Rebuild the Claude container image from scratch (no cache)
+claude-rebuild:
+	podman build --no-cache -t claude-devenv -f claude-container/Containerfile claude-container/
+
+## Run tool verification tests inside the Claude container
+claude-test:
+	podman run --rm -v $(CURDIR)/claude-container/test.sh:/tmp/test.sh:ro,Z claude-devenv bash /tmp/test.sh
+
+## Test Claude under full hardening (--cap-drop=ALL, noexec /tmp, resource limits)
+claude-test-hardened:
+	podman run --rm \
+		--init \
+		--cap-drop=ALL \
+		--security-opt no-new-privileges:true \
+		--tmpfs /tmp:rw,noexec,nosuid,size=256m \
+		--tmpfs /run:rw,noexec,nosuid,size=64m \
+		--cpus=2 \
+		--memory=4g \
+		--memory-swap=4g \
+		--pids-limit=512 \
+		--ulimit nofile=1024:2048 \
+		--ulimit nproc=512:512 \
+		--ulimit core=0 \
+		-v $(CURDIR)/claude-container/test-hardened.sh:/workspace/test-hardened.sh:ro,Z \
+		claude-devenv bash /workspace/test-hardened.sh
+
+## Test claude-run secret resolution and argument assembly (uses mock op/podman)
+claude-test-run:
+	$(CURDIR)/claude-container/test-claude-run.sh
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?##' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'

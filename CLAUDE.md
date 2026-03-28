@@ -16,8 +16,14 @@ This repo is a reproducible development environment for homelab infrastructure w
 ├── post-create.sh       # Clones repos via SSH, configures shell (.bashrc), writes workspace file
 ├── post-start.sh        # SSH agent forwarding check (runs every container start)
 └── requirements.txt     # Pinned Python packages (Ansible ecosystem, yq, mkdocs-material)
+claude-container/
+├── Containerfile        # UBI9-based rootless container for Claude Code sessions
+├── requirements.txt     # Python packages (copy of .devcontainer/requirements.txt)
+└── test.sh              # Tool verification for the Claude container
 adr/                     # Architecture Decision Records
 bin/                     # Custom scripts (symlinked to ~/bin, on PATH)
+│   ├── claude-run       # Launch script for the Claude container
+│   └── argocd-refresh-all
 envs/                    # 1Password env files (op:// references only, no secrets) for use() function
 Makefile                 # Devcontainer lifecycle: build, up, down, shell, test, renovate targets
 tests/
@@ -36,7 +42,7 @@ renovate.json            # Renovate config with custom regex manager for Dockerf
 |---|---|---|
 | Dockerfile (apt) | podman, buildah, skopeo, jq, direnv, 1Password CLI, etc. | `.devcontainer/Dockerfile` |
 | Dockerfile (binary downloads) | ArgoCD, kustomize, kubeseal, flux, SOPS, oc, virtctl, act, crc, kube-burner, tkn, mc, rclone, claude-code | `.devcontainer/Dockerfile` (ARG + RUN) |
-| Devcontainer Features | kubectl, helm, terraform, python, gh, docker CLI | `devcontainer.json` `features` block |
+| Devcontainer Features | kubectl, helm, terraform, python, node, gh, docker CLI | `devcontainer.json` `features` block |
 | pip (onCreateCommand) | Ansible ecosystem, yq, mkdocs-material | `.devcontainer/requirements.txt` |
 
 **Lifecycle hooks** (execution order):
@@ -70,6 +76,14 @@ make test-podman        # Test podman pull, run, and build
 make test-env           # Test environment switching functions
 make renovate-validate  # Validate renovate.json config
 GITHUB_TOKEN=... make renovate-dry-run  # Dry-run Renovate locally
+
+# Claude container (UBI9-based, rootless)
+make claude-build       # Build the Claude container image
+make claude-rebuild     # Rebuild from scratch (no cache)
+make claude-test        # Run tool verification in the Claude container
+claude-run              # Launch Claude in the container (see bin/claude-run)
+claude-run -e ocp-rosa  # Launch with resolved cluster credentials
+claude-run --shell      # Drop to bash inside the container
 ```
 
 ## Pre-push Requirements

@@ -1,0 +1,221 @@
+#!/usr/bin/env bash
+# Launch a rootless Claude Code container with selective credential injection.
+#
+# Usage:
+#   claude-run                        # launch claude with workspace mounted
+#   claude-run -e ocp-hub             # resolve ocp-hub secrets, pass as env vars
+#   claude-run -e ocp-hub -e ansible  # stack multiple environments
+#   claude-run --shell                # drop to bash instead of claude
+#   claude-run --dry-run -e aws       # print podman command without running
+#   claude-run -e aws -- --resume     # pass flags through to claude
+set -euo pipefail
+
+IMAGE="claude-devenv"
+ENVS=()
+SHELL_MODE=false
+DRY_RUN=false
+CLAUDE_ARGS=()
+
+# ---------------------------------------------------------------------------
+# Argument parsing
+# ---------------------------------------------------------------------------
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -e|--env)
+            ENVS+=("$2")
+            shift 2
+            ;;
+        --shell)
+            SHELL_MODE=true
+            shift
+            ;;
+        --dry-run)
+            DRY_RUN=true
+            shift
+            ;;
+        --)
+            shift
+            CLAUDE_ARGS=("$@")
+            break
+            ;;
+        -h|--help)
+            echo "Usage: claude-run [-e ENV]... [--shell] [--dry-run] [-- CLAUDE_ARGS...]"
+            echo ""
+            echo "Options:"
+            echo "  -e, --env ENV   Resolve secrets from envs/ENV.env via op inject"
+            echo "  --shell         Drop to bash instead of launching claude"
+            echo "  --dry-run       Print the podman command without running it"
+            echo "  -- ARGS         Pass remaining arguments to claude"
+            echo ""
+            echo "Examples:"
+            echo "  claude-run                          # launch claude"
+            echo "  claude-run -e ocp-rosa              # with cluster credentials"
+            echo "  claude-run -e ocp-hub -e ansible    # stack environments"
+            echo "  claude-run --shell                  # interactive bash"
+            echo "  claude-run --dry-run -e aws         # preview the command"
+            echo "  claude-run -e aws -- --resume       # resume with AWS creds"
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1" >&2
+            echo "Run 'claude-run --help' for usage" >&2
+            exit 1
+            ;;
+    esac
+done
+
+# ---------------------------------------------------------------------------
+# Check image exists
+# ---------------------------------------------------------------------------
+if ! podman image exists "$IMAGE" 2>/dev/null; then
+    echo "Image '$IMAGE' not found. Build it first:"
+    echo "  make claude-build"
+    exit 1
+fi
+
+# ---------------------------------------------------------------------------
+# Resolve environments via op inject
+# ---------------------------------------------------------------------------
+ENVDIR="/workspace/igou-devenv/envs"
+ENV_ARGS=()
+TMPFILES=()
+
+cleanup() {
+    for f in "${TMPFILES[@]}"; do
+        rm -f "$f"
+    done
+}
+trap cleanup EXIT
+
+for envname in "${ENVS[@]}"; do
+    envfile="${ENVDIR}/${envname}.env"
+    if [ ! -f "$envfile" ]; then
+        echo "Environment file not found: $envfile" >&2
+        echo "Available: $(ls "${ENVDIR}"/*.env 2>/dev/null | xargs -n1 basename | sed 's/\.env$//' | tr '\n' ' ')" >&2
+        exit 1
+    fi
+
+    # Handle KUBECONFIG_DATA separately (op read + base64 decode to temp file)
+    kubeconfig_ref=$(grep '^KUBECONFIG_DATA=' "$envfile" | head -1 | cut -d= -f2- || true)
+
+    # Resolve remaining vars via op inject
+    remaining=$(grep -v '^KUBECONFIG_DATA=' "$envfile" || true)
+    if [ -n "$remaining" ]; then
+        resolved=$(echo "$remaining" | op inject) || {
+            echo "Failed to resolve secrets for ${envname}" >&2
+            exit 1
+        }
+        while IFS= read -r line; do
+            [[ -z "$line" || "$line" == \#* ]] && continue
+            ENV_ARGS+=("-e" "$line")
+        done <<< "$resolved"
+    fi
+
+    # Handle kubeconfig data
+    if [ -n "$kubeconfig_ref" ]; then
+        tmpkube=$(mktemp /tmp/kubeconfig.XXXXXX)
+        TMPFILES+=("$tmpkube")
+        op read "$kubeconfig_ref" | base64 -d > "$tmpkube"
+        ENV_ARGS+=("-e" "KUBECONFIG=/tmp/kubeconfig")
+    fi
+done
+
+# ---------------------------------------------------------------------------
+# Build podman run arguments
+# ---------------------------------------------------------------------------
+
+# Dynamic container name based on envs
+if [ ${#ENVS[@]} -gt 0 ]; then
+    CONTAINER_NAME="claude-$(IFS=-; echo "${ENVS[*]}")"
+else
+    CONTAINER_NAME="claude-session"
+fi
+
+# --- Core flags ---
+RUN_ARGS=(
+    --rm -it
+    --userns=keep-id
+    --name "$CONTAINER_NAME"
+    --replace
+)
+
+# --init requires catatonit on the host
+if command -v catatonit &>/dev/null || [ -x /usr/libexec/podman/catatonit ]; then
+    RUN_ARGS+=(--init)
+fi
+
+# --- Filesystem hardening ---
+# Note: --read-only is not used because Claude Code needs to write ~/.claude.json
+# (home root). All other protections remain: noexec /tmp, cap-drop=ALL, no package
+# managers, read-only ~/.local/bin. The container filesystem is ephemeral (--rm).
+RUN_ARGS+=(
+    --tmpfs /tmp:rw,noexec,nosuid,size=256m
+    --tmpfs /run:rw,noexec,nosuid,size=64m
+)
+
+# --- Security restrictions ---
+RUN_ARGS+=(
+    --cap-drop=ALL
+    --security-opt no-new-privileges:true
+)
+
+# --- Resource limits ---
+RUN_ARGS+=(
+    --cpus=2
+    --pids-limit=512
+    --timeout=7200
+)
+
+# Memory limits require cgroup memory controller delegation (unavailable in some nested containers)
+if [ -w "/sys/fs/cgroup/$(cat /proc/self/cgroup 2>/dev/null | cut -d: -f3)/memory.max" ] 2>/dev/null; then
+    RUN_ARGS+=(--memory=4g --memory-swap=4g)
+fi
+
+# --- Ulimits ---
+RUN_ARGS+=(
+    --ulimit nofile=1024:2048
+    --ulimit nproc=512:512
+    --ulimit core=0
+)
+
+# --- Mounts ---
+# Mount workspace at the same absolute path so Claude's project memory
+# (keyed by path) stays consistent with devcontainer sessions.
+RUN_ARGS+=(-v "$PWD:$PWD:Z" -w "$PWD")
+
+# Claude home — configurable, defaults to ~/.claude (shared with host)
+CLAUDE_HOME="${CLAUDE_HOME:-$HOME/.claude}"
+mkdir -p "$CLAUDE_HOME"
+RUN_ARGS+=(-v "$CLAUDE_HOME:/home/igou/.claude:Z")
+[ -f "$HOME/.claude.json" ] && RUN_ARGS+=(-v "$HOME/.claude.json:/home/igou/.claude.json:Z")
+
+for f in "${TMPFILES[@]}"; do
+    RUN_ARGS+=(-v "$f:/tmp/kubeconfig:ro,Z")
+done
+
+# --- Environment variables from resolved envs ---
+if [ ${#ENV_ARGS[@]} -gt 0 ]; then
+    RUN_ARGS+=("${ENV_ARGS[@]}")
+fi
+
+# ---------------------------------------------------------------------------
+# Build final command
+# ---------------------------------------------------------------------------
+if $SHELL_MODE; then
+    CMD=("$IMAGE" bash)
+else
+    CMD=("$IMAGE" claude "${CLAUDE_ARGS[@]}")
+fi
+
+# ---------------------------------------------------------------------------
+# Launch or dry-run
+# ---------------------------------------------------------------------------
+if $DRY_RUN; then
+    printf "podman run"
+    printf " %q" "${RUN_ARGS[@]}"
+    printf " %q" "${CMD[@]}"
+    echo
+    exit 0
+fi
+
+exec podman run "${RUN_ARGS[@]}" "${CMD[@]}"
