@@ -1,8 +1,5 @@
 FROM mcr.microsoft.com/devcontainers/base:ubuntu@sha256:8b4bcf1724083458f8be40f620459d8f36f37a6e44ed1f75c75aa49c51850863
 
-# Tools installed via Features (see devcontainer.json):
-#   kubectl, helm, terraform, python, node, gh, docker-outside-of-docker
-
 # Create igou user. UID 1000 is a conventional default; the devcontainer runtime's
 # updateRemoteUserUID remaps it to match the host user at startup.
 # Reassign vscode (UID 1000 in base image) to a different UID first, then create igou.
@@ -16,6 +13,10 @@ RUN usermod -u 65534 -o vscode && \
 # Additional packages from apt — includes podman/buildah/skopeo for
 # native OCI image workflows alongside the Docker CLI compatibility
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    python3 \
+    python3-pip \
+    python3-venv \
     podman \
     buildah \
     skopeo \
@@ -83,9 +84,29 @@ RUN curl -sS https://downloads.1password.com/linux/keys/1password.asc | \
     rm -rf /var/lib/apt/lists/*
 
 # ---------------------------------------------------------------------------
+# Docker CLI (via Docker's official apt repo — talks to host via socket mount)
+# ---------------------------------------------------------------------------
+RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
+    gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg && \
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo $VERSION_CODENAME) stable" \
+    > /etc/apt/sources.list.d/docker.list && \
+    apt-get update && apt-get install -y docker-ce-cli && \
+    rm -rf /var/lib/apt/lists/*
+
+# ---------------------------------------------------------------------------
 # CLI tools — pinned versions managed by Renovate
 # ---------------------------------------------------------------------------
 
+# renovate: datasource=node-version depName=node
+ARG NODE_VERSION="v24.14.1"
+# renovate: datasource=github-releases depName=kubernetes/kubernetes
+ARG KUBECTL_VERSION="v1.33.1"
+# renovate: datasource=github-releases depName=helm/helm
+ARG HELM_VERSION="v3.18.1"
+# renovate: datasource=github-releases depName=hashicorp/terraform
+ARG TERRAFORM_VERSION="v1.14.8"
+# renovate: datasource=github-releases depName=cli/cli
+ARG GH_VERSION="v2.89.0"
 # renovate: datasource=github-releases depName=argoproj/argo-cd
 ARG ARGOCD_VERSION="v3.3.4"
 # renovate: datasource=github-releases depName=kubernetes-sigs/kustomize extractVersion=^kustomize/(?<version>.*)$
@@ -115,6 +136,27 @@ ARG RCLONE_VERSION="v1.73.2"
 
 RUN set -eux; \
     ARCH=$(dpkg --print-architecture); \
+    ARCH_NODE=$([ "$ARCH" = "amd64" ] && echo "x64" || echo "$ARCH"); \
+    # Node.js
+    curl -sSL "https://nodejs.org/dist/${NODE_VERSION}/node-${NODE_VERSION}-linux-${ARCH_NODE}.tar.xz" \
+      | tar -xJ --strip-components=1 -C /usr/local; \
+    # kubectl
+    curl -sSL -o /usr/local/bin/kubectl \
+      "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/${ARCH}/kubectl" && \
+    chmod +x /usr/local/bin/kubectl; \
+    # helm
+    curl -sSL "https://get.helm.sh/helm-${HELM_VERSION}-linux-${ARCH}.tar.gz" \
+      | tar -xz --strip-components=1 -C /usr/local/bin "linux-${ARCH}/helm"; \
+    # terraform
+    TERRAFORM_VERSION_BARE="${TERRAFORM_VERSION#v}"; \
+    curl -sSL -o /tmp/terraform.zip \
+      "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION_BARE}/terraform_${TERRAFORM_VERSION_BARE}_linux_${ARCH}.zip" && \
+    unzip -o /tmp/terraform.zip -d /usr/local/bin && \
+    rm /tmp/terraform.zip; \
+    # gh CLI
+    GH_VERSION_BARE="${GH_VERSION#v}"; \
+    curl -sSL "https://github.com/cli/cli/releases/download/${GH_VERSION}/gh_${GH_VERSION_BARE}_linux_${ARCH}.tar.gz" \
+      | tar -xz --strip-components=2 -C /usr/local/bin "gh_${GH_VERSION_BARE}_linux_${ARCH}/bin/gh"; \
     # ArgoCD
     curl -sSL -o /usr/local/bin/argocd \
       "https://github.com/argoproj/argo-cd/releases/download/${ARGOCD_VERSION}/argocd-linux-${ARCH}" && \

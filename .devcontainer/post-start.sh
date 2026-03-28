@@ -49,6 +49,25 @@ fi
 git config --global url."git@github.com:".insteadOf "https://github.com/" 2>/dev/null || true
 
 # ---------------------------------------------------------------------------
+# Docker socket permissions — match the docker group GID to the socket's GID
+# so the non-root user can access it without socat proxying.
+# ---------------------------------------------------------------------------
+if [ -S /var/run/docker.sock ]; then
+    SOCK_GID=$(stat -c '%g' /var/run/docker.sock)
+    if ! getent group docker &>/dev/null; then
+        sudo groupadd -g "$SOCK_GID" docker
+    else
+        CURRENT_GID=$(getent group docker | cut -d: -f3)
+        if [ "$CURRENT_GID" != "$SOCK_GID" ]; then
+            sudo groupmod -g "$SOCK_GID" docker
+        fi
+    fi
+    if ! id -nG | grep -qw docker; then
+        sudo usermod -aG docker "$(whoami)"
+    fi
+fi
+
+# ---------------------------------------------------------------------------
 # Restore Claude Code config if missing (backup lives in mounted ~/.claude/)
 # ---------------------------------------------------------------------------
 if [ ! -f "$HOME/.claude.json" ] && [ -d "$HOME/.claude/backups" ]; then

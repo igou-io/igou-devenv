@@ -4,21 +4,7 @@
         "dockerfile": "Dockerfile",
         "context": "."
     },
-    "features": {
-        "ghcr.io/devcontainers/features/git:1": {
-            "version": "os-provided"
-        },
-        "ghcr.io/devcontainers/features/kubectl-helm-minikube:1": {
-            "minikube": "none"
-        },
-        "ghcr.io/devcontainers/features/python:1": {
-            "installTools": false
-        },
-        "ghcr.io/devcontainers/features/terraform:1": {},
-        "ghcr.io/devcontainers/features/github-cli:1": {},
-        "ghcr.io/devcontainers/features/node:1": {},
-        "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
-    },
+    "features": {},
     "runArgs": [
         "--privileged",
         "--device=/dev/fuse",
@@ -47,6 +33,7 @@
         "source=${localEnv:HOME}/.claude,target=/home/igou/.claude,type=bind",
         "source=${localEnv:HOME}/.claude.json,target=/home/igou/.claude.json,type=bind",
         "source=${localEnv:HOME}/.claude-container,target=/home/igou/.claude-container,type=bind",
+        "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind",
         "source=${localEnv:HOME}/.gitconfig,target=/home/igou/.gitconfig,type=bind,readonly",
         "source=${localEnv:HOME}/.ssh,target=/home/igou/.ssh,type=bind,readonly",
         "source=${localEnv:HOME}/.kube,target=/home/igou/.kube,type=bind",
@@ -60,7 +47,7 @@
     "customizations": {
         "vscode": {
             "settings": {
-                "ansible.python.interpreterPath": "/usr/local/python/current/bin/python3",
+                "ansible.python.interpreterPath": "/usr/bin/python3",
                 "files.trimTrailingWhitespace": true,
                 "files.associations": {
                     "**/group_vars/**/*": "jinja-yaml",
