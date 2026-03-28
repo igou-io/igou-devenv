@@ -21,6 +21,14 @@ merge_json() {
     fi
 }
 
+# Seed ~/.claude.json from the snapshot created by claude-run, then merge baked MCP config.
+# claude-run copies the host's ~/.claude.json to ~/.claude/.claude-state.json (inside the
+# mounted directory) to avoid file bind mounts that break on atomic writes.
+STATE_SNAPSHOT="$HOME/.claude/.claude-state.json"
+if [ -f "$STATE_SNAPSHOT" ] && [ ! -f "$HOME/.claude.json" ]; then
+    cp "$STATE_SNAPSHOT" "$HOME/.claude.json"
+fi
+
 # ~/.claude.json — merge baked mcpServers
 merge_json "/etc/claude/claude.json" "$HOME/.claude.json" "
 import json

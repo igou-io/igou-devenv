@@ -36,6 +36,7 @@ declare -A TOOLS=(
     [mc]="mc --version"
     [rclone]="rclone --version"
     [kubernetes-mcp-server]="kubernetes-mcp-server --version"
+    [bwrap]="bwrap --version"
 )
 
 for tool in $(echo "${!TOOLS[@]}" | tr ' ' '\n' | sort); do
@@ -103,6 +104,24 @@ if python3 -c "import site; assert not site.ENABLE_USER_SITE" 2>/dev/null; then
     ok "PYTHONNOUSERSITE active"
 else
     fail "PYTHONNOUSERSITE active"
+fi
+
+# ---------------------------------------------------------------------------
+# Claude sandbox dependencies
+# ---------------------------------------------------------------------------
+echo ""
+echo "==> Verifying sandbox dependencies..."
+
+if [ -f /usr/local/lib/claude-sandbox/unix-block.bpf ]; then
+    ok "seccomp BPF filter installed"
+else
+    fail "seccomp BPF filter installed"
+fi
+
+if [ -x /usr/local/lib/claude-sandbox/apply-seccomp ]; then
+    ok "seccomp apply binary installed"
+else
+    fail "seccomp apply binary installed"
 fi
 
 # ---------------------------------------------------------------------------

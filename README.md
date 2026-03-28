@@ -161,13 +161,17 @@ secrets are stored in the repo.
 | `make clean` | Down + prune dangling images |
 | `make renovate-validate` | Validate `renovate.json` config |
 | `make renovate-dry-run` | Dry-run Renovate locally (requires `GITHUB_TOKEN`) |
-| `make claude-build` | Build the Claude container image (UBI9) |
+| `make claude-build` | Build the Claude container image (UBI10) |
 | `make claude-rebuild` | Rebuild Claude container from scratch |
 | `make claude-test` | Run tool verification in the Claude container |
+| `make claude-test-hardened` | Test under full hardening (cap-drop=ALL, noexec, limits) |
+| `make claude-test-run` | Test claude-run secret resolution and argument assembly |
+| `make claude-test-all` | Run all Claude container tests (tools, hardened, claude-run) |
+| `make e2e` | Full end-to-end: rebuild devcontainer, run all tests, build + test Claude container |
 
 ## Claude Container
 
-A separate UBI9-based container for running Claude Code sessions against
+A separate UBI10-based container for running Claude Code sessions against
 infrastructure repos. Runs rootless via podman from inside the devcontainer,
 with selective credential injection per session.
 
@@ -176,6 +180,7 @@ with selective credential injection per session.
 ```bash
 make claude-build       # build the image
 make claude-test        # verify all tools
+make claude-test-all    # run all tests (tools, hardened, claude-run)
 ```
 
 ### Usage
@@ -198,10 +203,11 @@ never has direct access to 1Password.
 
 | | Devcontainer | Claude Container |
 |---|---|---|
-| Base image | Ubuntu (devcontainers/base) | UBI9 |
+| Base image | Ubuntu (devcontainers/base) | UBI10 (ubi-micro) |
 | Container engine | podman, buildah, skopeo, Docker CLI | None (no nested containers) |
 | Devcontainer Features | kubectl, helm, terraform, python, node, gh, docker | Installed via binary downloads |
 | Privileged mode | Yes (for nested podman) | No (rootless via `--userns=keep-id`) |
+| Hardening | None (general-purpose) | `--cap-drop=ALL`, noexec /tmp, bubblewrap + seccomp sandbox |
 | Launched via | Cursor / `make up` | `claude-run` from inside devcontainer |
 
 ## SSH Agent Forwarding
@@ -245,6 +251,7 @@ All tool versions are pinned and managed by [Renovate](https://docs.renovatebot.
 - **Dockerfile base image** — pinned by digest, updated by Renovate's Docker manager
 - **Python packages** — pinned in `.devcontainer/requirements.txt`, updated by `pip_requirements` manager
 - **CLI binaries** — pinned in `Dockerfile` with `# renovate:` comments, updated by a custom regex manager using the `github-releases` datasource
+- **npm build-time deps** — pinned in `claude-container/package.json`, updated by Renovate's native npm manager
 
 To test Renovate config locally:
 ```bash
@@ -267,6 +274,7 @@ test suite (`tests/run-all.sh`) inside the container.
 - **Devcontainer Features** → add to `devcontainer.json` `features` block
 - **Python packages** → add to `.devcontainer/requirements.txt` (pinned for Renovate)
 - **CLI binaries from GitHub** → add to `Dockerfile` with a `# renovate:` ARG comment
+- **npm build-time deps** → add to `claude-container/package.json` (Renovate-managed)
 - **Custom scripts** → add to `bin/` (symlinked to `~/bin`, on PATH)
 - **Cursor extensions** → add to `customizations.vscode.extensions` in `devcontainer.json`
 

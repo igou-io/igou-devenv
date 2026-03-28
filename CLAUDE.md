@@ -17,9 +17,15 @@ This repo is a reproducible development environment for homelab infrastructure w
 ├── post-start.sh        # SSH agent forwarding check (runs every container start)
 └── requirements.txt     # Pinned Python packages (Ansible ecosystem, yq, mkdocs-material)
 claude-container/
-├── Containerfile        # UBI9-based rootless container for Claude Code sessions
+├── Containerfile        # UBI10-based rootless container for Claude Code sessions
 ├── requirements.txt     # Python packages (copy of .devcontainer/requirements.txt)
-└── test.sh              # Tool verification for the Claude container
+├── package.json         # npm build-time deps (sandbox-runtime seccomp filter, Renovate-managed)
+├── claude.json          # Baked MCP server config (→ /etc/claude/)
+├── settings.json        # Baked sandbox settings (→ /etc/claude/)
+├── entrypoint.sh        # Git config, config merging, GitHub auth
+├── test.sh              # Tool verification for the Claude container
+├── test-hardened.sh     # Integration tests under full hardening (cap-drop, noexec, etc.)
+└── test-claude-run.sh   # Unit tests for claude-run launch script
 adr/                     # Architecture Decision Records
 bin/                     # Custom scripts (symlinked to ~/bin, on PATH)
 │   ├── claude-run       # Launch script for the Claude container
@@ -60,6 +66,8 @@ renovate.json            # Renovate config with custom regex manager for Dockerf
 ARG ARGOCD_VERSION="v3.3.0"
 ```
 
+**Dependency version pinning preference**: When a package ecosystem provides a declarative dependency file (e.g., `requirements.txt` for Python, `package.json` for npm), use that file to pin versions rather than inline `ARG` + `# renovate:` comments. Renovate has native managers for these formats, which are more reliable than regex matching. Only use `# renovate:` ARG annotations for standalone binary downloads that have no ecosystem dependency file.
+
 ## Common Commands
 
 ```bash
@@ -77,10 +85,14 @@ make test-env           # Test environment switching functions
 make renovate-validate  # Validate renovate.json config
 GITHUB_TOKEN=... make renovate-dry-run  # Dry-run Renovate locally
 
-# Claude container (UBI9-based, rootless)
+# Claude container (UBI10-based, rootless)
 make claude-build       # Build the Claude container image
 make claude-rebuild     # Rebuild from scratch (no cache)
 make claude-test        # Run tool verification in the Claude container
+make claude-test-hardened  # Test under full hardening (cap-drop, noexec, limits)
+make claude-test-run    # Test claude-run argument assembly (uses mock podman)
+make claude-test-all    # Run all Claude container tests
+make e2e                # Full end-to-end: rebuild devcontainer + all tests + Claude build/test
 claude-run              # Launch Claude in the container (see bin/claude-run)
 claude-run -e ocp-rosa  # Launch with resolved cluster credentials
 claude-run --shell      # Drop to bash inside the container

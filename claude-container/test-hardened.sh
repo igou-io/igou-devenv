@@ -102,6 +102,37 @@ else
     fail "anthropic API in allowed domains"
 fi
 
+if python3 -c "import json; s=json.load(open('$BAKED_SETTINGS')); assert s['sandbox']['seccomp']['bpfPath'] == '/usr/local/lib/claude-sandbox/unix-block.bpf'" 2>/dev/null; then
+    ok "seccomp bpfPath configured"
+else
+    fail "seccomp bpfPath configured"
+fi
+
+if command -v bwrap &>/dev/null; then
+    ok "bubblewrap (bwrap) installed"
+else
+    fail "bubblewrap (bwrap) installed"
+fi
+
+if [ -x /usr/local/lib/claude-sandbox/apply-seccomp ]; then
+    ok "seccomp apply binary present"
+else
+    fail "seccomp apply binary present"
+fi
+
+# Functional tests: verify sandbox tools actually work under cap-drop=ALL
+if bwrap --ro-bind / / --dev /dev --tmpfs /tmp --die-with-parent echo "ok" &>/dev/null; then
+    ok "bwrap executes under hardened flags"
+else
+    fail "bwrap executes under hardened flags"
+fi
+
+if /usr/local/lib/claude-sandbox/apply-seccomp /usr/local/lib/claude-sandbox/unix-block.bpf echo "ok" &>/dev/null; then
+    ok "seccomp filter applies successfully"
+else
+    fail "seccomp filter applies successfully"
+fi
+
 # ---------------------------------------------------------------------------
 # Filesystem: read-only root, writable workspace
 # ---------------------------------------------------------------------------

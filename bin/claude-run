@@ -183,11 +183,16 @@ RUN_ARGS+=(
 # (keyed by path) stays consistent with devcontainer sessions.
 RUN_ARGS+=(-v "$PWD:$PWD:Z" -w "$PWD")
 
-# Claude home — configurable, defaults to ~/.claude (shared with host)
+# Claude home — configurable, defaults to ~/.claude (shared with host).
+# ~/.claude.json is NOT mounted — file bind mounts break when the host replaces
+# the file (atomic write, token refresh, re-login). The entrypoint creates it
+# from baked config at /etc/claude/claude.json instead.
 CLAUDE_HOME="${CLAUDE_HOME:-$HOME/.claude}"
 mkdir -p "$CLAUDE_HOME"
+# Snapshot ~/.claude.json into the mounted directory so the entrypoint can
+# seed auth state without a file bind mount (which breaks on atomic writes).
+[ -f "$HOME/.claude.json" ] && cp "$HOME/.claude.json" "$CLAUDE_HOME/.claude-state.json"
 RUN_ARGS+=(-v "$CLAUDE_HOME:/home/igou/.claude:Z")
-[ -f "$HOME/.claude.json" ] && RUN_ARGS+=(-v "$HOME/.claude.json:/home/igou/.claude.json:Z")
 
 for f in "${TMPFILES[@]}"; do
     RUN_ARGS+=(-v "$f:/tmp/kubeconfig:ro,Z")

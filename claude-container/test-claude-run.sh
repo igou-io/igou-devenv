@@ -434,10 +434,10 @@ else
     fail "~/.claude mounted into container"
 fi
 
-if grep -q "\.claude\.json" "$TESTDIR/podman-args"; then
-    ok "~/.claude.json mounted into container"
+if ! grep -q "\.claude\.json" "$TESTDIR/podman-args"; then
+    ok "~/.claude.json NOT mounted (avoids stale bind mount)"
 else
-    fail "~/.claude.json mounted into container"
+    fail "~/.claude.json NOT mounted (avoids stale bind mount)"
 fi
 
 # Test CLAUDE_HOME override

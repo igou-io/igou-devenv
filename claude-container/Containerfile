@@ -16,10 +16,11 @@ RUN mkdir -p ${DNF_INSTALL_ROOT}
 COPY --from=target / ${DNF_INSTALL_ROOT}/
 
 # Build dependencies (not installed into rootfs)
-RUN dnf install -y unzip xz tar gzip
+RUN dnf install -y unzip xz tar gzip nodejs-npm
 
 # EPEL 10 for additional packages (arp-scan, fping, ShellCheck, etc.)
 RUN dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-10.noarch.rpm || true
+
 
 # ---------------------------------------------------------------------------
 # System packages into rootfs
@@ -53,6 +54,14 @@ RUN dnf ${DNF_OPTS_ROOT} ${DNF_OPTS} --skip-broken install \
     procps-ng \
     && dnf ${DNF_OPTS_ROOT} clean all \
     && rm -rf ${DNF_INSTALL_ROOT}/var/cache/* ${DNF_INSTALL_ROOT}/var/log/dnf* ${DNF_INSTALL_ROOT}/var/log/yum.*
+
+# bubblewrap — required by Claude Code sandbox. Not in UBI10 repos, so install
+# from CentOS 10-stream BaseOS as a one-off (--repofrompath avoids persisting the repo).
+RUN dnf ${DNF_OPTS_ROOT} ${DNF_OPTS} --nogpgcheck \
+    --repofrompath=centos-baseos,https://mirror.stream.centos.org/10-stream/BaseOS/x86_64/os/ \
+    --repo=centos-baseos \
+    install bubblewrap \
+    && dnf ${DNF_OPTS_ROOT} clean all
 
 RUN mkdir -p ${DNF_INSTALL_ROOT}/usr/local/bin
 
@@ -176,6 +185,20 @@ RUN mkdir -p ${DNF_INSTALL_ROOT}/home/igou/.local && \
     chown -R 1000:1000 ${DNF_INSTALL_ROOT}/home/igou && \
     # Lock down ~/.local/bin so agent cannot drop new binaries onto PATH
     chmod 555 ${DNF_INSTALL_ROOT}/home/igou/.local/bin
+
+# Seccomp filter for Claude Code sandbox (blocks unix domain sockets).
+# Version pinned in package.json, managed by Renovate's native npm manager.
+COPY package.json /tmp/sandbox/package.json
+RUN set -eux; \
+    UARCH=$(uname -m); \
+    case "$UARCH" in x86_64) SECCOMP_ARCH=x64;; aarch64) SECCOMP_ARCH=arm64;; *) SECCOMP_ARCH=$UARCH;; esac; \
+    SANDBOX_DIR=${DNF_INSTALL_ROOT}/usr/local/lib/claude-sandbox; \
+    mkdir -p "$SANDBOX_DIR"; \
+    cd /tmp/sandbox && npm install --no-save 2>/dev/null && \
+    cp "node_modules/@anthropic-ai/sandbox-runtime/vendor/seccomp/${SECCOMP_ARCH}/unix-block.bpf" "$SANDBOX_DIR/" && \
+    cp "node_modules/@anthropic-ai/sandbox-runtime/vendor/seccomp/${SECCOMP_ARCH}/apply-seccomp" "$SANDBOX_DIR/" && \
+    chmod +x "$SANDBOX_DIR/apply-seccomp" && \
+    rm -rf /tmp/sandbox
 
 # Entrypoint, MCP config, and Claude sandbox settings
 COPY entrypoint.sh ${DNF_INSTALL_ROOT}/usr/local/bin/entrypoint.sh

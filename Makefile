@@ -4,7 +4,7 @@ WORKSPACE    = $(CURDIR)
 # Resolve SSH agent mount at shell level: only mount if the socket file exists
 SSH_MOUNT = $(shell [ -S "$$SSH_AUTH_SOCK" ] && echo '--mount type=bind,source=$(SSH_AUTH_SOCK),target=/tmp/ssh-agent.sock --remote-env SSH_AUTH_SOCK=/tmp/ssh-agent.sock')
 
-.PHONY: build up down restart exec shell test test-all test-tools test-podman test-env clean rebuild help renovate-validate renovate-dry-run claude-build claude-rebuild claude-test claude-test-run
+.PHONY: build up down restart exec shell test test-all test-tools test-podman test-env clean rebuild help renovate-validate renovate-dry-run claude-build claude-rebuild claude-test claude-test-run claude-test-all e2e
 
 
 ## Build the devcontainer image (with cache)
@@ -120,6 +120,48 @@ claude-test-hardened:
 ## Test claude-run secret resolution and argument assembly (uses mock op/podman)
 claude-test-run:
 	$(CURDIR)/claude-container/test-claude-run.sh
+
+## Run all Claude container tests (tools, hardened, claude-run)
+claude-test-all: claude-test claude-test-hardened claude-test-run
+
+## End-to-end: rebuild devcontainer, run devcontainer tests, build Claude container
+## inside devcontainer, run Claude container tests. Full validation from scratch.
+e2e:
+	@echo "=== Phase 1: Rebuild devcontainer ==="
+	$(DEVCONTAINER) up --workspace-folder $(WORKSPACE) \
+		--remove-existing-container \
+		--build-no-cache \
+		$(SSH_MOUNT)
+	@echo ""
+	@echo "=== Phase 2: Devcontainer tests ==="
+	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) /workspace/igou-devenv/tests/test-tools.sh
+	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) /workspace/igou-devenv/tests/test-podman.sh
+	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) bash -i /workspace/igou-devenv/tests/test-env.sh
+	@echo ""
+	@echo "=== Phase 3: Build Claude container inside devcontainer ==="
+	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) \
+		podman build --no-cache -t claude-devenv -f /workspace/igou-devenv/claude-container/Containerfile /workspace/igou-devenv/claude-container/
+	@echo ""
+	@echo "=== Phase 4: Claude container tests (inside devcontainer) ==="
+	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) \
+		podman run --rm -v /workspace/igou-devenv/claude-container/test.sh:/tmp/test.sh:ro,Z claude-devenv bash /tmp/test.sh
+	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) \
+		/workspace/igou-devenv/claude-container/test-claude-run.sh
+	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) \
+		podman run --rm \
+			--init \
+			--cap-drop=ALL \
+			--security-opt no-new-privileges:true \
+			--tmpfs /tmp:rw,noexec,nosuid,size=256m \
+			--tmpfs /run:rw,noexec,nosuid,size=64m \
+			--pids-limit=512 \
+			--ulimit nofile=1024:2048 \
+			--ulimit nproc=512:512 \
+			--ulimit core=0 \
+			-v /workspace/igou-devenv/claude-container/test-hardened.sh:/workspace/test-hardened.sh:ro,Z \
+			claude-devenv bash /workspace/test-hardened.sh
+	@echo ""
+	@echo "=== E2E complete ==="
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?##' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'

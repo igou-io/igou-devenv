@@ -1,0 +1,7 @@
+{
+  "private": true,
+  "description": "Build-time npm dependencies for the Claude container",
+  "dependencies": {
+    "@anthropic-ai/sandbox-runtime": "0.0.43"
+  }
+}

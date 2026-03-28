@@ -47,6 +47,8 @@ All tools are baked into the image at build time:
 | dnf (system) | bash, git, python3, jq, make, nmap, curl, etc. | Base image update |
 | Binary downloads | kubectl, helm, gh, argocd, kustomize, oc, virtctl, kubeconform, tkn, mc, rclone, kubernetes-mcp-server | Renovate (ARG version pins) |
 | pip (chroot) | ansible, ansible-runner, ansible-lint, yq, kubernetes, jmespath, yamllint | Renovate (requirements.txt) |
+| npm (build-time) | seccomp filter, apply-seccomp (via @anthropic-ai/sandbox-runtime) | Renovate (package.json) |
+| dnf (CentOS 10-stream) | bubblewrap | Base image update |
 | Claude Code | Native binary via install script | Image rebuild |
 
 After pip install, package managers are removed:
@@ -126,6 +128,24 @@ Application-level restrictions within Claude's own execution model:
 - `enableWeakerNestedSandbox`: Required because Claude's bubblewrap sandbox cannot use full isolation inside a container
 - Filesystem deny-write rules complement the OS-level `chmod 555 ~/.local/bin`
 - Network allowlist restricts outbound connections at the application level
+- `seccomp.bpfPath` and `seccomp.applyPath` point to the baked sandbox binaries at `/usr/local/lib/claude-sandbox/`
+
+#### Sandbox dependencies (bubblewrap + seccomp)
+
+Claude Code's sandbox requires bubblewrap (`bwrap`) for filesystem isolation and a seccomp filter (`unix-block.bpf` + `apply-seccomp`) to block Unix domain sockets. These are baked into the image:
+
+- **bubblewrap**: Not available in UBI10 repos. Installed from CentOS 10-stream BaseOS via `--repofrompath` (avoids persisting the repo or conflicting with UBI packages):
+  ```dockerfile
+  RUN dnf ${DNF_OPTS_ROOT} ${DNF_OPTS} --nogpgcheck \
+      --repofrompath=centos-baseos,https://mirror.stream.centos.org/10-stream/BaseOS/x86_64/os/ \
+      --repo=centos-baseos \
+      install bubblewrap
+  ```
+- **seccomp filter**: Extracted from the `@anthropic-ai/sandbox-runtime` npm package at build time. Version is pinned in `claude-container/package.json` and managed by Renovate's native npm manager:
+  ```json
+  { "dependencies": { "@anthropic-ai/sandbox-runtime": "0.0.43" } }
+  ```
+  The build stage installs `nodejs-npm`, runs `npm install`, and copies the architecture-specific `unix-block.bpf` and `apply-seccomp` into `/usr/local/lib/claude-sandbox/`. Node.js is not included in the final image.
 
 #### Layer 3: Python environment lockdown (baked in image)
 
@@ -143,12 +163,18 @@ The root filesystem is not mounted read-only because Claude Code requires writab
 
 ### Config merging via entrypoint
 
-The image bakes MCP server config (`/etc/claude/claude.json`) and sandbox settings (`/etc/claude/settings.json`) into `/etc/claude/`. At runtime, `~/.claude/` and `~/.claude.json` may be bind-mounted from the host with existing user config. The entrypoint merges baked config into user config at startup:
+The image bakes MCP server config (`/etc/claude/claude.json`) and sandbox settings (`/etc/claude/settings.json`) into `/etc/claude/`. At runtime, `~/.claude/` is bind-mounted from the host with existing user config. The entrypoint merges baked config into user config at startup:
 
-- **`~/.claude.json`**: Baked `mcpServers` are merged in (baked servers take precedence)
+- **`~/.claude.json`**: Created from baked `/etc/claude/claude.json` (not mounted from host — see below). If the file already exists, baked `mcpServers` are merged in.
 - **`~/.claude/settings.json`**: Baked sandbox settings are deep-merged (baked keys take precedence)
 
 If no host config exists, the baked files are copied as-is. This ensures sandbox restrictions and MCP servers are always active regardless of what the host provides.
+
+### Why `~/.claude.json` is not bind-mounted
+
+`~/.claude.json` is deliberately not mounted from the host. Bind-mounting individual files tracks the inode, not the path. When Claude Code replaces the file via atomic write (token refresh, re-login, settings change), the bind mount goes stale — the container sees the old deleted inode (`Links: 0`) and nested podman fails with "No such file or directory."
+
+Instead, `claude-run` snapshots `~/.claude.json` into the mounted `~/.claude/.claude-state.json`, and the entrypoint seeds `~/.claude.json` from this snapshot at startup. Baked MCP config is then merged in. This means container sessions inherit auth state from the host without a file bind mount, while sharing session history, credentials, and settings through the `~/.claude/` directory mount (which is immune to this problem since directory mounts track the directory, not individual file inodes).
 
 ### Claude home directory
 
@@ -204,12 +230,13 @@ Container names are derived from active environments (`claude-session`, `claude-
 claude-container/
 ├── Containerfile        # Three-stage UBI10 build
 ├── requirements.txt     # Python packages (Renovate-managed)
+├── package.json         # npm build-time deps — seccomp filter (Renovate-managed)
 ├── entrypoint.sh        # Git config, config merging, GitHub auth
 ├── claude.json          # Baked MCP server config (→ /etc/claude/)
 ├── settings.json        # Baked sandbox settings (→ /etc/claude/)
-├── test.sh              # Tool verification (33 assertions)
-├── test-hardened.sh     # Hardened environment integration tests (30 assertions)
-└── test-claude-run.sh   # Launch script unit tests (43 assertions)
+├── test.sh              # Tool verification (~12 assertions)
+├── test-hardened.sh     # Hardened environment integration tests (~38 assertions)
+└── test-claude-run.sh   # Launch script unit tests (~37 assertions)
 bin/
 └── claude-run           # Launch script with hardening flags
 ```
@@ -223,10 +250,10 @@ bin/
 - **Agent cannot execute from /tmp**: noexec tmpfs prevents downloaded binaries from running
 - **Agent cannot escalate privileges**: `--cap-drop=ALL` + `no-new-privileges`
 - **Resource-bounded**: CPU, memory, PID, and session time limits prevent runaway processes
-- **Sessions persist**: History, credentials, and session state survive container restarts via `~/.claude-container/`
+- **Sessions persist**: History, credentials, and session state survive container restarts via `~/.claude/` mount
 - **Config always enforced**: Entrypoint merges baked sandbox settings regardless of host config
 - **Environment composable**: Same `op inject` pattern as the devcontainer's `use()` function
-- **Fully tested**: 106 assertions across three test suites covering tools, hardening, and launch behavior
+- **Fully tested**: ~87 assertions across three test suites covering tools, hardening, and launch behavior
 
 ### Tradeoffs
 
@@ -234,12 +261,12 @@ bin/
 - **No `--read-only` root filesystem**: Claude Code's writable path requirements at `$HOME` root prevent this. Mitigated by ephemeral containers (`--rm`) and other filesystem restrictions
 - **Separate session history**: Container and host Claude sessions have independent histories — a session started in the container cannot be resumed from the host and vice versa
 - **Conditional flags**: `--init` and `--memory` are skipped in environments without catatonit or cgroup delegation, slightly reducing hardening in nested containers
-- **Credential seeding is one-time**: If host credentials are refreshed (e.g., OAuth token rotation), `~/.claude-container/.credentials.json` must be manually deleted to re-seed
+- **Credential seeding is one-time**: If host credentials are refreshed (e.g., OAuth token rotation), `~/.claude/.credentials.json` must be manually deleted to re-seed
 
 ### Security considerations
 
 - The container is ephemeral (`--rm`) — any changes outside mounted volumes are discarded
 - Sandbox settings are enforced even if the host's `~/.claude/settings.json` has no sandbox config (entrypoint merge ensures baked settings take precedence)
 - `GITHUB_TOKEN` (when provided via `-e`) is visible in the process environment inside the container — same exposure model as [ADR-0001](0001-environment-switching-with-1password.md)
-- The agent has full read-write access to the mounted workspace (`$PWD:/workspace`) — scope the working directory appropriately
+- The agent has full read-write access to the mounted workspace (`$PWD:$PWD`) — scope the working directory appropriately
 - Core dumps are disabled (`--ulimit core=0`) to prevent credential leakage via crash dumps
