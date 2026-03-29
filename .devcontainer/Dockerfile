@@ -214,6 +214,13 @@ RUN set -eux; \
     chmod +x /usr/local/bin/rclone && \
     rm /tmp/rclone.zip
 
+# ---------------------------------------------------------------------------
+# Python packages — pinned versions managed by Renovate (requirements.txt)
+# ---------------------------------------------------------------------------
+COPY requirements.txt /tmp/requirements.txt
+RUN pip install --break-system-packages --ignore-installed -r /tmp/requirements.txt && \
+    rm /tmp/requirements.txt
+
 # Configure podman for rootless operation inside a container
 RUN mkdir -p /home/igou/.config/containers && \
     echo '[storage]' > /home/igou/.config/containers/storage.conf && \
