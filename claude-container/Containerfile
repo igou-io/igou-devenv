@@ -206,6 +206,7 @@ RUN chmod +x ${DNF_INSTALL_ROOT}/usr/local/bin/entrypoint.sh
 RUN mkdir -p ${DNF_INSTALL_ROOT}/etc/claude
 COPY claude.json ${DNF_INSTALL_ROOT}/etc/claude/claude.json
 COPY settings.json ${DNF_INSTALL_ROOT}/etc/claude/settings.json
+COPY CLAUDE.md ${DNF_INSTALL_ROOT}/etc/claude/CLAUDE.md
 RUN mkdir -p ${DNF_INSTALL_ROOT}/home/igou/.claude && \
     chown -R 1000:1000 ${DNF_INSTALL_ROOT}/home/igou/.claude
 

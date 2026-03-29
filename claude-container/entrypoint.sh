@@ -51,6 +51,11 @@ for key, val in baked.items():
 with open('$HOME/.claude/settings.json', 'w') as f: json.dump(user, f, indent=2)
 "
 
+# Global CLAUDE.md — baked into image, copied only if user doesn't have one
+if [ -f /etc/claude/CLAUDE.md ] && [ ! -f "$HOME/.claude/CLAUDE.md" ]; then
+    cp /etc/claude/CLAUDE.md "$HOME/.claude/CLAUDE.md"
+fi
+
 # Git config in /tmp (read-only root filesystem)
 export GIT_CONFIG_GLOBAL="/tmp/.gitconfig"
 

@@ -1,5 +1,5 @@
 # Managed by Renovate — pin versions for automated updates
-ansible==13.4.0
+ansible-core==2.20.4
 ansible-navigator==26.1.3
 ansible-builder==3.1.1
 ansible-rulebook==1.2.2
@@ -7,6 +7,5 @@ ansible-runner==2.4.3
 ansible-lint==26.3.0
 awxkit==24.6.1
 yq==3.4.3
-mkdocs-material==9.7.6
 kubernetes==35.0.0
 jmespath==1.1.0

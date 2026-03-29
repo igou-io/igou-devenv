@@ -45,7 +45,6 @@ declare -A TOOLS=(
     [htop]="htop --version"
     [make]="make --version"
     [act]="act --version"
-    [crc]="crc version"
     [kube-burner]="kube-burner version"
     [kube-burner-ocp]="kube-burner-ocp version"
     [tkn]="tkn version --client"
@@ -69,13 +68,12 @@ echo ""
 echo "==> Verifying Python packages..."
 
 PIP_PACKAGES=(
-    ansible
+    ansible-core
     ansible-navigator
     ansible-builder
     ansible-lint
     ansible-runner
     yq
-    mkdocs-material
     kubernetes
     jmespath
 )

@@ -46,6 +46,13 @@
     ],
     "customizations": {
         "vscode": {
+            "extensions": [
+                "redhat.ansible",
+                "hashicorp.terraform",
+                "ms-kubernetes-tools.vscode-kubernetes-tools",
+                "redhat.vscode-yaml",
+                "ms-azuretools.vscode-docker"
+            ],
             "settings": {
                 "ansible.python.interpreterPath": "/usr/bin/python3",
                 "files.trimTrailingWhitespace": true,
@@ -53,10 +60,21 @@
                     "**/group_vars/**/*": "jinja-yaml",
                     "**/host_vars/**/*": "jinja-yaml",
                     "**/roles/**/*.yml": "ansible",
-                    "**/playbooks/**/*.yml": "ansible",
                     "**/roles/**/*.yaml": "ansible",
+                    "**/playbooks/**/*.yml": "ansible",
                     "**/playbooks/**/*.yaml": "ansible",
+                    "**/molecule/**/*.yml": "ansible",
+                    "**/molecule/**/*.yaml": "ansible",
+                    "**/execution-environments/**/*.yml": "yaml",
+                    "inventory.yaml": "ansible",
+                    "requirements.yml": "ansible",
+                    "ansible-navigator.yml": "yaml",
                     "ansible.cfg": "ini",
+                    "**/*.j2": "jinja",
+                    "**/*.tf": "terraform",
+                    "**/*.tfvars": "terraform",
+                    "Containerfile": "dockerfile",
+                    "**/Containerfile": "dockerfile",
                     "**/*.yaml": "yaml",
                     "**/*.yml": "yaml"
                 },
@@ -65,9 +83,21 @@
                         "igou-kubernetes/apps/**/*.yaml",
                         "igou-kubernetes/base/**/*.yaml",
                         "igou-kubernetes/bootstrap/**/*.yaml",
-                        "igou-kubernetes/config/**/*.yaml"
+                        "igou-kubernetes/config/**/*.yaml",
+                        "igou-kubernetes-private/apps/**/*.yaml",
+                        "igou-kubernetes-private/pvs/**/*.yaml",
+                        "igou-openshift/components/**/*.yaml",
+                        "igou-openshift/applications/**/*.yaml",
+                        "igou-openshift/test-workloads/**/*.yaml",
+                        "rosa-gitops/components/**/*.yaml",
+                        "rosa-gitops/applications/**/*.yaml",
+                        "rosa-gitops-example-team/applications/**/*.yaml"
                     ],
-                    "https://squidfunk.github.io/mkdocs-material/schema.json": "mkdocs.yml"
+                    "https://raw.githubusercontent.com/ansible/ansible-lint/main/src/ansiblelint/schemas/ansible-navigator.json": "ansible-navigator.{yml,yaml}",
+                    "https://raw.githubusercontent.com/ansible/ansible-lint/main/src/ansiblelint/schemas/execution-environment.json": "**/execution-environments/**/execution-environment.{yml,yaml}",
+                    "https://raw.githubusercontent.com/ansible/ansible-lint/main/src/ansiblelint/schemas/requirements.json": "requirements.{yml,yaml}",
+                    "https://raw.githubusercontent.com/ansible/ansible-lint/main/src/ansiblelint/schemas/meta.json": "**/roles/**/meta/main.{yml,yaml}",
+                    "https://raw.githubusercontent.com/ansible/ansible-lint/main/src/ansiblelint/schemas/galaxy.json": "galaxy.{yml,yaml}"
                 }
             }
         }

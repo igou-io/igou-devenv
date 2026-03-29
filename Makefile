@@ -4,7 +4,7 @@ WORKSPACE    = $(CURDIR)
 # Resolve SSH agent mount at shell level: only mount if the socket file exists
 SSH_MOUNT = $(shell [ -S "$$SSH_AUTH_SOCK" ] && echo '--mount type=bind,source=$(SSH_AUTH_SOCK),target=/tmp/ssh-agent.sock --remote-env SSH_AUTH_SOCK=/tmp/ssh-agent.sock')
 
-.PHONY: build up down restart exec shell test test-all test-tools test-podman test-env clean rebuild help renovate-validate renovate-dry-run claude-build claude-rebuild claude-test claude-test-run claude-test-all e2e
+.PHONY: build up down restart exec shell test test-all test-tools test-podman test-env clean rebuild help renovate-validate renovate-dry-run claude-build claude-rebuild claude-test claude-test-run claude-test-all e2e sbom sbom-devcontainer sbom-claude
 
 
 ## Build the devcontainer image (with cache)
@@ -162,6 +162,25 @@ e2e:
 			claude-devenv bash /workspace/test-hardened.sh
 	@echo ""
 	@echo "=== E2E complete ==="
+
+## Generate SBOMs for all container images (SPDX + CycloneDX)
+sbom: sbom-devcontainer sbom-claude
+
+## Generate SBOM for the devcontainer image
+sbom-devcontainer:
+	@mkdir -p sbom
+	@DEVCONTAINER_IMAGE=$$(docker images --format '{{.Repository}}:{{.Tag}}' | grep '^vsc-igou-devenv' | grep -v '\-uid' | head -1); \
+	if [ -z "$$DEVCONTAINER_IMAGE" ]; then echo "No devcontainer image found. Run 'make build' first."; exit 1; fi; \
+	echo "Generating SBOM for $$DEVCONTAINER_IMAGE..."; \
+	syft "$$DEVCONTAINER_IMAGE" -o spdx-json=sbom/devcontainer.spdx.json -o cyclonedx-json=sbom/devcontainer.cdx.json; \
+	echo "SBOMs written to sbom/devcontainer.{spdx,cdx}.json"
+
+## Generate SBOM for the Claude container image
+sbom-claude:
+	@mkdir -p sbom
+	@if ! podman image exists claude-devenv; then echo "No claude-devenv image found. Run 'make claude-build' first."; exit 1; fi
+	syft podman:claude-devenv -o spdx-json=sbom/claude-devenv.spdx.json -o cyclonedx-json=sbom/claude-devenv.cdx.json
+	@echo "SBOMs written to sbom/claude-devenv.{spdx,cdx}.json"
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?##' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'

@@ -66,10 +66,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     sysstat \
     tcpdump \
     traceroute \
-    tshark \
     whois \
     wireguard-tools \
     yamllint \
+    && apt-get purge -y --auto-remove gcc g++ cpp gcc-13 g++-13 cpp-13 \
+       gcc-13-x86-64-linux-gnu g++-13-x86-64-linux-gnu cpp-13-x86-64-linux-gnu \
+       libstdc++-13-dev 2>/dev/null || true \
     && rm -rf /var/lib/apt/lists/* \
     && rm -rf /usr/share/doc /usr/share/man /usr/share/i18n/locales /usr/share/locale
 
@@ -123,8 +125,6 @@ ARG VIRTCTL_VERSION="v1.7.2"
 ARG KUBECONFORM_VERSION="v0.6.7"
 # renovate: datasource=github-releases depName=nektos/act
 ARG ACT_VERSION="v0.2.84"
-# renovate: datasource=github-releases depName=crc-org/crc
-ARG CRC_VERSION="v2.59.0"
 # renovate: datasource=github-releases depName=cloud-bulldozer/kube-burner
 ARG KUBE_BURNER_VERSION="v2.4.2"
 # renovate: datasource=github-releases depName=kube-burner/kube-burner-ocp
@@ -137,9 +137,10 @@ ARG RCLONE_VERSION="v1.73.2"
 RUN set -eux; \
     ARCH=$(dpkg --print-architecture); \
     ARCH_NODE=$([ "$ARCH" = "amd64" ] && echo "x64" || echo "$ARCH"); \
-    # Node.js
+    # Node.js (strip headers — not needed at runtime, saves ~65 MB)
     curl -sSL "https://nodejs.org/dist/${NODE_VERSION}/node-${NODE_VERSION}-linux-${ARCH_NODE}.tar.xz" \
-      | tar -xJ --strip-components=1 -C /usr/local; \
+      | tar -xJ --strip-components=1 -C /usr/local && \
+    rm -rf /usr/local/include/node; \
     # kubectl
     curl -sSL -o /usr/local/bin/kubectl \
       "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/${ARCH}/kubectl" && \
@@ -191,12 +192,6 @@ RUN set -eux; \
     # act
     curl -sSL "https://github.com/nektos/act/releases/download/${ACT_VERSION}/act_Linux_${ARCH_X86}.tar.gz" \
       | tar -xz -C /usr/local/bin act; \
-    # crc (CodeReady Containers / OpenShift Local)
-    CRC_VERSION_BARE="${CRC_VERSION#v}"; \
-    curl -sSL "https://mirror.openshift.com/pub/openshift-v4/clients/crc/${CRC_VERSION_BARE}/crc-linux-${ARCH}.tar.xz" \
-      | tar -xJ -C /tmp && \
-    mv /tmp/crc-linux-*/crc /usr/local/bin/ && \
-    rm -rf /tmp/crc-linux-*; \
     # kube-burner
     KB_VERSION_BARE="${KUBE_BURNER_VERSION#v}"; \
     curl -sSL "https://github.com/cloud-bulldozer/kube-burner/releases/download/${KUBE_BURNER_VERSION}/kube-burner-V${KB_VERSION_BARE}-linux-${ARCH_X86}.tar.gz" \
