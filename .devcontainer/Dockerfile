@@ -102,9 +102,9 @@ RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
 # renovate: datasource=node-version depName=node
 ARG NODE_VERSION="v24.14.1"
 # renovate: datasource=github-releases depName=kubernetes/kubernetes
-ARG KUBECTL_VERSION="v1.33.1"
+ARG KUBECTL_VERSION="v1.35.3"
 # renovate: datasource=github-releases depName=helm/helm
-ARG HELM_VERSION="v3.18.1"
+ARG HELM_VERSION="v4.1.3"
 # renovate: datasource=github-releases depName=hashicorp/terraform
 ARG TERRAFORM_VERSION="v1.14.8"
 # renovate: datasource=github-releases depName=cli/cli
@@ -122,7 +122,7 @@ ARG SOPS_VERSION="v3.12.2"
 # renovate: datasource=github-releases depName=kubevirt/kubevirt
 ARG VIRTCTL_VERSION="v1.7.2"
 # renovate: datasource=github-releases depName=yannh/kubeconform
-ARG KUBECONFORM_VERSION="v0.6.7"
+ARG KUBECONFORM_VERSION="v0.7.0"
 # renovate: datasource=github-releases depName=nektos/act
 ARG ACT_VERSION="v0.2.84"
 # renovate: datasource=github-releases depName=cloud-bulldozer/kube-burner
