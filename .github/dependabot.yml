@@ -1,4 +1,10 @@
 ## Dependabot is used only for security alerts via the dependency graph.
-## All version updates are managed by Renovate — do not add package ecosystems here.
+## All version updates are managed by Renovate — open-pull-requests-limit: 0
+## prevents Dependabot from opening any PRs.
 version: 2
-updates: []
+updates:
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 0
