@@ -1,0 +1,4 @@
+## Dependabot is used only for security alerts via the dependency graph.
+## All version updates are managed by Renovate — do not add package ecosystems here.
+version: 2
+updates: []
