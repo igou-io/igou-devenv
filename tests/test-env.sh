@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Test environment switching shell functions (use, k8s-unset, prompt).
-# Must be run with bash -i (interactive) so .bashrc is sourced.
+# Test environment switching shell functions (use, unuse, k8s-unset, prompt).
+# Run with bash -i (interactive) inside the devcontainer so .bashrc is sourced,
+# or standalone — the script extracts functions from post-create.sh as a fallback.
 # Uses mock-op.sh to intercept 1Password CLI calls.
 # No set -e or pipefail — test pass/fail is tracked via PASS/FAIL counters.
 set -u
@@ -8,6 +9,7 @@ set -u
 PASS=0
 FAIL=0
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 ok()   { echo "  [OK] $1"; PASS=$((PASS + 1)); }
 fail() { echo "  [FAIL] $1"; FAIL=$((FAIL + 1)); }
@@ -23,12 +25,34 @@ mkdir -p "$TESTDIR/bin"
 cp "$SCRIPT_DIR/mock-op.sh" "$TESTDIR/bin/op"
 export PATH="$TESTDIR/bin:$PATH"
 
+# If use() is not already defined (not running inside devcontainer), extract
+# the function definitions from the post-create.sh BASHRC heredoc and source them.
+if ! type -t use &>/dev/null; then
+    _bashrc_funcs="$TESTDIR/bashrc-funcs.sh"
+    # Extract environment switching functions from the BASHRC heredoc in post-create.sh.
+    # Grabs from "Environment switching" through the "Cursor/VS Code" comment (exclusive).
+    sed -n '/^# Environment switching via 1Password/,/^# Cursor\/VS Code/{/^# Cursor\/VS Code/!p}' \
+        "$REPO_DIR/.devcontainer/post-create.sh" > "$_bashrc_funcs"
+    # shellcheck disable=SC1090
+    source "$_bashrc_funcs"
+    # Provide a minimal __prompt_command and PROMPT_COMMAND for function-existence tests
+    if ! type -t __prompt_command &>/dev/null; then
+        __prompt_command() { :; }
+        PROMPT_COMMAND="__prompt_command"
+    fi
+fi
+
 # Mock secrets file — maps op:// refs to return values
 export MOCK_OP_SECRETS_FILE="$TESTDIR/mock-secrets"
 cat > "$MOCK_OP_SECRETS_FILE" << 'EOF'
 op://Homelab/test-cluster/access-key=AKIAIOSFODNN7EXAMPLE
 op://Homelab/test-cluster/secret-key=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
 op://Homelab/test-cluster/kubeconfig=YXBpVmVyc2lvbjogdjEKY2x1c3RlcnM6IFtdCg==
+op://Homelab/aap/host=https://controller.example.com
+op://Homelab/aap/password=s3cret
+op://Homelab/aap/username=admin
+op://Homelab/test-cluster/token=sha256~fake-token-12345
+op://Homelab/test-cluster/api-host=https://api.test-cluster.example.com:6443
 EOF
 
 # Mock op call log for verifying invocations
@@ -53,63 +77,33 @@ KUBECONFIG_DATA=op://Homelab/test-cluster/kubeconfig
 AWS_DEFAULT_REGION=eu-west-1
 EOF
 
+cat > "$TESTDIR/envs/token-kubeconfig.env" << 'EOF'
+KUBECONFIG_TOKEN=op://Homelab/test-cluster/token
+KUBECONFIG_HOST=op://Homelab/test-cluster/api-host
+AWS_DEFAULT_REGION=us-west-2
+EOF
+
+cat > "$TESTDIR/envs/conflict.env" << 'EOF'
+KUBECONFIG_DATA=op://Homelab/test-cluster/kubeconfig
+KUBECONFIG_TOKEN=op://Homelab/test-cluster/token
+KUBECONFIG_HOST=op://Homelab/test-cluster/api-host
+EOF
+
+cat > "$TESTDIR/envs/token-only.env" << 'EOF'
+KUBECONFIG_TOKEN=op://Homelab/test-cluster/token
+EOF
+
+cat > "$TESTDIR/envs/aap.env" << 'EOF'
+CONTROLLER_HOST=op://Homelab/aap/host
+CONTROLLER_PASSWORD=op://Homelab/aap/password
+CONTROLLER_USERNAME=op://Homelab/aap/username
+EOF
+
 # Override the envdir used by use() for testing.
-# Mirrors the real use() logic but runs TEST_USE_CMD instead of interactive bash.
+# Redefine use() to point at our test envdir instead of the real one.
 _original_use=$(declare -f use)
-eval "test_use() {
-    local envdir=\"$TESTDIR/envs\"
-    local envfile=\"\${envdir}/\${1}.env\"
-    if [ ! -f \"\$envfile\" ]; then
-        echo \"No env file: \$envfile\"
-        echo \"Available:\"
-        ls \"\${envdir}\"/*.env 2>/dev/null | xargs -n1 basename | sed 's/\\.env\$//'
-        return 1
-    fi
-    # Prevent stacking the same env twice
-    if [[ \",\${OP_ENV_LIST:-},\" == *\",\${1},\"* ]]; then
-        echo \"Environment '\${1}' is already active\"
-        return 1
-    fi
-    # Block if a kubeconfig env is already active
-    local kubeconfig_ref
-    kubeconfig_ref=\$(grep '^KUBECONFIG_DATA=' \"\$envfile\" | cut -d= -f2)
-    if [ -n \"\$kubeconfig_ref\" ] && [ -n \"\${KUBECONFIG:-}\" ]; then
-        echo \"A kubeconfig environment is already active (\${OP_ENV})\"
-        echo \"Exit the current environment first, or use k8s-unset\"
-        return 1
-    fi
-    local new_env=\"\${OP_ENV:+\${OP_ENV}/}\${1}\"
-    local new_list=\"\${OP_ENV_LIST:+\${OP_ENV_LIST},}\${1}\"
-
-    # Resolve op:// references via op inject (matches real use() implementation).
-    # Skip op inject if the env file only contained KUBECONFIG_DATA.
-    local remaining
-    remaining=\$(grep -v '^KUBECONFIG_DATA=' \"\$envfile\")
-
-    local env_args=(\"OP_ENV=\$new_env\" \"OP_ENV_LIST=\$new_list\")
-    if [ -n \"\$remaining\" ]; then
-        local resolved
-        resolved=\$(echo \"\$remaining\" | op inject) || {
-            echo \"Failed to resolve secrets for \${1}\"
-            return 1
-        }
-        while IFS= read -r line; do
-            [[ -z \"\$line\" || \"\$line\" == \\#* ]] && continue
-            env_args+=(\"\$line\")
-        done <<< \"\$resolved\"
-    fi
-
-    if [ -n \"\$kubeconfig_ref\" ]; then
-        local tmpkube
-        tmpkube=\$(mktemp /tmp/kubeconfig.XXXXXX)
-        op read \"\$kubeconfig_ref\" | base64 -d > \"\$tmpkube\"
-        env_args+=(\"KUBECONFIG=\$tmpkube\")
-        env \"\${env_args[@]}\" bash -c \"\${TEST_USE_CMD:-true}\"
-        rm -f \"\$tmpkube\"
-    else
-        env \"\${env_args[@]}\" bash -c \"\${TEST_USE_CMD:-true}\"
-    fi
-}"
+# shellcheck disable=SC2001
+eval "$(echo "$_original_use" | sed "s|/workspace/igou-devenv/envs|$TESTDIR/envs|g")"
 
 # =========================================================================
 #  Tests: Shell function existence
@@ -118,6 +112,7 @@ echo "==> Testing shell functions..."
 if [ -n "$(type -t __prompt_command)" ]; then ok "__prompt_command defined"; else fail "__prompt_command defined"; fi
 if echo "$PROMPT_COMMAND" | grep -q __prompt_command; then ok "PROMPT_COMMAND set"; else fail "PROMPT_COMMAND set"; fi
 if [ -n "$(type -t use)" ]; then ok "use() defined"; else fail "use() defined"; fi
+if [ -n "$(type -t unuse)" ]; then ok "unuse() defined"; else fail "unuse() defined"; fi
 if [ -n "$(type -t k8s-unset)" ]; then ok "k8s-unset() defined"; else fail "k8s-unset() defined"; fi
 
 # =========================================================================
@@ -128,26 +123,300 @@ echo "==> Testing use() with missing env..."
 if use nonexistent 2>&1 | grep -q "No env file"; then ok "missing env shows error"; else fail "missing env shows error"; fi
 
 # =========================================================================
-#  Tests: use() — lists available envs
+#  Tests: use() lists available envs
 # =========================================================================
 echo ""
 echo "==> Testing use() lists available envs..."
-if ls /workspace/igou-devenv/envs/*.env 2>/dev/null | grep -q env; then
+if compgen -G "/workspace/igou-devenv/envs/*.env" > /dev/null 2>&1; then
     ok "env files listable"
 else
     fail "env files listable"
 fi
 
 # =========================================================================
-#  Tests: OP_ENV stacking
+#  Tests: use() — simple env (no kubeconfig)
 # =========================================================================
 echo ""
-echo "==> Testing OP_ENV stacking..."
-if OP_ENV="k3s" bash -c '[ "$OP_ENV" = "k3s" ]'; then ok "OP_ENV set"; else fail "OP_ENV set"; fi
-if OP_ENV="k3s" bash -c 'export OP_ENV="${OP_ENV:+$OP_ENV/}aap"; [ "$OP_ENV" = "k3s/aap" ]'; then
-    ok "OP_ENV stacks"
+echo "==> Testing use() — simple env..."
+
+# Clean state
+unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_DEFAULT_REGION OP_ENV OP_ENV_LIST 2>/dev/null || true
+
+use simple > /dev/null 2>&1
+if [ "${AWS_ACCESS_KEY_ID:-}" = "AKIAIOSFODNN7EXAMPLE" ]; then
+    ok "simple env resolves op:// secrets"
 else
-    fail "OP_ENV stacks"
+    fail "simple env resolves op:// secrets (got: ${AWS_ACCESS_KEY_ID:-unset})"
+fi
+if [ "${AWS_DEFAULT_REGION:-}" = "us-east-1" ]; then
+    ok "simple env passes plain values"
+else
+    fail "simple env passes plain values (got: ${AWS_DEFAULT_REGION:-unset})"
+fi
+if [ "${OP_ENV:-}" = "simple" ]; then
+    ok "OP_ENV set to env name"
+else
+    fail "OP_ENV set to env name (got: ${OP_ENV:-unset})"
+fi
+
+# =========================================================================
+#  Tests: unuse() — simple env
+# =========================================================================
+echo ""
+echo "==> Testing unuse() — simple env..."
+
+unuse simple > /dev/null 2>&1
+if [ -z "${AWS_ACCESS_KEY_ID:-}" ]; then
+    ok "unuse clears exported vars"
+else
+    fail "unuse clears exported vars (still: ${AWS_ACCESS_KEY_ID:-})"
+fi
+if [ -z "${AWS_DEFAULT_REGION:-}" ]; then
+    ok "unuse clears plain vars"
+else
+    fail "unuse clears plain vars (still: ${AWS_DEFAULT_REGION:-})"
+fi
+if [ -z "${OP_ENV:-}" ]; then
+    ok "unuse clears OP_ENV"
+else
+    fail "unuse clears OP_ENV (still: ${OP_ENV:-})"
+fi
+if [ -z "${OP_ENV_LIST:-}" ]; then
+    ok "unuse clears OP_ENV_LIST"
+else
+    fail "unuse clears OP_ENV_LIST (still: ${OP_ENV_LIST:-})"
+fi
+
+# =========================================================================
+#  Tests: use() — env with KUBECONFIG_DATA
+# =========================================================================
+echo ""
+echo "==> Testing use() — kubeconfig env..."
+
+unset KUBECONFIG AWS_ACCESS_KEY_ID AWS_DEFAULT_REGION OP_ENV OP_ENV_LIST 2>/dev/null || true
+
+use with-kubeconfig > /dev/null 2>&1
+if [ -n "${KUBECONFIG:-}" ] && [ -f "$KUBECONFIG" ]; then
+    ok "kubeconfig temp file created"
+else
+    fail "kubeconfig temp file created (KUBECONFIG=${KUBECONFIG:-unset})"
+fi
+if [ -n "${KUBECONFIG:-}" ] && grep -q "apiVersion" "$KUBECONFIG" 2>/dev/null; then
+    ok "kubeconfig decoded correctly"
+else
+    fail "kubeconfig decoded correctly"
+fi
+if [ "${AWS_ACCESS_KEY_ID:-}" = "AKIAIOSFODNN7EXAMPLE" ]; then
+    ok "kubeconfig env also resolves other vars"
+else
+    fail "kubeconfig env also resolves other vars"
+fi
+
+# Save kubeconfig path for cleanup test
+_saved_kubeconfig="$KUBECONFIG"
+
+# =========================================================================
+#  Tests: unuse() — kubeconfig env cleans up temp file
+# =========================================================================
+echo ""
+echo "==> Testing unuse() — kubeconfig cleanup..."
+
+unuse with-kubeconfig > /dev/null 2>&1
+if [ -z "${KUBECONFIG:-}" ]; then
+    ok "unuse clears KUBECONFIG"
+else
+    fail "unuse clears KUBECONFIG (still: ${KUBECONFIG:-})"
+fi
+if [ ! -f "$_saved_kubeconfig" ]; then
+    ok "unuse deletes temp kubeconfig file"
+else
+    fail "unuse deletes temp kubeconfig file (still exists: $_saved_kubeconfig)"
+fi
+
+# =========================================================================
+#  Tests: use() — env with KUBECONFIG_TOKEN + KUBECONFIG_HOST
+# =========================================================================
+echo ""
+echo "==> Testing use() — token-based kubeconfig..."
+
+unset KUBECONFIG AWS_DEFAULT_REGION OP_ENV OP_ENV_LIST 2>/dev/null || true
+
+use token-kubeconfig > /dev/null 2>&1
+if [ -n "${KUBECONFIG:-}" ] && [ -f "$KUBECONFIG" ]; then
+    ok "token kubeconfig temp file created"
+else
+    fail "token kubeconfig temp file created (KUBECONFIG=${KUBECONFIG:-unset})"
+fi
+if [ -n "${KUBECONFIG:-}" ] && grep -q "sha256~fake-token-12345" "$KUBECONFIG" 2>/dev/null; then
+    ok "token written into kubeconfig"
+else
+    fail "token written into kubeconfig"
+fi
+if [ -n "${KUBECONFIG:-}" ] && grep -q "https://api.test-cluster.example.com:6443" "$KUBECONFIG" 2>/dev/null; then
+    ok "host written into kubeconfig"
+else
+    fail "host written into kubeconfig"
+fi
+if [ -n "${KUBECONFIG:-}" ] && grep -q "insecure-skip-tls-verify: true" "$KUBECONFIG" 2>/dev/null; then
+    ok "kubeconfig has insecure-skip-tls-verify"
+else
+    fail "kubeconfig has insecure-skip-tls-verify"
+fi
+if [ "${AWS_DEFAULT_REGION:-}" = "us-west-2" ]; then
+    ok "token kubeconfig env also resolves other vars"
+else
+    fail "token kubeconfig env also resolves other vars (got: ${AWS_DEFAULT_REGION:-unset})"
+fi
+
+_saved_token_kubeconfig="$KUBECONFIG"
+unuse token-kubeconfig > /dev/null 2>&1
+if [ ! -f "$_saved_token_kubeconfig" ]; then
+    ok "unuse deletes token kubeconfig temp file"
+else
+    fail "unuse deletes token kubeconfig temp file"
+fi
+
+# =========================================================================
+#  Tests: use() — KUBECONFIG_DATA + KUBECONFIG_TOKEN conflict
+# =========================================================================
+echo ""
+echo "==> Testing use() — kubeconfig conflict detection..."
+
+unset KUBECONFIG OP_ENV OP_ENV_LIST 2>/dev/null || true
+
+output=$(use conflict 2>&1)
+rc=$?
+if [ $rc -ne 0 ] && echo "$output" | grep -q "both KUBECONFIG_DATA and KUBECONFIG_TOKEN"; then
+    ok "conflict between DATA and TOKEN rejected"
+else
+    fail "conflict between DATA and TOKEN rejected (rc=$rc output: $output)"
+fi
+
+# =========================================================================
+#  Tests: use() — KUBECONFIG_TOKEN without KUBECONFIG_HOST
+# =========================================================================
+echo ""
+echo "==> Testing use() — token without host rejected..."
+
+output=$(use token-only 2>&1)
+rc=$?
+if [ $rc -ne 0 ] && echo "$output" | grep -q "must have both"; then
+    ok "token without host rejected"
+else
+    fail "token without host rejected (rc=$rc output: $output)"
+fi
+
+# =========================================================================
+#  Tests: use() idempotent — calling twice doesn't error
+# =========================================================================
+echo ""
+echo "==> Testing use() idempotency..."
+
+unset OP_ENV OP_ENV_LIST 2>/dev/null || true
+
+use simple > /dev/null 2>&1
+local_rc1=$?
+use simple > /dev/null 2>&1
+local_rc2=$?
+if [ $local_rc1 -eq 0 ] && [ $local_rc2 -eq 0 ]; then
+    ok "use same env twice succeeds"
+else
+    fail "use same env twice succeeds (rc1=$local_rc1 rc2=$local_rc2)"
+fi
+# OP_ENV_LIST should contain simple only once
+if [ "${OP_ENV_LIST:-}" = "simple" ]; then
+    ok "OP_ENV_LIST not duplicated"
+else
+    fail "OP_ENV_LIST not duplicated (got: ${OP_ENV_LIST:-unset})"
+fi
+unuse > /dev/null 2>&1
+
+# =========================================================================
+#  Tests: unuse() idempotent — calling when not active is a no-op
+# =========================================================================
+echo ""
+echo "==> Testing unuse() idempotency..."
+
+unset OP_ENV OP_ENV_LIST 2>/dev/null || true
+unuse simple > /dev/null 2>&1
+local_rc=$?
+if [ $local_rc -eq 0 ]; then
+    ok "unuse inactive env is no-op"
+else
+    fail "unuse inactive env is no-op (rc=$local_rc)"
+fi
+
+# =========================================================================
+#  Tests: Stacking environments
+# =========================================================================
+echo ""
+echo "==> Testing environment stacking..."
+
+unset OP_ENV OP_ENV_LIST AWS_ACCESS_KEY_ID CONTROLLER_HOST 2>/dev/null || true
+
+use simple > /dev/null 2>&1
+use aap > /dev/null 2>&1
+
+if [ "${AWS_ACCESS_KEY_ID:-}" = "AKIAIOSFODNN7EXAMPLE" ]; then
+    ok "stacking: first env vars still set"
+else
+    fail "stacking: first env vars still set (got: ${AWS_ACCESS_KEY_ID:-unset})"
+fi
+if [ "${CONTROLLER_HOST:-}" = "https://controller.example.com" ]; then
+    ok "stacking: second env vars set"
+else
+    fail "stacking: second env vars set (got: ${CONTROLLER_HOST:-unset})"
+fi
+if [ "${OP_ENV:-}" = "aap" ]; then
+    ok "stacking: OP_ENV shows last-used env"
+else
+    fail "stacking: OP_ENV shows last-used env (got: ${OP_ENV:-unset})"
+fi
+
+# =========================================================================
+#  Tests: unuse one stacked env preserves the other
+# =========================================================================
+echo ""
+echo "==> Testing selective unuse..."
+
+unuse aap > /dev/null 2>&1
+if [ -z "${CONTROLLER_HOST:-}" ]; then
+    ok "unuse aap clears aap vars"
+else
+    fail "unuse aap clears aap vars (still: ${CONTROLLER_HOST:-})"
+fi
+if [ "${AWS_ACCESS_KEY_ID:-}" = "AKIAIOSFODNN7EXAMPLE" ]; then
+    ok "unuse aap preserves simple vars"
+else
+    fail "unuse aap preserves simple vars (got: ${AWS_ACCESS_KEY_ID:-unset})"
+fi
+if [ "${OP_ENV:-}" = "simple" ]; then
+    ok "OP_ENV falls back to remaining env"
+else
+    fail "OP_ENV falls back to remaining env (got: ${OP_ENV:-unset})"
+fi
+
+unuse > /dev/null 2>&1
+
+# =========================================================================
+#  Tests: unuse with no args clears everything
+# =========================================================================
+echo ""
+echo "==> Testing unuse (no args) clears all..."
+
+use simple > /dev/null 2>&1
+use aap > /dev/null 2>&1
+unuse > /dev/null 2>&1
+
+if [ -z "${AWS_ACCESS_KEY_ID:-}" ] && [ -z "${CONTROLLER_HOST:-}" ]; then
+    ok "unuse (no args) clears all vars"
+else
+    fail "unuse (no args) clears all vars"
+fi
+if [ -z "${OP_ENV:-}" ] && [ -z "${OP_ENV_LIST:-}" ]; then
+    ok "unuse (no args) clears OP_ENV and OP_ENV_LIST"
+else
+    fail "unuse (no args) clears OP_ENV and OP_ENV_LIST"
 fi
 
 # =========================================================================
@@ -161,94 +430,6 @@ if [ -z "${KUBECONFIG:-}" ] && [ -z "${K8S_AUTH_HOST:-}" ] && [ -z "${K8S_AUTH_A
     ok "k8s-unset clears vars"
 else
     fail "k8s-unset clears vars"
-fi
-
-# =========================================================================
-#  Tests: use() with mock op — simple env (no kubeconfig)
-# =========================================================================
-echo ""
-echo "==> Testing use() with mock op — simple env..."
-
-TEST_USE_CMD='echo "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID AWS_DEFAULT_REGION=$AWS_DEFAULT_REGION"' \
-    test_use simple > "$TESTDIR/simple-output" 2>&1
-if grep -q "AKIAIOSFODNN7EXAMPLE" "$TESTDIR/simple-output"; then
-    ok "simple env resolves op:// secrets"
-else
-    fail "simple env resolves op:// secrets"
-fi
-if grep -q "us-east-1" "$TESTDIR/simple-output"; then
-    ok "simple env passes plain values"
-else
-    fail "simple env passes plain values"
-fi
-
-# =========================================================================
-#  Tests: use() with mock op — env with KUBECONFIG_DATA
-# =========================================================================
-echo ""
-echo "==> Testing use() with mock op — kubeconfig env..."
-
-TEST_USE_CMD='cat "$KUBECONFIG"' \
-    test_use with-kubeconfig > "$TESTDIR/kube-output" 2>&1
-if grep -q "apiVersion" "$TESTDIR/kube-output"; then
-    ok "kubeconfig decoded and written to temp file"
-else
-    fail "kubeconfig decoded and written to temp file"
-fi
-
-# Verify KUBECONFIG_DATA was NOT passed as env var
-TEST_USE_CMD='echo "KUBECONFIG_DATA=${KUBECONFIG_DATA:-unset}"' \
-    test_use with-kubeconfig > "$TESTDIR/kube-strip-output" 2>&1
-if grep -q "KUBECONFIG_DATA=unset" "$TESTDIR/kube-strip-output"; then
-    ok "KUBECONFIG_DATA stripped from env"
-else
-    fail "KUBECONFIG_DATA stripped from env"
-fi
-
-# =========================================================================
-#  Tests: use() — duplicate env rejected
-# =========================================================================
-echo ""
-echo "==> Testing use() rejects duplicate env..."
-
-# Simulate already having "simple" active via OP_ENV_LIST
-output=$(OP_ENV="simple" OP_ENV_LIST="simple" test_use simple 2>&1)
-if echo "$output" | grep -q "already active"; then
-    ok "duplicate env rejected"
-else
-    fail "duplicate env rejected"
-fi
-
-# Stacking different envs should still work
-output=$(OP_ENV="simple" OP_ENV_LIST="simple" TEST_USE_CMD='echo "OP_ENV=$OP_ENV"' test_use with-kubeconfig 2>&1)
-if echo "$output" | grep -q "simple/with-kubeconfig"; then
-    ok "different envs can still stack"
-else
-    fail "different envs can still stack"
-fi
-
-# =========================================================================
-#  Tests: use() — second kubeconfig env rejected
-# =========================================================================
-echo ""
-echo "==> Testing use() rejects second kubeconfig env..."
-
-# Simulate having a kubeconfig already active (KUBECONFIG is set)
-output=$(KUBECONFIG="/tmp/existing.kubeconfig" OP_ENV="with-kubeconfig" OP_ENV_LIST="with-kubeconfig" \
-    test_use other-kubeconfig 2>&1)
-if echo "$output" | grep -q "kubeconfig environment is already active"; then
-    ok "second kubeconfig env rejected"
-else
-    fail "second kubeconfig env rejected"
-fi
-
-# Stacking a non-kubeconfig env on top of a kubeconfig env should work
-output=$(KUBECONFIG="/tmp/existing.kubeconfig" OP_ENV="with-kubeconfig" OP_ENV_LIST="with-kubeconfig" \
-    TEST_USE_CMD='echo "OP_ENV=$OP_ENV"' test_use simple 2>&1)
-if echo "$output" | grep -q "with-kubeconfig/simple"; then
-    ok "non-kubeconfig env stacks on kubeconfig env"
-else
-    fail "non-kubeconfig env stacks on kubeconfig env"
 fi
 
 # =========================================================================

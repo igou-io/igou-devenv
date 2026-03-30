@@ -77,12 +77,25 @@ _fix_ssh_auth_sock() {
 }
 PROMPT_COMMAND="_fix_ssh_auth_sock${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
 
-# 1Password service account token
-[ -f ~/.config/op/service-account-token ] && export OP_SERVICE_ACCOUNT_TOKEN=$(cat ~/.config/op/service-account-token)
+# 1Password service account token (skip in Cursor agent shells)
+if [ -z "${CURSOR_AGENT:-}" ] && [ -f ~/.config/op/service-account-token ]; then
+    export OP_SERVICE_ACCOUNT_TOKEN=$(cat ~/.config/op/service-account-token)
+fi
 
 # Environment switching via 1Password (see adr/0001)
-# Uses "op inject" to resolve secrets then spawns bash via env, avoiding
-# "op run" as a process wrapper — nested op run deadlocks.
+# Resolves op:// secrets via "op inject" and exports them in the current shell.
+# Use unuse() to remove an environment's variables.
+_use_sanitize() { echo "${1//-/_}"; }
+
+# Clean up all temp kubeconfig files on shell exit
+_use_cleanup_all() {
+    local varname
+    while IFS='=' read -r varname _; do
+        [[ "$varname" == _USE_TMPKUBE_* ]] && rm -f "${!varname}"
+    done < <(env)
+}
+trap _use_cleanup_all EXIT
+
 use() {
     local envdir="/workspace/igou-devenv/envs"
     if [ -z "${1:-}" ]; then
@@ -97,50 +110,158 @@ use() {
         ls "${envdir}"/*.env 2>/dev/null | xargs -n1 basename | sed 's/\.env$//'
         return 1
     fi
-    # Prevent stacking the same env twice (e.g. aws/aws/aws)
-    if [[ ",${OP_ENV_LIST:-}," == *",${1},"* ]]; then
-        echo "Environment '${1}' is already active"
+    local safe_name
+    safe_name=$(_use_sanitize "$1")
+
+    # Parse kubeconfig strategy from env file. Three mutually exclusive approaches:
+    #   KUBECONFIG_DATA  — base64-encoded full kubeconfig (op read + decode)
+    #   KUBECONFIG_TOKEN + KUBECONFIG_HOST — dynamically build a kubeconfig from token/host
+    # Both present is an error.
+    local kubeconfig_data_ref kubeconfig_token_ref kubeconfig_host_ref
+    kubeconfig_data_ref=$(grep '^KUBECONFIG_DATA=' "$envfile" | cut -d= -f2)
+    kubeconfig_token_ref=$(grep '^KUBECONFIG_TOKEN=' "$envfile" | cut -d= -f2)
+    kubeconfig_host_ref=$(grep '^KUBECONFIG_HOST=' "$envfile" | cut -d= -f2)
+
+    if [ -n "$kubeconfig_data_ref" ] && { [ -n "$kubeconfig_token_ref" ] || [ -n "$kubeconfig_host_ref" ]; }; then
+        echo "Error: ${1}.env has both KUBECONFIG_DATA and KUBECONFIG_TOKEN/KUBECONFIG_HOST — use one or the other"
         return 1
     fi
-    # If env references a kubeconfig, block if one is already active
-    local kubeconfig_ref
-    kubeconfig_ref=$(grep '^KUBECONFIG_DATA=' "$envfile" | cut -d= -f2)
-    if [ -n "$kubeconfig_ref" ] && [ -n "${KUBECONFIG:-}" ]; then
-        echo "A kubeconfig environment is already active (${OP_ENV})"
-        echo "Exit the current environment first, or use k8s-unset"
+    if { [ -n "$kubeconfig_token_ref" ] && [ -z "$kubeconfig_host_ref" ]; } || \
+       { [ -z "$kubeconfig_token_ref" ] && [ -n "$kubeconfig_host_ref" ]; }; then
+        echo "Error: ${1}.env must have both KUBECONFIG_TOKEN and KUBECONFIG_HOST (found only one)"
         return 1
     fi
-    local new_env="${OP_ENV:+${OP_ENV}/}${1}"
-    local new_list="${OP_ENV_LIST:+${OP_ENV_LIST},}${1}"
 
     # Resolve op:// references via op inject (one-shot, no wrapper process).
-    # Skip op inject if the env file only contained KUBECONFIG_DATA.
+    # Kubeconfig-related keys are handled separately — strip them before op inject.
     local remaining
-    remaining=$(grep -v '^KUBECONFIG_DATA=' "$envfile")
+    remaining=$(grep -v '^KUBECONFIG_DATA=\|^KUBECONFIG_TOKEN=\|^KUBECONFIG_HOST=' "$envfile")
 
-    local env_args=("OP_ENV=$new_env" "OP_ENV_LIST=$new_list")
+    local keys=()
     if [ -n "$remaining" ]; then
         local resolved
         resolved=$(echo "$remaining" | op inject) || {
             echo "Failed to resolve secrets for ${1}"
             return 1
         }
+        local key value
         while IFS= read -r line; do
             [[ -z "$line" || "$line" == \#* ]] && continue
-            env_args+=("$line")
+            key="${line%%=*}"
+            value="${line#*=}"
+            export "$key=$value"
+            keys+=("$key")
         done <<< "$resolved"
     fi
 
-    if [ -n "$kubeconfig_ref" ]; then
+    if [ -n "$kubeconfig_data_ref" ] || [ -n "$kubeconfig_token_ref" ]; then
+        # Clean up previous temp kubeconfig for this env if re-using
+        local tmpvar="_USE_TMPKUBE_${safe_name}"
+        [ -n "${!tmpvar:-}" ] && rm -f "${!tmpvar}"
         local tmpkube
         tmpkube=$(mktemp /tmp/kubeconfig.XXXXXX)
-        op read "$kubeconfig_ref" | base64 -d > "$tmpkube"
-        env_args+=("KUBECONFIG=$tmpkube")
-        env "${env_args[@]}" bash
-        rm -f "$tmpkube"
-    else
-        env "${env_args[@]}" bash
+
+        if [ -n "$kubeconfig_data_ref" ]; then
+            # Full kubeconfig from 1Password (base64-encoded)
+            op read "$kubeconfig_data_ref" | base64 -d > "$tmpkube"
+        else
+            # Build kubeconfig from token + host
+            local kube_token kube_host
+            kube_token=$(echo "$kubeconfig_token_ref" | op inject)
+            kube_host=$(echo "$kubeconfig_host_ref" | op inject)
+            cat > "$tmpkube" << KUBECFG
+apiVersion: v1
+kind: Config
+clusters:
+- cluster:
+    server: ${kube_host}
+    insecure-skip-tls-verify: true
+  name: cluster
+contexts:
+- context:
+    cluster: cluster
+    user: user
+  name: context
+current-context: context
+users:
+- name: user
+  user:
+    token: ${kube_token}
+KUBECFG
+        fi
+
+        export KUBECONFIG="$tmpkube"
+        keys+=("KUBECONFIG")
+        export "$tmpvar=$tmpkube"
     fi
+
+    # Track which keys this env set (for unuse)
+    local keys_var="_USE_KEYS_${safe_name}"
+    # shellcheck disable=SC2178
+    export "$keys_var=${keys[*]}"
+
+    # Update tracking: OP_ENV shows last-used env, OP_ENV_LIST tracks all active
+    export OP_ENV="$1"
+    if [[ ",${OP_ENV_LIST:-}," != *",${1},"* ]]; then
+        export OP_ENV_LIST="${OP_ENV_LIST:+${OP_ENV_LIST},}${1}"
+    fi
+
+    echo "Environment '${1}' activated"
+}
+
+unuse() {
+    if [ -z "${1:-}" ]; then
+        # Unuse all active environments
+        if [ -z "${OP_ENV_LIST:-}" ]; then
+            return 0
+        fi
+        local env_name
+        for env_name in ${OP_ENV_LIST//,/ }; do
+            unuse "$env_name"
+        done
+        return 0
+    fi
+
+    # Idempotent: if env is not active, nothing to do
+    if [[ ",${OP_ENV_LIST:-}," != *",${1},"* ]]; then
+        return 0
+    fi
+
+    local safe_name
+    safe_name=$(_use_sanitize "$1")
+
+    # Unset tracked variables
+    local keys_var="_USE_KEYS_${safe_name}"
+    if [ -n "${!keys_var:-}" ]; then
+        local key
+        for key in ${!keys_var}; do
+            unset "$key"
+        done
+        unset "$keys_var"
+    fi
+
+    # Clean up temp kubeconfig
+    local tmpvar="_USE_TMPKUBE_${safe_name}"
+    if [ -n "${!tmpvar:-}" ]; then
+        rm -f "${!tmpvar}"
+        unset "$tmpvar"
+    fi
+
+    # Update OP_ENV_LIST: remove this env
+    local new_list="" env_name
+    for env_name in ${OP_ENV_LIST//,/ }; do
+        [ "$env_name" = "$1" ] && continue
+        new_list="${new_list:+${new_list},}${env_name}"
+    done
+    if [ -n "$new_list" ]; then
+        export OP_ENV_LIST="$new_list"
+        # Set OP_ENV to the last remaining env
+        export OP_ENV="${new_list##*,}"
+    else
+        unset OP_ENV OP_ENV_LIST
+    fi
+
+    echo "Environment '${1}' deactivated"
 }
 
 k8s-unset() {
@@ -155,9 +276,8 @@ ansible-unset() {
     echo "Ansible vars unset"
 }
 
-# Re-enable Cursor/VS Code shell integration in subshells (use() spawns child bash).
-# The cursor/code CLI can hang in subshells, so we cache the resolved path to a
-# file and only run CLI discovery in the top-level shell (no OP_ENV set).
+# Cursor/VS Code shell integration.
+# Cache the resolved path to avoid re-running CLI discovery on every terminal.
 # Set BASHRC_DEBUG=1 to trace shell startup (useful for diagnosing hangs).
 if [ -n "${BASHRC_DEBUG:-}" ]; then
     echo "[bashrc] starting shell integration block" >&2
@@ -168,7 +288,7 @@ if [ "$TERM_PROGRAM" = "vscode" ]; then
         VSCODE_SHELL_INTEGRATION_PATH=$(cat "$_vsi_cache")
         export VSCODE_SHELL_INTEGRATION_PATH
     fi
-    if [ -z "${VSCODE_SHELL_INTEGRATION_PATH:-}" ] && [ -z "${OP_ENV:-}" ]; then
+    if [ -z "${VSCODE_SHELL_INTEGRATION_PATH:-}" ]; then
         for _cmd in cursor code; do
             VSCODE_SHELL_INTEGRATION_PATH=$($_cmd --locate-shell-integration-path bash 2>/dev/null) && break
         done

@@ -117,5 +117,5 @@ shellcheck .devcontainer/post-create.sh .devcontainer/post-start.sh .devcontaine
 - **Read-only mounts**: `~/.ssh`, `~/.gitconfig`, and `~/.config/op` are bind-mounted read-only. GitHub known_hosts must be written to `/etc/ssh/ssh_known_hosts` via `sudo tee`.
 - **`podman-docker` required on host**: Cursor's devcontainer extension calls `docker` under the hood.
 - **CI compatibility**: `init.sh` creates mount directories on any host (including CI runners). Scripts check `$CI` to skip SSH-dependent operations.
-- **Environment switching via `op inject`**: Uses `op inject` for one-shot secret resolution + `env` to spawn bash, avoiding `op run` wrapper nesting deadlocks. See [ADR-0001](adr/0001-environment-switching-with-1password.md).
+- **Environment switching via `op inject`**: `use <env>` resolves secrets via `op inject` and exports them in the current shell. `unuse <env>` removes them. Both are idempotent. No subshells. See [ADR-0001](adr/0001-environment-switching-with-1password.md).
 - **Claude Code native binary**: Installed via `curl https://claude.ai/install.sh` instead of the deprecated npm package, removing the Node.js dependency.

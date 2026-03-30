@@ -2,11 +2,11 @@
 
 ## Status
 
-Accepted
+Accepted (updated 2026-03-30 — removed subshell spawning, added `unuse`)
 
 ## Date
 
-2026-03-21 (updated 2026-03-22)
+2026-03-21 (updated 2026-03-22, 2026-03-30)
 
 ## Context
 
@@ -78,76 +78,18 @@ K8S_AUTH_API_KEY=op://Homelab/k3s-sa/token
 K8S_AUTH_VERIFY_SSL=false
 ```
 
-### Shell function
+### Shell functions
 
-```bash
-# Uses "op inject" to resolve secrets then spawns bash via env, avoiding
-# "op run" as a process wrapper — nested op run deadlocks.
-use() {
-    local envdir="/workspace/igou-devenv/envs"
-    if [ -z "${1:-}" ]; then
-        echo "Available environments:"
-        ls "${envdir}"/*.env 2>/dev/null | xargs -n1 basename | sed 's/\.env$//'
-        return 0
-    fi
-    local envfile="${envdir}/${1}.env"
-    if [ ! -f "$envfile" ]; then
-        echo "No env file: $envfile"
-        echo "Available:"
-        ls "${envdir}"/*.env 2>/dev/null | xargs -n1 basename | sed 's/\.env$//'
-        return 1
-    fi
-    # Prevent stacking the same env twice (e.g. aws/aws/aws)
-    if [[ ",${OP_ENV_LIST:-}," == *",${1},"* ]]; then
-        echo "Environment '${1}' is already active"
-        return 1
-    fi
-    # Block if a kubeconfig env is already active
-    local kubeconfig_ref
-    kubeconfig_ref=$(grep '^KUBECONFIG_DATA=' "$envfile" | cut -d= -f2)
-    if [ -n "$kubeconfig_ref" ] && [ -n "${KUBECONFIG:-}" ]; then
-        echo "A kubeconfig environment is already active (${OP_ENV})"
-        echo "Exit the current environment first, or use k8s-unset"
-        return 1
-    fi
-    local new_env="${OP_ENV:+${OP_ENV}/}${1}"
-    local new_list="${OP_ENV_LIST:+${OP_ENV_LIST},}${1}"
+`use()` resolves `op://` secrets via `op inject` and exports them directly in the current
+shell. `unuse()` removes the exported variables and cleans up temp kubeconfig files.
+Both are idempotent — `use` can be called repeatedly (re-resolves and re-exports),
+`unuse` is a no-op if the environment isn't active.
 
-    # Resolve op:// references via op inject (one-shot, no wrapper process).
-    # Skip op inject if the env file only contained KUBECONFIG_DATA.
-    local remaining
-    remaining=$(grep -v '^KUBECONFIG_DATA=' "$envfile")
+Variable names are tracked per environment in `_USE_KEYS_<name>` so `unuse` knows what
+to remove. `OP_ENV` shows the last-used environment (displayed in the prompt).
+`OP_ENV_LIST` is a comma-separated list of all active environments used by `unuse`.
 
-    local env_args=("OP_ENV=$new_env" "OP_ENV_LIST=$new_list")
-    if [ -n "$remaining" ]; then
-        local resolved
-        resolved=$(echo "$remaining" | op inject) || {
-            echo "Failed to resolve secrets for ${1}"
-            return 1
-        }
-        while IFS= read -r line; do
-            [[ -z "$line" || "$line" == \#* ]] && continue
-            env_args+=("$line")
-        done <<< "$resolved"
-    fi
-
-    if [ -n "$kubeconfig_ref" ]; then
-        local tmpkube
-        tmpkube=$(mktemp /tmp/kubeconfig.XXXXXX)
-        op read "$kubeconfig_ref" | base64 -d > "$tmpkube"
-        env_args+=("KUBECONFIG=$tmpkube")
-        env "${env_args[@]}" bash
-        rm -f "$tmpkube"
-    else
-        env "${env_args[@]}" bash
-    fi
-}
-
-k8s-unset() {
-    unset KUBECONFIG KUBECONFIG_DATA K8S_AUTH_HOST K8S_AUTH_API_KEY K8S_AUTH_VERIFY_SSL
-    echo "Kubernetes vars unset"
-}
-```
+See `.devcontainer/post-create.sh` for the full implementation (embedded in the `.bashrc` heredoc).
 
 ### Usage
 
@@ -155,29 +97,30 @@ k8s-unset() {
 # List available environments
 use
 
-# Activate an environment (spawns subshell with secrets)
+# Activate an environment (exports vars in current shell)
 use k3s
 kubectl get nodes
-exit                    # secrets removed, back to clean shell
+
+# Deactivate — removes exported vars, deletes temp kubeconfig
+unuse k3s
 
 # Activate AAP
 use aap-homelab
 awx job_templates list
 
-# Test as service account (no kubeconfig, only K8S_AUTH_*)
-use k8s-serviceaccount
-ansible-playbook deploy.yml
-
-# Stack environments (different envs only)
+# Stack environments
 use k3s                 # k8s context
-use aap-homelab         # now has k8s + aap vars
+use aap-homelab         # adds aap vars, prompt shows "aap-homelab"
 
-# Duplicate envs are rejected
-use k3s                 # "Environment 'k3s' is already active"
+# Selective unuse
+unuse aap-homelab       # removes aap vars, k3s vars remain
 
-# Two kubeconfig envs cannot be stacked
-use k3s                 # sets KUBECONFIG
-use openshift           # "A kubeconfig environment is already active (k3s)"
+# Unuse all active environments
+unuse
+
+# Calling use twice is safe (idempotent, re-resolves secrets)
+use k3s
+use k3s                 # no error, re-exports
 
 # Clear k8s context mid-session for SA testing
 k8s-unset
@@ -211,9 +154,10 @@ The `op` CLI authenticates via `OP_SERVICE_ACCOUNT_TOKEN`, which is stored at `~
 
 ### Benefits
 
-- **Secrets never on disk**: `op inject` resolves them at subshell start; kubeconfig temp files are cleaned up on exit
-- **Subshell isolation**: `exit` cleanly removes all secrets from the environment
-- **Composable**: nest `use` calls to combine environments (k8s + aap)
+- **Secrets never on disk**: `op inject` resolves at activation; kubeconfig temp files are cleaned up by `unuse` or shell exit trap
+- **Explicit cleanup with `unuse`**: removes environment variables and temp files without leaving the shell
+- **Composable**: stack `use` calls to combine environments (k8s + aap); `unuse` selectively removes one
+- **Idempotent**: `use` can be called repeatedly (re-resolves secrets); `unuse` is a no-op if not active
 - **`.env` files are version-controlled**: they live in `envs/` in the repo — no host mount needed, and they contain only `op://` references, never secrets
 - **Easy to audit**: `env | grep -E 'AWS|KUBE|CONTROLLER'` shows what's active
 - **Consistent pattern**: same mechanism for Kubernetes, AWS, AAP, Ansible vaults, and service accounts
@@ -221,13 +165,18 @@ The `op` CLI authenticates via `OP_SERVICE_ACCOUNT_TOKEN`, which is stored at `~
 ### Tradeoffs
 
 - Requires 1Password service account with access to all referenced vaults
-- Each `use` invocation spawns a subshell — nested environments add shell depth
 - Kubeconfig-as-file requires `op read` + `base64 -d` + temp file since `kubectl` expects a file path and 1Password doesn't support multi-line secrets
 - Service account token must be present on the host at `~/.config/op/service-account-token`
-- Uses `op inject` + `env` instead of `op run` wrapper — resolved secrets are visible in the process environment (acceptable in a local devcontainer), but this avoids `op run` nesting deadlocks
+- Resolved secrets are visible in the process environment (acceptable in a local devcontainer)
+- If two environments set the same variable, the last `use` wins — `unuse` of either clears it (no save/restore)
 
 ### Security considerations
 
 - `.env` files contain no secrets and are checked into the repo (`envs/` directory)
-- Temp kubeconfig files are created with `mktemp` (mode 600) and deleted on subshell exit
+- Temp kubeconfig files are created with `mktemp` (mode 600) and deleted by `unuse` or shell exit trap
 - `OP_SERVICE_ACCOUNT_TOKEN` is the single credential to protect — it is mounted read-only from the host
+
+### History
+
+- **2026-03-22**: Initial implementation using `env VAR=val bash` subshells. Each `use` spawned a child shell; `exit` removed secrets. Worked but caused UX friction (shell depth, unintuitive `exit`, prompt resets).
+- **2026-03-30**: Refactored to export variables in the current shell with `unuse` for cleanup (issue #11). Removed subshell spawning entirely.
