@@ -42,6 +42,30 @@ fi
 if [ -z "${CI:-}" ]; then
     echo "==> Configuring shell..."
 
+    # Insert early — before the non-interactive guard so it runs in all shells
+    # (including non-interactive Cursor agent shells).
+    #
+    # CURSOR_AGENT_UNSET_VARS: variables to strip from Cursor agent shells.
+    # Add entries here to prevent the agent from accessing sensitive tokens.
+    CURSOR_AGENT_UNSET_VARS=(
+        OP_SERVICE_ACCOUNT_TOKEN
+        SSH_AUTH_SOCK
+    )
+
+    unset_block=""
+    for var in "${CURSOR_AGENT_UNSET_VARS[@]}"; do
+        unset_block+="    unset ${var}\n"
+    done
+
+    sed -i '/^case \$- in/i \
+# Sensitive variables — unset in Cursor agent shells\
+if [ -n "${CURSOR_AGENT:-}" ]; then\
+'"$(printf '%s' "$unset_block")"'\
+elif [ -f ~/.config/op/service-account-token ]; then\
+    export OP_SERVICE_ACCOUNT_TOKEN=$(cat ~/.config/op/service-account-token)\
+fi\
+' /home/igou/.bashrc
+
     cat >> /home/igou/.bashrc << 'BASHRC'
 
 # --- igou-io devenv config ---
@@ -76,11 +100,6 @@ _fix_ssh_auth_sock() {
     done
 }
 PROMPT_COMMAND="_fix_ssh_auth_sock${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
-
-# 1Password service account token (skip in Cursor agent shells)
-if [ -z "${CURSOR_AGENT:-}" ] && [ -f ~/.config/op/service-account-token ]; then
-    export OP_SERVICE_ACCOUNT_TOKEN=$(cat ~/.config/op/service-account-token)
-fi
 
 # Environment switching via 1Password (see adr/0001)
 # Resolves op:// secrets via "op inject" and exports them in the current shell.
@@ -315,24 +334,28 @@ BASHRC
 
     echo "==> Writing workspace file..."
     cat > /workspace/homelab.code-workspace << 'EOF'
-{
-    "folders": [
-        { "path": "igou-ansible" },
-        { "path": "igou-inventory" },
-        { "path": "igou-kubernetes" },
-        { "path": "igou-kubernetes-private" },
-        { "path": "igou-infrastructure" },
-        { "path": "igou-openshift" },
-        { "path": "igou-containers" },
-        { "path": "igou-devenv" },
-        { "path": "rosa-gitops" },
-        { "path": "rosa-gitops-example-team" }
-    ]
-}
-EOF
+    {
+        "folders": [
+            { "path": "." }
+        ]
+    }
+    EOF
 else
     echo "==> CI detected, skipping shell config and workspace file"
 fi
+
+# ---------------------------------------------------------------------------
+# Cursor sandbox config — grant agent access to bind-mounted paths
+# ---------------------------------------------------------------------------
+echo "==> Writing Cursor sandbox config..."
+mkdir -p /workspace/.cursor
+cat > /workspace/.cursor/sandbox.json << 'EOF'
+{
+  "networkPolicy": {
+    "default": "allow"
+  }
+}
+EOF
 
 # ---------------------------------------------------------------------------
 # Symlink bin/ scripts into ~/bin (already on PATH via .bashrc)
