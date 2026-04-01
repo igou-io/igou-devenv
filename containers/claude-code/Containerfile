@@ -36,6 +36,7 @@ RUN set -eux; \
 # Final image from base
 # ---------------------------------------------------------------------------
 FROM base
+USER root
 
 # Claude Code binary and dependencies
 COPY --from=build /home/igou/.local/bin /home/igou/.local/bin
@@ -59,5 +60,6 @@ COPY CLAUDE.md /etc/claude/CLAUDE.md
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
+USER 1000
 ENTRYPOINT ["entrypoint.sh"]
 CMD ["claude"]

@@ -21,6 +21,7 @@ USER root
 # Final image from base
 # ---------------------------------------------------------------------------
 FROM base
+USER root
 
 # Cursor agent binary
 COPY --from=build /home/igou/.local/bin /home/igou/.local/bin
@@ -39,5 +40,6 @@ COPY sandbox.json /etc/cursor/sandbox.json
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
+USER 1000
 ENTRYPOINT ["entrypoint.sh"]
 CMD ["agent"]
