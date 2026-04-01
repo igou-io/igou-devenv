@@ -4,7 +4,7 @@ WORKSPACE    = $(CURDIR)
 # Resolve SSH agent mount at shell level: only mount if the socket file exists
 SSH_MOUNT = $(shell [ -S "$$SSH_AUTH_SOCK" ] && echo '--mount type=bind,source=$(SSH_AUTH_SOCK),target=/tmp/ssh-agent.sock --remote-env SSH_AUTH_SOCK=/tmp/ssh-agent.sock')
 
-.PHONY: build up down restart exec shell test test-all test-tools test-podman test-env clean rebuild help renovate-validate renovate-dry-run claude-build claude-rebuild claude-test claude-test-run claude-test-all e2e sbom sbom-devcontainer sbom-claude
+.PHONY: build up down restart exec shell test test-all test-tools test-podman test-env clean rebuild help renovate-validate renovate-dry-run claude-build claude-rebuild claude-test claude-test-run claude-test-all cursor-build cursor-rebuild cursor-test cursor-test-hardened cursor-test-run cursor-test-all e2e sbom sbom-devcontainer sbom-claude sbom-cursor
 
 
 ## Build the devcontainer image (with cache)
@@ -124,6 +124,43 @@ claude-test-run:
 ## Run all Claude container tests (tools, hardened, claude-run)
 claude-test-all: claude-test claude-test-hardened claude-test-run
 
+## Build the Cursor agent container image (with cache)
+cursor-build:
+	podman build -t cursor-agent -f cursor-agent-container/Containerfile cursor-agent-container/
+
+## Rebuild the Cursor agent container image from scratch (no cache)
+cursor-rebuild:
+	podman build --no-cache -t cursor-agent -f cursor-agent-container/Containerfile cursor-agent-container/
+
+## Run tool verification tests inside the Cursor agent container
+cursor-test:
+	podman run --rm -v $(CURDIR)/cursor-agent-container/test.sh:/tmp/test.sh:ro,Z cursor-agent bash /tmp/test.sh
+
+## Test Cursor agent under full hardening (--cap-drop=ALL, noexec /tmp, resource limits)
+cursor-test-hardened:
+	podman run --rm \
+		--init \
+		--cap-drop=ALL \
+		--security-opt no-new-privileges:true \
+		--tmpfs /tmp:rw,noexec,nosuid,size=256m \
+		--tmpfs /run:rw,noexec,nosuid,size=64m \
+		--cpus=2 \
+		--memory=4g \
+		--memory-swap=4g \
+		--pids-limit=512 \
+		--ulimit nofile=1024:2048 \
+		--ulimit nproc=512:512 \
+		--ulimit core=0 \
+		-v $(CURDIR)/cursor-agent-container/test-hardened.sh:/workspace/test-hardened.sh:ro,Z \
+		cursor-agent bash /workspace/test-hardened.sh
+
+## Test cursor-run secret resolution and argument assembly (uses mock op/podman)
+cursor-test-run:
+	$(CURDIR)/cursor-agent-container/test-cursor-run.sh
+
+## Run all Cursor agent container tests (tools, hardened, cursor-run)
+cursor-test-all: cursor-test cursor-test-hardened cursor-test-run
+
 ## End-to-end: rebuild devcontainer, run devcontainer tests, build Claude container
 ## inside devcontainer, run Claude container tests. Full validation from scratch.
 e2e:
@@ -164,7 +201,7 @@ e2e:
 	@echo "=== E2E complete ==="
 
 ## Generate SBOMs for all container images (SPDX + CycloneDX)
-sbom: sbom-devcontainer sbom-claude
+sbom: sbom-devcontainer sbom-claude sbom-cursor
 
 ## Generate SBOM for the devcontainer image
 sbom-devcontainer:
@@ -181,6 +218,13 @@ sbom-claude:
 	@if ! podman image exists claude-devenv; then echo "No claude-devenv image found. Run 'make claude-build' first."; exit 1; fi
 	syft podman:claude-devenv -o spdx-json=sbom/claude-devenv.spdx.json -o cyclonedx-json=sbom/claude-devenv.cdx.json
 	@echo "SBOMs written to sbom/claude-devenv.{spdx,cdx}.json"
+
+## Generate SBOM for the Cursor agent container image
+sbom-cursor:
+	@mkdir -p sbom
+	@if ! podman image exists cursor-agent; then echo "No cursor-agent image found. Run 'make cursor-build' first."; exit 1; fi
+	syft podman:cursor-agent -o spdx-json=sbom/cursor-agent.spdx.json -o cyclonedx-json=sbom/cursor-agent.cdx.json
+	@echo "SBOMs written to sbom/cursor-agent.{spdx,cdx}.json"
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?##' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'

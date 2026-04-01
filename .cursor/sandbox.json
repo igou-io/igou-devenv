@@ -1,0 +1,37 @@
+{
+  "type": "workspace_readwrite",
+  "networkPolicy": {
+    "default": "deny",
+    "allow": [
+      "*.docker.io",
+      "*.github.com",
+      "*.githubusercontent.com",
+      "*.quay.io",
+      "*.redhat.com",
+      "*.redhat.io",
+      "api.anthropic.com",
+      "claude.ai",
+      "dl.k8s.io",
+      "files.pythonhosted.org",
+      "ghcr.io",
+      "github.com",
+      "mirror.openshift.com",
+      "pypi.org",
+      "quay.io",
+      "registry.access.redhat.com",
+      "registry.npmjs.org"
+    ],
+    "deny": []
+  },
+  "additionalReadwritePaths": [
+    "/home/igou/.config/argocd",
+    "/home/igou/.kube",
+    "/tmp"
+  ],
+  "additionalReadonlyPaths": [
+    "/home/igou/.config/op",
+    "/home/igou/.ssh"
+  ],
+  "disableTmpWrite": false,
+  "enableSharedBuildCache": false
+}

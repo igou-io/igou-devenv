@@ -26,9 +26,18 @@ claude-container/
 ├── test.sh              # Tool verification for the Claude container
 ├── test-hardened.sh     # Integration tests under full hardening (cap-drop, noexec, etc.)
 └── test-claude-run.sh   # Unit tests for claude-run launch script
+cursor-agent-container/
+├── Containerfile        # UBI10-based rootless container for Cursor agent sessions
+├── requirements.txt     # Python packages (same as claude-container)
+├── sandbox.json         # Baked Cursor sandbox config (→ /etc/cursor/, merged by entrypoint)
+├── entrypoint.sh        # Git config, sandbox merge, GitHub auth
+├── test.sh              # Tool verification for the Cursor agent container
+├── test-hardened.sh     # Integration tests under full hardening
+└── test-cursor-run.sh   # Unit tests for cursor-run launch script
 adr/                     # Architecture Decision Records
 bin/                     # Custom scripts (symlinked to ~/bin, on PATH)
 │   ├── claude-run       # Launch script for the Claude container
+│   ├── cursor-run       # Launch script for the Cursor agent container
 │   └── argocd-refresh-all
 envs/                    # 1Password env files (op:// references only, no secrets) for use() function
 Makefile                 # Devcontainer lifecycle: build, up, down, shell, test, renovate targets
@@ -96,6 +105,17 @@ make e2e                # Full end-to-end: rebuild devcontainer + all tests + Cl
 claude-run              # Launch Claude in the container (see bin/claude-run)
 claude-run -e ocp-rosa  # Launch with resolved cluster credentials
 claude-run --shell      # Drop to bash inside the container
+
+# Cursor agent container (UBI10-based, rootless)
+make cursor-build       # Build the Cursor agent container image
+make cursor-rebuild     # Rebuild from scratch (no cache)
+make cursor-test        # Run tool verification in the Cursor agent container
+make cursor-test-hardened  # Test under full hardening (cap-drop, noexec, limits)
+make cursor-test-run    # Test cursor-run argument assembly (uses mock podman)
+make cursor-test-all    # Run all Cursor agent container tests
+cursor-run              # Launch Cursor agent in the container (see bin/cursor-run)
+cursor-run -e ocp-rosa  # Launch with resolved cluster credentials
+cursor-run --shell      # Drop to bash inside the container
 ```
 
 ## Pre-push Requirements
