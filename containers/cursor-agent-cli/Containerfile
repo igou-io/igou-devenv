@@ -23,8 +23,9 @@ USER root
 FROM base
 USER root
 
-# Cursor agent binary
+# Cursor agent binary and runtime (bin/ contains symlinks into share/)
 COPY --from=build /home/igou/.local/bin /home/igou/.local/bin
+COPY --from=build /home/igou/.local/share /home/igou/.local/share
 RUN chmod 555 /home/igou/.local/bin && \
     chown -R 1000:1000 /home/igou/.local
 
