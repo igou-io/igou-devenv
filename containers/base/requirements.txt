@@ -1,4 +1,3 @@
-# Managed by Renovate — pin versions for automated updates
 ansible==13.4.0
 ansible-runner==2.4.3
 ansible-lint==26.3.0

@@ -251,7 +251,7 @@ All tool versions are pinned and managed by [Renovate](https://docs.renovatebot.
 - **Dockerfile base image** — pinned by digest, updated by Renovate's Docker manager
 - **Python packages** — pinned in `.devcontainer/requirements.txt`, updated by `pip_requirements` manager
 - **CLI binaries** — pinned in `Dockerfile` with `# renovate:` comments, updated by a custom regex manager using the `github-releases` datasource
-- **npm build-time deps** — pinned in `claude-container/package.json`, updated by Renovate's native npm manager
+- **npm build-time deps** — pinned in `containers/claude-code/package.json`, updated by Renovate's native npm manager
 
 To test Renovate config locally:
 ```bash
@@ -274,7 +274,7 @@ test suite (`tests/run-all.sh`) inside the container.
 - **Devcontainer Features** → add to `devcontainer.json` `features` block
 - **Python packages** → add to `.devcontainer/requirements.txt` (pinned for Renovate)
 - **CLI binaries from GitHub** → add to `Dockerfile` with a `# renovate:` ARG comment
-- **npm build-time deps** → add to `claude-container/package.json` (Renovate-managed)
+- **npm build-time deps** → add to `containers/claude-code/package.json` (Renovate-managed)
 - **Custom scripts** → add to `bin/` (symlinked to `~/bin`, on PATH)
 - **Cursor extensions** → add to `customizations.vscode.extensions` in `devcontainer.json`
 

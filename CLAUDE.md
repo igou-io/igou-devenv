@@ -16,24 +16,28 @@ This repo is a reproducible development environment for homelab infrastructure w
 ├── post-create.sh       # Clones repos via SSH, configures shell (.bashrc), writes workspace file
 ├── post-start.sh        # SSH agent forwarding check (runs every container start)
 └── requirements.txt     # Pinned Python packages (Ansible ecosystem, yq, mkdocs-material)
-claude-container/
-├── Containerfile        # UBI10-based rootless container for Claude Code sessions
-├── requirements.txt     # Python packages (copy of .devcontainer/requirements.txt)
-├── package.json         # npm build-time deps (sandbox-runtime seccomp filter, Renovate-managed)
-├── claude.json          # Baked MCP server config (→ /etc/claude/)
-├── settings.json        # Baked sandbox settings (→ /etc/claude/)
-├── entrypoint.sh        # Git config, config merging, GitHub auth
-├── test.sh              # Tool verification for the Claude container
-├── test-hardened.sh     # Integration tests under full hardening (cap-drop, noexec, etc.)
-└── test-claude-run.sh   # Unit tests for claude-run launch script
-cursor-agent-container/
-├── Containerfile        # UBI10-based rootless container for Cursor agent sessions
-├── requirements.txt     # Python packages (same as claude-container)
-├── sandbox.json         # Baked Cursor sandbox config (→ /etc/cursor/, merged by entrypoint)
-├── entrypoint.sh        # Git config, sandbox merge, GitHub auth
-├── test.sh              # Tool verification for the Cursor agent container
-├── test-hardened.sh     # Integration tests under full hardening
-└── test-cursor-run.sh   # Unit tests for cursor-run launch script
+containers/
+├── base/
+│   ├── Containerfile    # Shared UBI10 three-stage build (system packages, CLI tools, Python, hardening)
+│   ├── requirements.txt # Pinned Python packages (single source of truth)
+│   └── test.sh          # Base tool verification
+├── claude-code/
+│   ├── Containerfile    # Overlay: FROM agent-base + Claude Code CLI + seccomp
+│   ├── package.json     # npm build-time deps (seccomp filter, Renovate-managed)
+│   ├── claude.json      # Baked MCP server config (→ /etc/claude/)
+│   ├── settings.json    # Baked sandbox settings (→ /etc/claude/)
+│   ├── CLAUDE.md        # Global CLAUDE.md for container sessions
+│   ├── entrypoint.sh    # Git config, config merging, GitHub auth
+│   ├── test.sh          # Claude-specific tool verification
+│   ├── test-hardened.sh # Integration tests under full hardening (cap-drop, noexec, etc.)
+│   └── test-claude-run.sh # Unit tests for claude-run launch script
+└── cursor-agent-cli/
+    ├── Containerfile    # Overlay: FROM agent-base + Cursor agent CLI
+    ├── sandbox.json     # Baked Cursor sandbox config (→ /etc/cursor/, merged by entrypoint)
+    ├── entrypoint.sh    # Git config, sandbox merge, GitHub auth
+    ├── test.sh          # Cursor-specific tool verification
+    ├── test-hardened.sh # Integration tests under full hardening
+    └── test-cursor-run.sh # Unit tests for cursor-run launch script
 adr/                     # Architecture Decision Records
 bin/                     # Custom scripts (symlinked to ~/bin, on PATH)
 │   ├── claude-run       # Launch script for the Claude container
@@ -94,8 +98,13 @@ make test-env           # Test environment switching functions
 make renovate-validate  # Validate renovate.json config
 GITHUB_TOKEN=... make renovate-dry-run  # Dry-run Renovate locally
 
-# Claude container (UBI10-based, rootless)
-make claude-build       # Build the Claude container image
+# Base agent image (shared tools and packages)
+make base-build         # Build the base agent image
+make base-rebuild       # Rebuild base from scratch (no cache)
+make base-test          # Run tool verification on the base image
+
+# Claude Code container (UBI10-based, rootless)
+make claude-build       # Build the Claude container image (builds base first)
 make claude-rebuild     # Rebuild from scratch (no cache)
 make claude-test        # Run tool verification in the Claude container
 make claude-test-hardened  # Test under full hardening (cap-drop, noexec, limits)
@@ -106,8 +115,8 @@ claude-run              # Launch Claude in the container (see bin/claude-run)
 claude-run -e ocp-rosa  # Launch with resolved cluster credentials
 claude-run --shell      # Drop to bash inside the container
 
-# Cursor agent container (UBI10-based, rootless)
-make cursor-build       # Build the Cursor agent container image
+# Cursor agent CLI container (UBI10-based, rootless)
+make cursor-build       # Build the Cursor agent container image (builds base first)
 make cursor-rebuild     # Rebuild from scratch (no cache)
 make cursor-test        # Run tool verification in the Cursor agent container
 make cursor-test-hardened  # Test under full hardening (cap-drop, noexec, limits)

@@ -141,7 +141,7 @@ Claude Code's sandbox requires bubblewrap (`bwrap`) for filesystem isolation and
       --repo=centos-baseos \
       install bubblewrap
   ```
-- **seccomp filter**: Extracted from the `@anthropic-ai/sandbox-runtime` npm package at build time. Version is pinned in `claude-container/package.json` and managed by Renovate's native npm manager:
+- **seccomp filter**: Extracted from the `@anthropic-ai/sandbox-runtime` npm package at build time. Version is pinned in `containers/claude-code/package.json` and managed by Renovate's native npm manager:
   ```json
   { "dependencies": { "@anthropic-ai/sandbox-runtime": "0.0.43" } }
   ```
@@ -227,16 +227,20 @@ Container names are derived from active environments (`claude-session`, `claude-
 ### File layout
 
 ```
-claude-container/
-├── Containerfile        # Three-stage UBI10 build
-├── requirements.txt     # Python packages (Renovate-managed)
-├── package.json         # npm build-time deps — seccomp filter (Renovate-managed)
-├── entrypoint.sh        # Git config, config merging, GitHub auth
-├── claude.json          # Baked MCP server config (→ /etc/claude/)
-├── settings.json        # Baked sandbox settings (→ /etc/claude/)
-├── test.sh              # Tool verification (~12 assertions)
-├── test-hardened.sh     # Hardened environment integration tests (~38 assertions)
-└── test-claude-run.sh   # Launch script unit tests (~37 assertions)
+containers/
+├── base/
+│   ├── Containerfile    # Shared three-stage UBI10 build (system packages, CLI tools, Python)
+│   ├── requirements.txt # Python packages (Renovate-managed, single source of truth)
+│   └── test.sh          # Base tool verification
+├── claude-code/
+│   ├── Containerfile    # Overlay: FROM agent-base + Claude Code CLI + seccomp
+│   ├── package.json     # npm build-time deps — seccomp filter (Renovate-managed)
+│   ├── entrypoint.sh    # Git config, config merging, GitHub auth
+│   ├── claude.json      # Baked MCP server config (→ /etc/claude/)
+│   ├── settings.json    # Baked sandbox settings (→ /etc/claude/)
+│   ├── test.sh          # Claude-specific tool verification
+│   ├── test-hardened.sh # Hardened environment integration tests (~38 assertions)
+│   └── test-claude-run.sh # Launch script unit tests (~37 assertions)
 bin/
 └── claude-run           # Launch script with hardening flags
 ```

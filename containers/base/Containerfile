@@ -18,6 +18,9 @@ COPY --from=target / ${DNF_INSTALL_ROOT}/
 # Build dependencies (not installed into rootfs)
 RUN dnf install -y unzip xz tar gzip
 
+# EPEL 10 for additional packages
+RUN dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-10.noarch.rpm || true
+
 # ---------------------------------------------------------------------------
 # System packages into rootfs
 # ---------------------------------------------------------------------------
@@ -50,6 +53,15 @@ RUN dnf ${DNF_OPTS_ROOT} ${DNF_OPTS} --skip-broken install \
     procps-ng \
     && dnf ${DNF_OPTS_ROOT} clean all \
     && rm -rf ${DNF_INSTALL_ROOT}/var/cache/* ${DNF_INSTALL_ROOT}/var/log/dnf* ${DNF_INSTALL_ROOT}/var/log/yum.*
+
+# bubblewrap — required by Claude Code sandbox. Not in UBI10 repos, so install
+# from CentOS 10-stream BaseOS as a one-off (--repofrompath avoids persisting the repo).
+# Harmless for non-Claude containers.
+RUN dnf ${DNF_OPTS_ROOT} ${DNF_OPTS} --nogpgcheck \
+    --repofrompath=centos-baseos,https://mirror.stream.centos.org/10-stream/BaseOS/x86_64/os/ \
+    --repo=centos-baseos \
+    install bubblewrap \
+    && dnf ${DNF_OPTS_ROOT} clean all
 
 RUN mkdir -p ${DNF_INSTALL_ROOT}/usr/local/bin
 
@@ -154,31 +166,8 @@ RUN cp /etc/resolv.conf ${DNF_INSTALL_ROOT}/etc/resolv.conf && \
 # ---------------------------------------------------------------------------
 RUN echo "igou:x:1000:1000::/home/igou:/bin/bash" >> ${DNF_INSTALL_ROOT}/etc/passwd && \
     echo "igou:x:1000:" >> ${DNF_INSTALL_ROOT}/etc/group && \
-    mkdir -p ${DNF_INSTALL_ROOT}/home/igou/.config/cursor && \
-    chown -R 1000:1000 ${DNF_INSTALL_ROOT}/home/igou
-
-# ---------------------------------------------------------------------------
-# Cursor Agent CLI — install in build env, copy to rootfs
-# ---------------------------------------------------------------------------
-RUN groupadd -g 1000 igou 2>/dev/null || true && \
-    useradd -m -u 1000 -g 1000 igou 2>/dev/null || true
-USER 1000
-RUN curl -fsSL https://cursor.com/install | bash && \
-    ~/.local/bin/agent --version
-USER root
-RUN mkdir -p ${DNF_INSTALL_ROOT}/home/igou/.local && \
-    cp -a /home/igou/.local/bin /home/igou/.local/share \
-      ${DNF_INSTALL_ROOT}/home/igou/.local/ 2>/dev/null; \
-    cp -a /home/igou/.local/bin \
-      ${DNF_INSTALL_ROOT}/home/igou/.local/ && \
-    chown -R 1000:1000 ${DNF_INSTALL_ROOT}/home/igou && \
-    chmod 555 ${DNF_INSTALL_ROOT}/home/igou/.local/bin
-
-# Entrypoint and baked Cursor sandbox config
-COPY entrypoint.sh ${DNF_INSTALL_ROOT}/usr/local/bin/entrypoint.sh
-RUN chmod +x ${DNF_INSTALL_ROOT}/usr/local/bin/entrypoint.sh
-RUN mkdir -p ${DNF_INSTALL_ROOT}/etc/cursor
-COPY sandbox.json ${DNF_INSTALL_ROOT}/etc/cursor/sandbox.json
+    mkdir -p ${DNF_INSTALL_ROOT}/home/igou && \
+    chown 1000:1000 ${DNF_INSTALL_ROOT}/home/igou
 
 # Workspace directory
 RUN mkdir -p ${DNF_INSTALL_ROOT}/workspace && \
@@ -200,6 +189,3 @@ ENV PIP_NO_INPUT=1
 
 WORKDIR /workspace
 USER 1000
-
-ENTRYPOINT ["entrypoint.sh"]
-CMD ["agent"]

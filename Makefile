@@ -4,7 +4,7 @@ WORKSPACE    = $(CURDIR)
 # Resolve SSH agent mount at shell level: only mount if the socket file exists
 SSH_MOUNT = $(shell [ -S "$$SSH_AUTH_SOCK" ] && echo '--mount type=bind,source=$(SSH_AUTH_SOCK),target=/tmp/ssh-agent.sock --remote-env SSH_AUTH_SOCK=/tmp/ssh-agent.sock')
 
-.PHONY: build up down restart exec shell test test-all test-tools test-podman test-env clean rebuild help renovate-validate renovate-dry-run claude-build claude-rebuild claude-test claude-test-run claude-test-all cursor-build cursor-rebuild cursor-test cursor-test-hardened cursor-test-run cursor-test-all e2e sbom sbom-devcontainer sbom-claude sbom-cursor
+.PHONY: build up down restart exec shell test test-all test-tools test-podman test-env clean rebuild help renovate-validate renovate-dry-run base-build base-rebuild base-test claude-build claude-rebuild claude-test claude-test-hardened claude-test-run claude-test-all cursor-build cursor-rebuild cursor-test cursor-test-hardened cursor-test-run cursor-test-all e2e sbom sbom-devcontainer sbom-claude sbom-cursor
 
 
 ## Build the devcontainer image (with cache)
@@ -87,17 +87,29 @@ renovate-dry-run:
 		renovate/renovate \
 		--platform=local
 
+## Build the base agent image (with cache)
+base-build:
+	podman build -t agent-base -f containers/base/Containerfile containers/base/
+
+## Rebuild the base agent image from scratch (no cache)
+base-rebuild:
+	podman build --no-cache -t agent-base -f containers/base/Containerfile containers/base/
+
+## Run tool verification tests on the base agent image
+base-test:
+	podman run --rm -v $(CURDIR)/containers/base/test.sh:/tmp/test.sh:ro,Z agent-base bash /tmp/test.sh
+
 ## Build the Claude container image (with cache)
-claude-build:
-	podman build -t claude-devenv -f claude-container/Containerfile claude-container/
+claude-build: base-build
+	podman build -t claude-devenv -f containers/claude-code/Containerfile containers/claude-code/
 
 ## Rebuild the Claude container image from scratch (no cache)
-claude-rebuild:
-	podman build --no-cache -t claude-devenv -f claude-container/Containerfile claude-container/
+claude-rebuild: base-rebuild
+	podman build --no-cache -t claude-devenv -f containers/claude-code/Containerfile containers/claude-code/
 
 ## Run tool verification tests inside the Claude container
 claude-test:
-	podman run --rm -v $(CURDIR)/claude-container/test.sh:/tmp/test.sh:ro,Z claude-devenv bash /tmp/test.sh
+	podman run --rm -v $(CURDIR)/containers/claude-code/test.sh:/tmp/test.sh:ro,Z claude-devenv bash /tmp/test.sh
 
 ## Test Claude under full hardening (--cap-drop=ALL, noexec /tmp, resource limits)
 claude-test-hardened:
@@ -114,27 +126,27 @@ claude-test-hardened:
 		--ulimit nofile=1024:2048 \
 		--ulimit nproc=512:512 \
 		--ulimit core=0 \
-		-v $(CURDIR)/claude-container/test-hardened.sh:/workspace/test-hardened.sh:ro,Z \
+		-v $(CURDIR)/containers/claude-code/test-hardened.sh:/workspace/test-hardened.sh:ro,Z \
 		claude-devenv bash /workspace/test-hardened.sh
 
 ## Test claude-run secret resolution and argument assembly (uses mock op/podman)
 claude-test-run:
-	$(CURDIR)/claude-container/test-claude-run.sh
+	$(CURDIR)/containers/claude-code/test-claude-run.sh
 
 ## Run all Claude container tests (tools, hardened, claude-run)
 claude-test-all: claude-test claude-test-hardened claude-test-run
 
 ## Build the Cursor agent container image (with cache)
-cursor-build:
-	podman build -t cursor-agent -f cursor-agent-container/Containerfile cursor-agent-container/
+cursor-build: base-build
+	podman build -t cursor-agent -f containers/cursor-agent-cli/Containerfile containers/cursor-agent-cli/
 
 ## Rebuild the Cursor agent container image from scratch (no cache)
-cursor-rebuild:
-	podman build --no-cache -t cursor-agent -f cursor-agent-container/Containerfile cursor-agent-container/
+cursor-rebuild: base-rebuild
+	podman build --no-cache -t cursor-agent -f containers/cursor-agent-cli/Containerfile containers/cursor-agent-cli/
 
 ## Run tool verification tests inside the Cursor agent container
 cursor-test:
-	podman run --rm -v $(CURDIR)/cursor-agent-container/test.sh:/tmp/test.sh:ro,Z cursor-agent bash /tmp/test.sh
+	podman run --rm -v $(CURDIR)/containers/cursor-agent-cli/test.sh:/tmp/test.sh:ro,Z cursor-agent bash /tmp/test.sh
 
 ## Test Cursor agent under full hardening (--cap-drop=ALL, noexec /tmp, resource limits)
 cursor-test-hardened:
@@ -151,53 +163,19 @@ cursor-test-hardened:
 		--ulimit nofile=1024:2048 \
 		--ulimit nproc=512:512 \
 		--ulimit core=0 \
-		-v $(CURDIR)/cursor-agent-container/test-hardened.sh:/workspace/test-hardened.sh:ro,Z \
+		-v $(CURDIR)/containers/cursor-agent-cli/test-hardened.sh:/workspace/test-hardened.sh:ro,Z \
 		cursor-agent bash /workspace/test-hardened.sh
 
 ## Test cursor-run secret resolution and argument assembly (uses mock op/podman)
 cursor-test-run:
-	$(CURDIR)/cursor-agent-container/test-cursor-run.sh
+	$(CURDIR)/containers/cursor-agent-cli/test-cursor-run.sh
 
 ## Run all Cursor agent container tests (tools, hardened, cursor-run)
 cursor-test-all: cursor-test cursor-test-hardened cursor-test-run
 
-## End-to-end: rebuild devcontainer, run devcontainer tests, build Claude container
-## inside devcontainer, run Claude container tests. Full validation from scratch.
-e2e:
-	@echo "=== Phase 1: Rebuild devcontainer ==="
-	$(DEVCONTAINER) up --workspace-folder $(WORKSPACE) \
-		--remove-existing-container \
-		--build-no-cache \
-		$(SSH_MOUNT)
-	@echo ""
-	@echo "=== Phase 2: Devcontainer tests ==="
-	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) /workspace/igou-devenv/tests/test-tools.sh
-	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) /workspace/igou-devenv/tests/test-podman.sh
-	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) bash -i /workspace/igou-devenv/tests/test-env.sh
-	@echo ""
-	@echo "=== Phase 3: Build Claude container inside devcontainer ==="
-	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) \
-		podman build --no-cache -t claude-devenv -f /workspace/igou-devenv/claude-container/Containerfile /workspace/igou-devenv/claude-container/
-	@echo ""
-	@echo "=== Phase 4: Claude container tests (inside devcontainer) ==="
-	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) \
-		podman run --rm -v /workspace/igou-devenv/claude-container/test.sh:/tmp/test.sh:ro,Z claude-devenv bash /tmp/test.sh
-	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) \
-		/workspace/igou-devenv/claude-container/test-claude-run.sh
-	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) \
-		podman run --rm \
-			--init \
-			--cap-drop=ALL \
-			--security-opt no-new-privileges:true \
-			--tmpfs /tmp:rw,noexec,nosuid,size=256m \
-			--tmpfs /run:rw,noexec,nosuid,size=64m \
-			--pids-limit=512 \
-			--ulimit nofile=1024:2048 \
-			--ulimit nproc=512:512 \
-			--ulimit core=0 \
-			-v /workspace/igou-devenv/claude-container/test-hardened.sh:/workspace/test-hardened.sh:ro,Z \
-			claude-devenv bash /workspace/test-hardened.sh
-	@echo ""
+## End-to-end: rebuild devcontainer, run all devcontainer and container tests.
+## Full validation from scratch.
+e2e: rebuild test-all claude-rebuild claude-test-all cursor-rebuild cursor-test-all
 	@echo "=== E2E complete ==="
 
 ## Generate SBOMs for all container images (SPDX + CycloneDX)

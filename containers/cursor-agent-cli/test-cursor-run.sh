@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Test claude-run secret resolution and container argument assembly.
+# Test cursor-run secret resolution and container argument assembly.
 # Uses mock-op to intercept 1Password calls. Does NOT launch a real container —
 # instead, replaces `podman` with a mock that captures the final command line.
 set -u
@@ -7,7 +7,7 @@ set -u
 PASS=0
 FAIL=0
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+REPO_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 ok()   { echo "  [OK] $1"; PASS=$((PASS + 1)); }
 fail() { echo "  [FAIL] $1"; FAIL=$((FAIL + 1)); }
@@ -62,84 +62,65 @@ export MOCK_OP_LOG="$TESTDIR/op-calls.log"
 # Test env files
 mkdir -p "$TESTDIR/envs"
 
-# Kubeconfig-only env (like ocp-rosa)
 cat > "$TESTDIR/envs/ocp-rosa.env" << 'EOF'
 KUBECONFIG_DATA=op://awx/ocp-rosa/kubeconfig
 EOF
 
-# Mixed env (kubeconfig + other secrets)
 cat > "$TESTDIR/envs/ocp-mixed.env" << 'EOF'
 KUBECONFIG_DATA=op://awx/ocp-rosa/kubeconfig
 AWS_ACCESS_KEY_ID=op://awx/test-cluster/access-key
 AWS_DEFAULT_REGION=us-east-1
 EOF
 
-# Plain secrets only (no kubeconfig)
 cat > "$TESTDIR/envs/aws.env" << 'EOF'
 AWS_ACCESS_KEY_ID=op://awx/test-cluster/access-key
 AWS_SECRET_ACCESS_KEY=op://awx/test-cluster/secret-key
 AWS_DEFAULT_REGION=us-east-1
 EOF
 
-# Ansible env (no kubeconfig, has op:// refs)
 cat > "$TESTDIR/envs/ansible.env" << 'EOF'
 ANSIBLE_VAULT_PASSWORD=op://awx/vault/password
 ANSIBLE_HOST_KEY_CHECKING=False
 EOF
 
-# Patch claude-run to use our test envdir and remove -it (non-interactive)
-CLAUDE_RUN="$TESTDIR/claude-run"
+# Patch cursor-run to use our test envdir and remove -it (non-interactive)
+CURSOR_RUN="$TESTDIR/cursor-run"
 sed -e "s|ENVDIR=\"/workspace/igou-devenv/envs\"|ENVDIR=\"$TESTDIR/envs\"|" \
     -e 's/--rm -it/--rm/' \
     -e 's/exec podman run/podman run/' \
-    "$REPO_DIR/bin/claude-run" > "$CLAUDE_RUN"
-chmod +x "$CLAUDE_RUN"
+    "$REPO_DIR/bin/cursor-run" > "$CURSOR_RUN"
+chmod +x "$CURSOR_RUN"
 
-# Helper: run claude-run and capture podman args
-run_claude() {
-    "$CLAUDE_RUN" "$@" 2>"$TESTDIR/stderr" | tee "$TESTDIR/podman-args"
+# Helper: run cursor-run and capture podman args
+run_cursor() {
+    "$CURSOR_RUN" "$@" 2>"$TESTDIR/stderr" | tee "$TESTDIR/podman-args"
 }
 
 # =========================================================================
-#  Test: kubeconfig-only env (ocp-rosa pattern)
+#  Test: kubeconfig-only env
 # =========================================================================
 echo "==> Testing kubeconfig-only env..."
 
-run_claude -e ocp-rosa --shell > /dev/null
+run_cursor -e ocp-rosa > /dev/null
 
-# Verify op read was called for kubeconfig
 if grep -q "op read op://awx/ocp-rosa/kubeconfig" "$MOCK_OP_LOG"; then
     ok "op read called for kubeconfig ref"
 else
     fail "op read called for kubeconfig ref"
 fi
 
-# Verify KUBECONFIG env var is set to /tmp/kubeconfig
 if grep -q "KUBECONFIG=/tmp/kubeconfig" "$TESTDIR/podman-args"; then
     ok "KUBECONFIG env points to /tmp/kubeconfig"
 else
     fail "KUBECONFIG env points to /tmp/kubeconfig"
 fi
 
-# Verify kubeconfig file is mounted read-only
 if grep -q "/tmp/kubeconfig:ro" "$TESTDIR/podman-args"; then
     ok "kubeconfig mounted read-only into container"
 else
     fail "kubeconfig mounted read-only into container"
 fi
 
-# Verify the temp kubeconfig was written with decoded data.
-# The cleanup trap deletes the file after podman exits, so instead of reading
-# the file directly, verify that op read was called and the mount is present.
-# The decoded content is tested via the mixed env test below (which also checks KUBECONFIG).
-if grep -q "op read op://awx/ocp-rosa/kubeconfig" "$MOCK_OP_LOG" && \
-   grep -q "/tmp/kubeconfig:ro" "$TESTDIR/podman-args"; then
-    ok "kubeconfig decoded via op read and mounted"
-else
-    fail "kubeconfig decoded via op read and mounted"
-fi
-
-# Verify KUBECONFIG_DATA is NOT passed as env var
 if ! grep -q "KUBECONFIG_DATA" "$TESTDIR/podman-args"; then
     ok "KUBECONFIG_DATA not leaked to container"
 else
@@ -153,7 +134,7 @@ echo ""
 echo "==> Testing mixed env (kubeconfig + secrets)..."
 > "$MOCK_OP_LOG"
 
-run_claude -e ocp-mixed --shell > /dev/null
+run_cursor -e ocp-mixed > /dev/null
 
 if grep -q "KUBECONFIG=/tmp/kubeconfig" "$TESTDIR/podman-args"; then
     ok "mixed: kubeconfig resolved"
@@ -180,7 +161,7 @@ echo ""
 echo "==> Testing plain secrets env..."
 > "$MOCK_OP_LOG"
 
-run_claude -e aws --shell > /dev/null
+run_cursor -e aws > /dev/null
 
 if grep -q "AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE" "$TESTDIR/podman-args"; then
     ok "aws: access key resolved"
@@ -200,7 +181,6 @@ else
     fail "aws: plain region passed through"
 fi
 
-# No kubeconfig mount should be present
 if ! grep -q "/tmp/kubeconfig" "$TESTDIR/podman-args"; then
     ok "aws: no kubeconfig mount"
 else
@@ -214,7 +194,7 @@ echo ""
 echo "==> Testing stacked envs..."
 > "$MOCK_OP_LOG"
 
-run_claude -e ocp-rosa -e ansible --shell > /dev/null
+run_cursor -e ocp-rosa -e ansible > /dev/null
 
 if grep -q "KUBECONFIG=/tmp/kubeconfig" "$TESTDIR/podman-args"; then
     ok "stacked: kubeconfig from first env"
@@ -240,7 +220,7 @@ fi
 echo ""
 echo "==> Testing missing env file..."
 
-if ! "$CLAUDE_RUN" -e nonexistent --shell > /dev/null 2>"$TESTDIR/stderr-missing"; then
+if ! "$CURSOR_RUN" -e nonexistent > /dev/null 2>"$TESTDIR/stderr-missing"; then
     ok "missing env exits non-zero"
 else
     fail "missing env exits non-zero"
@@ -253,14 +233,28 @@ else
 fi
 
 # =========================================================================
-#  Test: --shell passes bash as command
+#  Test: default runs agent
+# =========================================================================
+echo ""
+echo "==> Testing default command..."
+
+run_cursor > /dev/null
+
+last_arg=$(tail -1 "$TESTDIR/podman-args")
+if [ "$last_arg" = "agent" ]; then
+    ok "default runs agent"
+else
+    fail "default runs agent (got: $last_arg)"
+fi
+
+# =========================================================================
+#  Test: --shell runs bash
 # =========================================================================
 echo ""
 echo "==> Testing --shell flag..."
 
-run_claude --shell > /dev/null
+run_cursor --shell > /dev/null
 
-# Last arg should be "bash"
 last_arg=$(tail -1 "$TESTDIR/podman-args")
 if [ "$last_arg" = "bash" ]; then
     ok "--shell runs bash"
@@ -269,34 +263,18 @@ else
 fi
 
 # =========================================================================
-#  Test: default runs claude
-# =========================================================================
-echo ""
-echo "==> Testing default command..."
-
-run_claude > /dev/null
-
-last_arg=$(tail -1 "$TESTDIR/podman-args")
-if [ "$last_arg" = "claude" ]; then
-    ok "default runs claude"
-else
-    fail "default runs claude (got: $last_arg)"
-fi
-
-# =========================================================================
-#  Test: -- passes args to claude
+#  Test: -- passes args to agent
 # =========================================================================
 echo ""
 echo "==> Testing passthrough args..."
 
-run_claude -- --resume > /dev/null
+run_cursor -- --resume > /dev/null
 
-# Should end with "claude" "--resume"
-if tail -2 "$TESTDIR/podman-args" | head -1 | grep -q "claude" && \
+if tail -2 "$TESTDIR/podman-args" | head -1 | grep -q "agent" && \
    tail -1 "$TESTDIR/podman-args" | grep -q -- "--resume"; then
-    ok "passthrough args forwarded to claude"
+    ok "passthrough args forwarded to agent"
 else
-    fail "passthrough args forwarded to claude"
+    fail "passthrough args forwarded to agent"
 fi
 
 # =========================================================================
@@ -305,9 +283,8 @@ fi
 echo ""
 echo "==> Testing podman flags..."
 
-run_claude --shell > /dev/null
+run_cursor > /dev/null
 
-# Core flags
 for flag in "--userns=keep-id" "--rm" "--init"; do
     if grep -q -- "$flag" "$TESTDIR/podman-args"; then
         ok "core: $flag present"
@@ -316,14 +293,12 @@ for flag in "--userns=keep-id" "--rm" "--init"; do
     fi
 done
 
-# Filesystem hardening
 if grep -q -- "noexec" "$TESTDIR/podman-args"; then
     ok "hardening: noexec tmpfs present"
 else
     fail "hardening: noexec tmpfs present"
 fi
 
-# Security restrictions
 for flag in "--cap-drop=ALL" "no-new-privileges:true"; do
     if grep -q -- "$flag" "$TESTDIR/podman-args"; then
         ok "security: $flag present"
@@ -332,7 +307,6 @@ for flag in "--cap-drop=ALL" "no-new-privileges:true"; do
     fi
 done
 
-# Resource limits (memory is conditional on cgroup delegation)
 for flag in "--cpus=2" "--pids-limit=512" "--timeout=7200"; do
     if grep -q -- "$flag" "$TESTDIR/podman-args"; then
         ok "limits: $flag present"
@@ -341,7 +315,6 @@ for flag in "--cpus=2" "--pids-limit=512" "--timeout=7200"; do
     fi
 done
 
-# Memory limits are conditional — check if present when cgroups allow it
 if grep -q -- "--memory=4g" "$TESTDIR/podman-args"; then
     ok "limits: --memory=4g present"
 else
@@ -354,25 +327,25 @@ fi
 echo ""
 echo "==> Testing dynamic container naming..."
 
-run_claude --shell > /dev/null
-if grep -q -- "claude-session" "$TESTDIR/podman-args"; then
-    ok "default name: claude-session"
+run_cursor > /dev/null
+if grep -q -- "cursor-session" "$TESTDIR/podman-args"; then
+    ok "default name: cursor-session"
 else
-    fail "default name: claude-session"
+    fail "default name: cursor-session"
 fi
 
-run_claude -e ocp-rosa --shell > /dev/null
-if grep -q -- "claude-ocp-rosa" "$TESTDIR/podman-args"; then
-    ok "single env name: claude-ocp-rosa"
+run_cursor -e ocp-rosa > /dev/null
+if grep -q -- "cursor-ocp-rosa" "$TESTDIR/podman-args"; then
+    ok "single env name: cursor-ocp-rosa"
 else
-    fail "single env name: claude-ocp-rosa"
+    fail "single env name: cursor-ocp-rosa"
 fi
 
-run_claude -e ocp-rosa -e ansible --shell > /dev/null
-if grep -q -- "claude-ocp-rosa-ansible" "$TESTDIR/podman-args"; then
-    ok "stacked env name: claude-ocp-rosa-ansible"
+run_cursor -e ocp-rosa -e ansible > /dev/null
+if grep -q -- "cursor-ocp-rosa-ansible" "$TESTDIR/podman-args"; then
+    ok "stacked env name: cursor-ocp-rosa-ansible"
 else
-    fail "stacked env name: claude-ocp-rosa-ansible"
+    fail "stacked env name: cursor-ocp-rosa-ansible"
 fi
 
 # =========================================================================
@@ -381,78 +354,68 @@ fi
 echo ""
 echo "==> Testing --dry-run..."
 
-dry_output=$("$CLAUDE_RUN" --dry-run --shell 2>&1)
+dry_output=$("$CURSOR_RUN" --dry-run 2>&1)
 if echo "$dry_output" | grep -q "podman run"; then
     ok "dry-run prints podman command"
 else
     fail "dry-run prints podman command"
 fi
 
-if echo "$dry_output" | grep -q "bash"; then
-    ok "dry-run includes bash command"
+if echo "$dry_output" | grep -q "agent"; then
+    ok "dry-run includes agent command"
 else
-    fail "dry-run includes bash command"
+    fail "dry-run includes agent command"
 fi
 
-dry_output=$("$CLAUDE_RUN" --dry-run -e aws 2>&1)
-if echo "$dry_output" | grep -q "claude-aws"; then
+dry_output=$("$CURSOR_RUN" --dry-run -e aws 2>&1)
+if echo "$dry_output" | grep -q "cursor-aws"; then
     ok "dry-run shows dynamic name"
 else
     fail "dry-run shows dynamic name"
 fi
 
 # =========================================================================
-#  Test: noexec tmpfs on /tmp
+#  Test: Cursor home and config mounts
 # =========================================================================
 echo ""
-echo "==> Testing noexec tmpfs..."
+echo "==> Testing Cursor home mounts..."
 
-run_claude --shell > /dev/null
-if grep -q -- "noexec" "$TESTDIR/podman-args" && grep -q -- "/tmp" "$TESTDIR/podman-args"; then
-    ok "noexec tmpfs on /tmp"
-else
-    fail "noexec tmpfs on /tmp"
-fi
-
-# =========================================================================
-#  Test: Claude home and .claude.json mounts
-# =========================================================================
-echo ""
-echo "==> Testing Claude home mounts..."
-
-# Use a fake HOME so we never touch real credentials
 REAL_HOME="$HOME"
 export HOME="$TESTDIR/fakehome"
-mkdir -p "$HOME/.claude"
-echo '{"hasCompletedOnboarding":true}' > "$HOME/.claude.json"
+mkdir -p "$HOME/.cursor" "$HOME/.config/cursor"
 
-run_claude --shell > /dev/null
+run_cursor --shell > /dev/null
 
-if grep -q "\.claude:" "$TESTDIR/podman-args" || grep -q "\.claude/" "$TESTDIR/podman-args"; then
-    ok "~/.claude mounted into container"
+if grep -q "\.cursor:" "$TESTDIR/podman-args" || grep -q "\.cursor/" "$TESTDIR/podman-args"; then
+    ok "~/.cursor mounted into container"
 else
-    fail "~/.claude mounted into container"
+    fail "~/.cursor mounted into container"
 fi
 
-if ! grep -q "\.claude\.json" "$TESTDIR/podman-args"; then
-    ok "~/.claude.json NOT mounted (avoids stale bind mount)"
+if grep -q "\.config/cursor:" "$TESTDIR/podman-args" || grep -q "\.config/cursor/" "$TESTDIR/podman-args"; then
+    ok "~/.config/cursor mounted into container"
 else
-    fail "~/.claude.json NOT mounted (avoids stale bind mount)"
+    fail "~/.config/cursor mounted into container"
 fi
 
-# Test CLAUDE_HOME override
-export CLAUDE_HOME="$TESTDIR/fakehome/.claude-alt"
-mkdir -p "$CLAUDE_HOME"
-run_claude --shell > /dev/null
-
-if grep -q "\.claude-alt" "$TESTDIR/podman-args"; then
-    ok "CLAUDE_HOME override respected"
+if grep -q "\.config/cursor.*:ro" "$TESTDIR/podman-args"; then
+    ok "~/.config/cursor mounted read-only"
 else
-    fail "CLAUDE_HOME override respected"
+    fail "~/.config/cursor mounted read-only"
 fi
-unset CLAUDE_HOME
 
-# Restore real HOME
+# Test CURSOR_HOME override
+export CURSOR_HOME="$TESTDIR/fakehome/.cursor-alt"
+mkdir -p "$CURSOR_HOME"
+run_cursor --shell > /dev/null
+
+if grep -q "\.cursor-alt" "$TESTDIR/podman-args"; then
+    ok "CURSOR_HOME override respected"
+else
+    fail "CURSOR_HOME override respected"
+fi
+unset CURSOR_HOME
+
 export HOME="$REAL_HOME"
 
 # =========================================================================
@@ -461,13 +424,10 @@ export HOME="$REAL_HOME"
 echo ""
 echo "==> Testing cleanup..."
 
-# Run with kubeconfig env, capture the temp file path
-run_claude -e ocp-rosa --shell > /dev/null
+run_cursor -e ocp-rosa > /dev/null
 kubeconfig_line=$(grep "/tmp/kubeconfig:ro" "$TESTDIR/podman-args" | head -1)
 tmpfile=$(echo "$kubeconfig_line" | sed 's|^-v||' | cut -d: -f1)
 
-# The trap in claude-run should clean up, but since we mock podman (exits immediately),
-# the trap fires and removes it. Verify it's gone.
 if [ -n "$tmpfile" ] && [ ! -f "$tmpfile" ]; then
     ok "temp kubeconfig cleaned up after exit"
 else
