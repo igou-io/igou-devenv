@@ -334,12 +334,12 @@ BASHRC
 
     echo "==> Writing workspace file..."
     cat > /workspace/homelab.code-workspace << 'EOF'
-    {
-        "folders": [
-            { "path": "." }
-        ]
-    }
-    EOF
+{
+    "folders": [
+        { "path": "." }
+    ]
+}
+EOF
 else
     echo "==> CI detected, skipping shell config and workspace file"
 fi
