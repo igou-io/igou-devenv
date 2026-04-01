@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=localhost/agent-base
+ARG BASE_IMAGE=agent-base
 ARG UBI_IMAGE=registry.access.redhat.com/ubi10/ubi:latest@sha256:c9c81d3d11bfd56c4bb61a220d4598392b5fbc500df33f2b8e52fdd2cebb4944
 
 FROM ${BASE_IMAGE} AS base
