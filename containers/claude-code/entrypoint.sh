@@ -2,19 +2,17 @@
 # Container entrypoint: configure git identity, merge MCP config, and GitHub PAT auth.
 # Writes to /tmp because the root filesystem is read-only.
 
-# Merge baked MCP servers into ~/.claude.json (which may be bind-mounted from host).
-# The baked config at /etc/claude/claude.json defines MCP servers for the container.
-# If ~/.claude.json already exists (from host mount), merge mcpServers into it.
-# Otherwise, copy the baked config as-is.
 # Merge baked configs from /etc/claude/ into user configs.
 # These baked configs define MCP servers and sandbox settings for the container.
 # When host files are bind-mounted, baked values are merged in (baked takes precedence).
 # When no host file exists, the baked config is copied as-is.
+MERGE_SCRIPT="/usr/local/lib/claude-container/merge-config.py"
+
 merge_json() {
-    local baked="$1" target="$2" merge_script="$3"
+    local baked="$1" target="$2"; shift 2
     if [ -f "$baked" ]; then
         if [ -f "$target" ]; then
-            python3 -c "$merge_script" 2>/dev/null || cp "$baked" "$target"
+            python3 "$MERGE_SCRIPT" "$baked" "$target" "$@" 2>/dev/null || cp "$baked" "$target"
         else
             cp "$baked" "$target"
         fi
@@ -30,26 +28,10 @@ if [ -f "$STATE_SNAPSHOT" ] && [ ! -f "$HOME/.claude.json" ]; then
 fi
 
 # ~/.claude.json — merge baked mcpServers
-merge_json "/etc/claude/claude.json" "$HOME/.claude.json" "
-import json
-with open('$HOME/.claude.json') as f: user = json.load(f)
-with open('/etc/claude/claude.json') as f: baked = json.load(f)
-user.setdefault('mcpServers', {}).update(baked.get('mcpServers', {}))
-with open('$HOME/.claude.json', 'w') as f: json.dump(user, f, indent=2)
-"
+merge_json "/etc/claude/claude.json" "$HOME/.claude.json" --key mcpServers
 
 # ~/.claude/settings.json — deep-merge baked sandbox settings
-merge_json "/etc/claude/settings.json" "$HOME/.claude/settings.json" "
-import json
-with open('$HOME/.claude/settings.json') as f: user = json.load(f)
-with open('/etc/claude/settings.json') as f: baked = json.load(f)
-for key, val in baked.items():
-    if isinstance(val, dict) and isinstance(user.get(key), dict):
-        user[key].update(val)
-    else:
-        user[key] = val
-with open('$HOME/.claude/settings.json', 'w') as f: json.dump(user, f, indent=2)
-"
+merge_json "/etc/claude/settings.json" "$HOME/.claude/settings.json"
 
 # Global CLAUDE.md — baked into image, copied only if user doesn't have one
 if [ -f /etc/claude/CLAUDE.md ] && [ ! -f "$HOME/.claude/CLAUDE.md" ]; then

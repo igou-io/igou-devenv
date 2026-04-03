@@ -11,6 +11,7 @@ This repo is a reproducible development environment for homelab infrastructure w
 ```
 .devcontainer/
 ├── Dockerfile           # apt packages, 1Password CLI, CLI binary downloads, claude-code (native)
+├── containers-storage.conf  # Podman rootless storage config (COPY'd into image)
 ├── devcontainer.json    # devcontainer config; Features, lifecycle hooks, editor customizations
 ├── init.sh              # Host-side initializeCommand: creates mount directories if missing
 ├── post-create.sh       # Clones repos via SSH, configures shell (.bashrc), writes workspace file
@@ -27,6 +28,7 @@ containers/
 │   ├── claude.json      # Baked MCP server config (→ /etc/claude/)
 │   ├── settings.json    # Baked sandbox settings (→ /etc/claude/)
 │   ├── CLAUDE.md        # Global CLAUDE.md for container sessions
+│   ├── merge-config.py  # JSON config merge script (→ /usr/local/lib/claude-container/)
 │   ├── entrypoint.sh    # Git config, config merging, GitHub auth
 │   ├── test.sh          # Claude-specific tool verification
 │   ├── test-hardened.sh # Integration tests under full hardening (cap-drop, noexec, etc.)
@@ -34,10 +36,14 @@ containers/
 └── cursor-agent-cli/
     ├── Containerfile    # Overlay: FROM agent-base + Cursor agent CLI
     ├── sandbox.json     # Baked Cursor sandbox config (→ /etc/cursor/, merged by entrypoint)
+    ├── merge-sandbox.py # Sandbox config merge script (→ /usr/local/lib/cursor-container/)
     ├── entrypoint.sh    # Git config, sandbox merge, GitHub auth
     ├── test.sh          # Cursor-specific tool verification
     ├── test-hardened.sh # Integration tests under full hardening
     └── test-cursor-run.sh # Unit tests for cursor-run launch script
+dotfiles/
+├── bashrc               # Shell config appended to ~/.bashrc by post-create.sh
+└── homelab.code-workspace  # VS Code workspace file copied to /workspace/
 adr/                     # Architecture Decision Records
 bin/                     # Custom scripts (symlinked to ~/bin, on PATH)
 │   ├── claude-run       # Launch script for the Claude container
@@ -134,7 +140,7 @@ cursor-run --shell      # Drop to bash inside the container
 ## Linting
 
 ```bash
-shellcheck .devcontainer/post-create.sh .devcontainer/post-start.sh .devcontainer/init.sh
+shellcheck .devcontainer/post-create.sh .devcontainer/post-start.sh .devcontainer/init.sh dotfiles/bashrc
 ```
 
 ## Key Design Decisions
@@ -148,3 +154,4 @@ shellcheck .devcontainer/post-create.sh .devcontainer/post-start.sh .devcontaine
 - **CI compatibility**: `init.sh` creates mount directories on any host (including CI runners). Scripts check `$CI` to skip SSH-dependent operations.
 - **Environment switching via `op inject`**: `use <env>` resolves secrets via `op inject` and exports them in the current shell. `unuse <env>` removes them. Both are idempotent. No subshells. See [ADR-0001](adr/0001-environment-switching-with-1password.md).
 - **Claude Code native binary**: Installed via `curl https://claude.ai/install.sh` instead of the deprecated npm package, removing the Node.js dependency.
+- **No embedded file definitions**: Do not embed large file contents (heredocs, multi-line echo chains, inline Python scripts) inside shell scripts or Dockerfiles. Instead, extract them into standalone files under `dotfiles/` (for runtime config) or alongside the consuming script (for build-time assets like Python merge scripts), then `cp`/`cat`/`COPY` them into place. This keeps generated files lintable, diffable, and editable. Small one-liners and test fixtures are acceptable inline.

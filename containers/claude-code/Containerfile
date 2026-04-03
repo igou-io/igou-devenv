@@ -56,6 +56,10 @@ COPY claude.json /etc/claude/claude.json
 COPY settings.json /etc/claude/settings.json
 COPY CLAUDE.md /etc/claude/CLAUDE.md
 
+# Config merge script (used by entrypoint to merge baked + user configs)
+RUN mkdir -p /usr/local/lib/claude-container
+COPY merge-config.py /usr/local/lib/claude-container/merge-config.py
+
 # Entrypoint
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh

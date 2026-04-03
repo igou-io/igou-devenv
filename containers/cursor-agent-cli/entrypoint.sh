@@ -6,31 +6,14 @@
 # When a workspace sandbox.json already exists, merge network allow lists and paths.
 # When none exists, copy the baked config as-is.
 BAKED_SANDBOX="/etc/cursor/sandbox.json"
+MERGE_SCRIPT="/usr/local/lib/cursor-container/merge-sandbox.py"
 if [ -f "$BAKED_SANDBOX" ]; then
     WORKSPACE_DIR="$(pwd)"
     TARGET_DIR="${WORKSPACE_DIR}/.cursor"
     TARGET="${TARGET_DIR}/sandbox.json"
     mkdir -p "$TARGET_DIR" 2>/dev/null || true
     if [ -f "$TARGET" ]; then
-        python3 -c "
-import json
-with open('$TARGET') as f: user = json.load(f)
-with open('$BAKED_SANDBOX') as f: baked = json.load(f)
-for key in ('additionalReadwritePaths', 'additionalReadonlyPaths'):
-    merged = list(set(user.get(key, []) + baked.get(key, [])))
-    if merged:
-        user[key] = sorted(merged)
-bp = baked.get('networkPolicy', {})
-up = user.setdefault('networkPolicy', {})
-if bp.get('default') == 'deny' or up.get('default') == 'deny':
-    up['default'] = 'deny'
-up['allow'] = sorted(set(up.get('allow', []) + bp.get('allow', [])))
-up['deny'] = sorted(set(up.get('deny', []) + bp.get('deny', [])))
-for key in ('disableTmpWrite',):
-    if baked.get(key, False):
-        user[key] = True
-with open('$TARGET', 'w') as f: json.dump(user, f, indent=2)
-" 2>/dev/null || cp "$BAKED_SANDBOX" "$TARGET"
+        python3 "$MERGE_SCRIPT" "$BAKED_SANDBOX" "$TARGET" 2>/dev/null || cp "$BAKED_SANDBOX" "$TARGET"
     else
         cp "$BAKED_SANDBOX" "$TARGET"
     fi

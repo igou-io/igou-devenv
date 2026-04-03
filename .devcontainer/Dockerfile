@@ -222,16 +222,19 @@ RUN pip install --break-system-packages --ignore-installed -r /tmp/requirements.
     rm /tmp/requirements.txt
 
 # Configure podman for rootless operation inside a container
-RUN mkdir -p /home/igou/.config/containers && \
-    echo '[storage]' > /home/igou/.config/containers/storage.conf && \
-    echo 'driver = "overlay"' >> /home/igou/.config/containers/storage.conf && \
-    echo '[storage.options.overlay]' >> /home/igou/.config/containers/storage.conf && \
-    echo 'mount_program = "/usr/bin/fuse-overlayfs"' >> /home/igou/.config/containers/storage.conf && \
-    chown -R igou:igou /home/igou/.config
+RUN mkdir -p /home/igou/.config/containers
+COPY containers-storage.conf /home/igou/.config/containers/storage.conf
+RUN chown -R igou:igou /home/igou/.config
 
 # Claude Code — native binary install (replaces deprecated npm package)
 USER igou
 RUN curl -fsSL https://claude.ai/install.sh | bash
+USER root
+
+# Cursor agent CLI
+USER igou
+RUN curl -fsSL https://cursor.com/install | bash && \
+    ~/.local/bin/agent --version
 USER root
 
 WORKDIR /workspace

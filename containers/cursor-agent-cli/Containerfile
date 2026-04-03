@@ -37,6 +37,10 @@ RUN mkdir -p /home/igou/.config/cursor && \
 RUN mkdir -p /etc/cursor
 COPY sandbox.json /etc/cursor/sandbox.json
 
+# Sandbox merge script (used by entrypoint to merge baked + workspace configs)
+RUN mkdir -p /usr/local/lib/cursor-container
+COPY merge-sandbox.py /usr/local/lib/cursor-container/merge-sandbox.py
+
 # Entrypoint
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
