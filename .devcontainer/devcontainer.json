@@ -16,7 +16,7 @@
     "containerEnv": {
         "SSH_AUTH_SOCK": "/tmp/ssh-agent.sock",
         "HOME": "/home/igou",
-        "CI": "${localEnv:CI}",
+
         "BASH_ENV": "/home/igou/.bashrc"
     },
     "remoteEnv": {
