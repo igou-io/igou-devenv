@@ -155,8 +155,8 @@ RUN cp /etc/resolv.conf ${DNF_INSTALL_ROOT}/etc/resolv.conf && \
     rm ${DNF_INSTALL_ROOT}/tmp/requirements.txt && \
     rm -f ${DNF_INSTALL_ROOT}/usr/bin/pip ${DNF_INSTALL_ROOT}/usr/bin/pip3 \
           ${DNF_INSTALL_ROOT}/usr/local/bin/pip ${DNF_INSTALL_ROOT}/usr/local/bin/pip3 \
-          ${DNF_INSTALL_ROOT}/usr/bin/ansible-galaxy \
-          ${DNF_INSTALL_ROOT}/usr/local/bin/ansible-galaxy && \
+          # ${DNF_INSTALL_ROOT}/usr/bin/ansible-galaxy \
+          # ${DNF_INSTALL_ROOT}/usr/local/bin/ansible-galaxy && \
     rm -rf ${DNF_INSTALL_ROOT}/usr/lib/python3.12/site-packages/pip \
            ${DNF_INSTALL_ROOT}/usr/share/python3-wheels \
            ${DNF_INSTALL_ROOT}/usr/share/cracklib

@@ -2,7 +2,7 @@
 
 Reproducible development environment for homelab infrastructure work.
 Runs as a devcontainer via Cursor or the `devcontainer` CLI, with SSH agent
-forwarding for private repos.
+forwarding.
 
 ## What's Inside
 
@@ -55,20 +55,26 @@ tree, nmap, tmux, vim, htop
    # Ubuntu/Debian:
    sudo apt install -y podman-docker
    ```
-4. **SSH agent running with your key loaded** — required for cloning private
-   repos (igou-inventory, igou-kubernetes-private):
+4. **SSH agent running with your key loaded** (for operations that need SSH
+   access inside the container):
    ```bash
    eval "$(ssh-agent -s)"
    ssh-add ~/.ssh/id_ed25519   # or whichever key has GitHub access
-   ssh -T git@github.com       # verify
    ```
-5. **Cursor** with the **Dev Containers** extension, or **devcontainer CLI**:
+5. **Repos pre-cloned on the host** at `~/workspace/`:
+   ```bash
+   mkdir -p ~/workspace
+   for repo in igou-kubernetes igou-ansible igou-infrastructure igou-openshift igou-containers igou-inventory igou-kubernetes-private; do
+       git clone "git@github.com:igou-io/${repo}.git" ~/workspace/${repo}
+   done
+   ```
+6. **Cursor** with the **Dev Containers** extension, or **devcontainer CLI**:
    ```bash
    npm install -g @devcontainers/cli
    ```
-6. **Cursor setting** to use podman — in Settings, set `dev.containers.dockerPath`
+7. **Cursor setting** to use podman — in Settings, set `dev.containers.dockerPath`
    to `podman`.
-7. Your credentials in the standard locations:
+8. Your credentials in the standard locations:
    - `~/.ssh/` — SSH keys and config
    - `~/.kube/` — Kubernetes configs
    - `~/.gitconfig` — Git identity (mounted read-only)
@@ -101,13 +107,12 @@ and the socket exists.
 ### After First Build
 
 The `post-create.sh` script automatically:
-- Adds GitHub to known_hosts
-- Clones all igou-io repos (public and private) into `/workspace/`
 - Configures `.bashrc` with prompt, environment switching, aliases, and direnv
 - Symlinks `bin/` into `~/bin` (on PATH) for custom scripts
 - Creates a `homelab.code-workspace` file
 
-Your repos will be at:
+Repos are pre-cloned on the host at `~/workspace/` and bind-mounted into
+the container. Your repos will be at:
 ```
 /workspace/
 ├── igou-ansible/
@@ -218,8 +223,7 @@ the container at `/tmp/ssh-agent.sock`. Cursor handles this when you have
 
 **Via Makefile:** The `make up`/`make rebuild` commands detect your
 `SSH_AUTH_SOCK` and pass it via `--mount` and `--remote-env`. If the socket
-doesn't exist (stale agent, different terminal), it's silently skipped — the
-container still starts but private repo cloning will warn.
+doesn't exist (stale agent, different terminal), it's silently skipped.
 
 **For the forwarding chain to work:**
 1. Your local machine has `ssh-agent` running with your key
@@ -315,7 +319,7 @@ echo "Host ready. Clone devenv and open with: cursor ~/igou-devenv"
 
 ### SSH Agent Forwarding
 
-**Private repo clone fails with "Permission denied (publickey)":**
+**SSH operations fail with "Permission denied (publickey)":**
 ```bash
 # Inside the container:
 ssh-add -l

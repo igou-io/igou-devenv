@@ -14,8 +14,8 @@ This repo is a reproducible development environment for homelab infrastructure w
 ├── containers-storage.conf  # Podman rootless storage config (COPY'd into image)
 ├── devcontainer.json    # devcontainer config; Features, lifecycle hooks, editor customizations
 ├── init.sh              # Host-side initializeCommand: creates mount directories if missing
-├── post-create.sh       # Clones repos via SSH, configures shell (.bashrc), writes workspace file
-├── post-start.sh        # SSH agent forwarding check (runs every container start)
+├── post-create.sh       # Configures shell (.bashrc), writes workspace file
+├── post-start.sh        # SSH agent check, Docker socket perms, Claude config restore (every start)
 └── requirements.txt     # Pinned Python packages (Ansible ecosystem, yq, mkdocs-material)
 containers/
 ├── base/
@@ -76,8 +76,8 @@ renovate.json            # Renovate config with custom regex manager for Dockerf
 |---|---|---|---|
 | `initializeCommand` | Host | `init.sh` | Creates mount directories before container build |
 | `onCreateCommand` | Container | (inline) | `pip install` — runs after Features install Python |
-| `postCreateCommand` | Container | `post-create.sh` | Clones repos, shell config, workspace file |
-| `postStartCommand` | Container | `post-start.sh` | SSH agent check (every start) |
+| `postCreateCommand` | Container | `post-create.sh` | Shell config, workspace file |
+| `postStartCommand` | Container | `post-start.sh` | SSH agent check, Docker socket perms, Claude config restore (every start) |
 
 **CLI binary versions** in `Dockerfile` use Renovate-compatible annotations:
 ```dockerfile
@@ -145,7 +145,8 @@ shellcheck .devcontainer/post-create.sh .devcontainer/post-start.sh .devcontaine
 
 ## Key Design Decisions
 
-- **Lifecycle hook separation**: Tool installs are cached in Docker layers (Dockerfile) or run once after Features (onCreateCommand). Workspace setup (repo cloning, shell config) runs in postCreateCommand. SSH agent checks run every start via postStartCommand.
+- **Lifecycle hook separation**: Tool installs are cached in Docker layers (Dockerfile) or run once after Features (onCreateCommand). Workspace setup (shell config) runs in postCreateCommand. Docker socket permissions and Claude config restore run every start via postStartCommand.
+- **Pre-cloned workspaces**: Repos are expected to be pre-cloned on the host at `~/workspace` and bind-mounted into the container. The devcontainer does not clone repos.
 - **SSH agent forwarding**: `devcontainer.json` sets `containerEnv.SSH_AUTH_SOCK` to `/tmp/ssh-agent.sock`. The Makefile dynamically mounts the host socket only if it exists (`[ -S "$SSH_AUTH_SOCK" ]`), avoiding errors from stale sockets.
 - **Podman-in-container**: Uses `--privileged` with `/dev/fuse` and `/dev/net/tun` devices for nested container support.
 - **pip over pipx**: Python packages installed directly via pip since isolation is unnecessary in a disposable container.

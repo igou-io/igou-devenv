@@ -87,7 +87,7 @@ Pick **one** of these setups:
 
 - **SSH key pair** registered with GitHub (ed25519 or RSA).
 - **SSH agent** running on the host with the key loaded (`ssh-add`).
-- The Makefile dynamically bind-mounts `$SSH_AUTH_SOCK` into the container. If the socket does not exist, the mount is skipped gracefully but repo cloning in `post-create.sh` will fail.
+- The Makefile dynamically bind-mounts `$SSH_AUTH_SOCK` into the container. If the socket does not exist, the mount is skipped gracefully.
 
 ### Playbook: SSH key and agent setup
 
@@ -219,7 +219,6 @@ The environment-switching system (`use`/`unuse`) resolves `op://` secret referen
 
 - Git >= 2.25 installed on the host.
 - `~/.gitconfig` present (even if empty — the init script creates it if missing).
-- GitHub SSH access configured (the `post-create.sh` script clones repos via `git@github.com:`).
 
 ### Playbook: Git setup
 

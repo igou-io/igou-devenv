@@ -4,7 +4,7 @@
 set -euo pipefail
 
 if [ -n "${CI:-}" ]; then
-    echo "==> CI detected, skipping SSH agent check"
+    echo "==> CI detected, skipping post-start checks"
     exit 0
 fi
 
@@ -45,8 +45,6 @@ else
     echo "    Make sure your SSH agent is running and Cursor is forwarding it."
 fi
 
-# Use SSH for GitHub so forwarded keys work (skip if .gitconfig is read-only mount)
-git config --global url."git@github.com:".insteadOf "https://github.com/" 2>/dev/null || true
 
 # ---------------------------------------------------------------------------
 # Docker socket permissions — match the docker group GID to the socket's GID
