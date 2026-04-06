@@ -3,20 +3,23 @@
 # see /usr/share/doc/bash/examples/startup-files (in the package bash-doc)
 # for examples
 
-# If not running interactively, don't do anything
 # Sensitive variables — unset in Cursor agent shells
+# I'm not sure if this actually works
 if [ -n "${CURSOR_AGENT:-}" ]; then
     unset OP_SERVICE_ACCOUNT_TOKEN
     unset SSH_AUTH_SOCK
 
-elif [ -f ~/.config/op/service-account-token ]; then
-    export OP_SERVICE_ACCOUNT_TOKEN=$(cat ~/.config/op/service-account-token)
-fi
+export PATH=$PATH:/home/igou/.local/bin:/home/igou/bin
 
+# If not running interactively, don't do anything
 case $- in
     *i*) ;;
       *) return;;
 esac
+
+elif [ -f ~/.config/op/service-account-token ]; then
+    export OP_SERVICE_ACCOUNT_TOKEN=$(cat ~/.config/op/service-account-token)
+fi
 
 # don't put duplicate lines or lines starting with space in the history.
 # See bash(1) for more options
@@ -126,7 +129,6 @@ if ! shopt -oq posix; then
   fi
 fi
 # --- igou-io devenv config ---
-export PATH=$PATH:/home/igou/.local/bin:/home/igou/bin
 
 # Prompt: user (env) ➜ dir (git branch)
 __prompt_command() {
