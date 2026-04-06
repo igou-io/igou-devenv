@@ -8,6 +8,7 @@
 if [ -n "${CURSOR_AGENT:-}" ]; then
     unset OP_SERVICE_ACCOUNT_TOKEN
     unset SSH_AUTH_SOCK
+fi
 
 export PATH=$PATH:/home/igou/.local/bin:/home/igou/bin
 
@@ -17,7 +18,7 @@ case $- in
       *) return;;
 esac
 
-elif [ -f ~/.config/op/service-account-token ]; then
+if [ -f ~/.config/op/service-account-token ]; then
     export OP_SERVICE_ACCOUNT_TOKEN=$(cat ~/.config/op/service-account-token)
 fi
 
