@@ -42,7 +42,7 @@ containers/
     ├── test-hardened.sh # Integration tests under full hardening
     └── test-cursor-run.sh # Unit tests for cursor-run launch script
 dotfiles/
-├── bashrc               # Shell config appended to ~/.bashrc by post-create.sh
+├── .bashrc              # Complete .bashrc copied to ~/.bashrc by post-create.sh
 └── homelab.code-workspace  # VS Code workspace file copied to /workspace/
 adr/                     # Architecture Decision Records
 bin/                     # Custom scripts (symlinked to ~/bin, on PATH)
@@ -140,7 +140,7 @@ cursor-run --shell      # Drop to bash inside the container
 ## Linting
 
 ```bash
-shellcheck .devcontainer/post-create.sh .devcontainer/post-start.sh .devcontainer/init.sh dotfiles/bashrc
+shellcheck .devcontainer/post-create.sh .devcontainer/post-start.sh .devcontainer/init.sh dotfiles/.bashrc
 ```
 
 ## Key Design Decisions
