@@ -31,7 +31,7 @@
         "source=${localEnv:HOME}/.claude.json,target=/home/igou/.claude.json,type=bind",
         "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind",
         "source=${localEnv:HOME}/.gitconfig,target=/home/igou/.gitconfig,type=bind,readonly",
-        "source=${localEnv:HOME}/.ssh,target=/home/igou/.ssh,type=bind,readonly",
+        "source=${localEnv:HOME}/.ssh,target=/home/igou/.ssh,type=bind",
         "source=${localEnv:HOME}/.kube,target=/home/igou/.kube,type=bind",
         "source=${localEnv:HOME}/.config/op,target=/home/igou/.config/op,type=bind,readonly",
         "source=${localEnv:HOME}/.config/cursor,target=/home/igou/.config/cursor,type=bind",

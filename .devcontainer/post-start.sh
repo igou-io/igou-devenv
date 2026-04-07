@@ -52,16 +52,21 @@ fi
 # ---------------------------------------------------------------------------
 if [ -S /var/run/docker.sock ]; then
     SOCK_GID=$(stat -c '%g' /var/run/docker.sock)
+    SOCK_GROUP=$(getent group "$SOCK_GID" | cut -d: -f1 || true)
     if ! getent group docker &>/dev/null; then
-        sudo groupadd -g "$SOCK_GID" docker
+        if [ -z "$SOCK_GROUP" ]; then
+            sudo groupadd -g "$SOCK_GID" docker
+            SOCK_GROUP="docker"
+        fi
     else
         CURRENT_GID=$(getent group docker | cut -d: -f3)
         if [ "$CURRENT_GID" != "$SOCK_GID" ]; then
             sudo groupmod -g "$SOCK_GID" docker
         fi
+        SOCK_GROUP="docker"
     fi
-    if ! id -nG | grep -qw docker; then
-        sudo usermod -aG docker "$(whoami)"
+    if [ -n "$SOCK_GROUP" ] && ! id -nG | grep -qw "$SOCK_GROUP"; then
+        sudo usermod -aG "$SOCK_GROUP" "$(whoami)"
     fi
 fi
 
