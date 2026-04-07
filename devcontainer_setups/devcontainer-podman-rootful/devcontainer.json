@@ -1,0 +1,106 @@
+{
+    "name": "igou-io Homelab",
+    "build": {
+        "dockerfile": "Dockerfile",
+        "context": "."
+    },
+    "features": {},
+    "updateRemoteUserUID": false,
+    "runArgs": [
+        "--privileged",
+        "--device=/dev/fuse",
+        "--security-opt",
+        "label=disable",
+	"--network=host",
+	"--userns=host"
+    ],
+    "remoteUser": "root",
+    "containerUser": "root",
+    "containerEnv": {
+        "SSH_AUTH_SOCK": "/tmp/ssh-agent.sock",
+        "HOME": "/home/igou",
+        "BASH_ENV": "/home/igou/.bashrc"
+    },
+    "remoteEnv": {
+        "HOME": "/home/igou"
+    },
+    "initializeCommand": ".devcontainer/init.sh",
+    "postCreateCommand": "/workspace/igou-devenv/.devcontainer/post-create.sh",
+    "postStartCommand": "/workspace/igou-devenv/.devcontainer/post-start.sh",
+    "workspaceMount": "source=${localWorkspaceFolder},target=/workspace/igou-devenv,type=bind",
+    "workspaceFolder": "/workspace",
+    "mounts": [
+        "source=${localEnv:HOME}/.claude,target=/home/igou/.claude,type=bind",
+        "source=${localEnv:HOME}/.claude.json,target=/home/igou/.claude.json,type=bind",
+        "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind",
+        "source=${localEnv:HOME}/.gitconfig,target=/home/igou/.gitconfig,type=bind,readonly",
+        "source=${localEnv:HOME}/.ssh,target=/home/igou/.ssh,type=bind",
+        "source=${localEnv:HOME}/.kube,target=/home/igou/.kube,type=bind",
+        "source=${localEnv:HOME}/.config/op,target=/home/igou/.config/op,type=bind,readonly",
+        "source=${localEnv:HOME}/.config/cursor,target=/home/igou/.config/cursor,type=bind",
+        "source=${localEnv:HOME}/workspace,target=/workspace,type=bind"
+    ],
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "redhat.ansible",
+                "hashicorp.terraform",
+                "ms-kubernetes-tools.vscode-kubernetes-tools",
+                "redhat.vscode-yaml",
+                "ms-azuretools.vscode-docker",
+                "anysphere.cursorpyright",
+                "Anthropic.claude-code",
+                "ms-vscode.makefile-tools",
+                "ms-python.python",
+                "devMikeUA.mikrotik-routeros-script"
+            ],
+            "settings": {
+                "ansible.python.interpreterPath": "/usr/bin/python3",
+                "files.trimTrailingWhitespace": true,
+                "files.associations": {
+                    "**/group_vars/**/*": "jinja-yaml",
+                    "**/host_vars/**/*": "jinja-yaml",
+                    "**/roles/**/*.yml": "ansible",
+                    "**/roles/**/*.yaml": "ansible",
+                    "**/playbooks/**/*.yml": "ansible",
+                    "**/playbooks/**/*.yaml": "ansible",
+                    "**/molecule/**/*.yml": "ansible",
+                    "**/molecule/**/*.yaml": "ansible",
+                    "**/execution-environments/**/*.yml": "yaml",
+                    "inventory.yaml": "ansible",
+                    "requirements.yml": "ansible",
+                    "ansible-navigator.yml": "yaml",
+                    "ansible.cfg": "ini",
+                    "**/*.j2": "jinja",
+                    "**/*.tf": "terraform",
+                    "**/*.tfvars": "terraform",
+                    "Containerfile": "dockerfile",
+                    "**/Containerfile": "dockerfile",
+                    "**/*.yaml": "yaml",
+                    "**/*.yml": "yaml"
+                },
+                "yaml.schemas": {
+                    "kubernetes": [
+                        "igou-kubernetes/apps/**/*.yaml",
+                        "igou-kubernetes/base/**/*.yaml",
+                        "igou-kubernetes/bootstrap/**/*.yaml",
+                        "igou-kubernetes/config/**/*.yaml",
+                        "igou-kubernetes-private/apps/**/*.yaml",
+                        "igou-kubernetes-private/pvs/**/*.yaml",
+                        "igou-openshift/components/**/*.yaml",
+                        "igou-openshift/applications/**/*.yaml",
+                        "igou-openshift/test-workloads/**/*.yaml",
+                        "rosa-gitops/components/**/*.yaml",
+                        "rosa-gitops/applications/**/*.yaml",
+                        "rosa-gitops-example-team/applications/**/*.yaml"
+                    ],
+                    "https://raw.githubusercontent.com/ansible/ansible-lint/main/src/ansiblelint/schemas/ansible-navigator.json": "ansible-navigator.{yml,yaml}",
+                    "https://raw.githubusercontent.com/ansible/ansible-lint/main/src/ansiblelint/schemas/execution-environment.json": "**/execution-environments/**/execution-environment.{yml,yaml}",
+                    "https://raw.githubusercontent.com/ansible/ansible-lint/main/src/ansiblelint/schemas/requirements.json": "requirements.{yml,yaml}",
+                    "https://raw.githubusercontent.com/ansible/ansible-lint/main/src/ansiblelint/schemas/meta.json": "**/roles/**/meta/main.{yml,yaml}",
+                    "https://raw.githubusercontent.com/ansible/ansible-lint/main/src/ansiblelint/schemas/galaxy.json": "galaxy.{yml,yaml}"
+                }
+            }
+        }
+    }
+}
