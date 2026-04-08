@@ -2,7 +2,8 @@
     "name": "igou-io Homelab",
     "build": {
         "dockerfile": "Dockerfile",
-        "context": "."
+        "context": ".",
+        "options": ["--network=host"]
     },
     "features": {},
     "runArgs": [
