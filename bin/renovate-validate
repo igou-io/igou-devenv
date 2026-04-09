@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Validate renovate.json config in the current directory.
+#
+# Usage:
+#   renovate-validate              # validate ./renovate.json
+#   renovate-validate /path/to/repo  # validate renovate.json in given dir
+set -euo pipefail
+
+REPO_DIR="${1:-$(pwd)}"
+REPO_DIR="$(cd "$REPO_DIR" && pwd)"
+
+if [[ ! -f "$REPO_DIR/renovate.json" && ! -f "$REPO_DIR/.renovaterc.json" && ! -f "$REPO_DIR/.renovaterc" ]]; then
+    echo "No renovate config found in $REPO_DIR"
+    exit 1
+fi
+
+# Prefer podman (works inside containers without socket path issues), fall back to docker
+if command -v podman &>/dev/null; then
+    RUNTIME=podman
+else
+    RUNTIME=docker
+fi
+
+exec "$RUNTIME" run --rm \
+    -v "$REPO_DIR:/repo:ro" \
+    -w /repo \
+    docker.io/renovate/renovate \
+    renovate-config-validator

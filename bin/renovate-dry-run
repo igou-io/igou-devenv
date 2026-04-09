@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+# Dry-run Renovate against a repo to see what it would update.
+#
+# Usage:
+#   renovate-dry-run                    # scan current directory
+#   renovate-dry-run /path/to/repo      # scan given directory
+#   renovate-dry-run --debug            # scan current directory with debug logging
+#   renovate-dry-run --debug /path/to   # scan given directory with debug logging
+set -euo pipefail
+
+LOG_LEVEL="info"
+REPO_DIR=""
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --debug)
+            LOG_LEVEL="debug"
+            shift
+            ;;
+        -h|--help)
+            echo "Usage: renovate-dry-run [--debug] [REPO_DIR]"
+            echo ""
+            echo "Options:"
+            echo "  --debug     Enable debug logging (default: info)"
+            echo "  REPO_DIR    Directory to scan (default: current directory)"
+            echo ""
+            echo "Requires GITHUB_TOKEN, GH_TOKEN, or gh auth for datasource lookups."
+            exit 0
+            ;;
+        *)
+            REPO_DIR="$1"
+            shift
+            ;;
+    esac
+done
+
+REPO_DIR="${REPO_DIR:-$(pwd)}"
+REPO_DIR="$(cd "$REPO_DIR" && pwd)"
+
+# Prefer podman (works inside containers without socket path issues), fall back to docker
+if command -v podman &>/dev/null; then
+    RUNTIME=podman
+else
+    RUNTIME=docker
+fi
+
+TOKEN="${GITHUB_TOKEN:-${GH_TOKEN:-}}"
+if [[ -z "$TOKEN" ]] && command -v gh &>/dev/null; then
+    TOKEN="$(gh auth token 2>/dev/null || true)"
+fi
+if [[ -z "$TOKEN" ]]; then
+    echo "GITHUB_TOKEN or GH_TOKEN required for github-releases datasource lookups" >&2
+    exit 1
+fi
+
+exec "$RUNTIME" run --rm \
+    -v "$REPO_DIR:/repo" \
+    -w /repo \
+    -e GITHUB_COM_TOKEN="$TOKEN" \
+    -e RENOVATE_DRY_RUN=lookup \
+    -e LOG_LEVEL="$LOG_LEVEL" \
+    docker.io/renovate/renovate \
+    --platform=local \
+    --require-config=optional

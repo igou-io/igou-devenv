@@ -4,6 +4,8 @@ WORKSPACE    = $(CURDIR)
 # Resolve SSH agent mount at shell level: only mount if the socket file exists
 SSH_MOUNT = $(shell [ -S "$$SSH_AUTH_SOCK" ] && echo '--mount type=bind,source=$(SSH_AUTH_SOCK),target=/tmp/ssh-agent.sock --remote-env SSH_AUTH_SOCK=/tmp/ssh-agent.sock')
 
+.DEFAULT_GOAL := help
+
 .PHONY: build up down restart exec shell test test-all test-tools test-podman test-env clean rebuild help renovate-validate renovate-dry-run base-build base-rebuild base-test claude-build claude-rebuild claude-test claude-test-hardened claude-test-run claude-test-all cursor-build cursor-rebuild cursor-test cursor-test-hardened cursor-test-run cursor-test-all e2e sbom sbom-devcontainer sbom-claude sbom-cursor
 
 
@@ -71,21 +73,13 @@ test-env:
 clean: down
 	@docker image prune -f 2>/dev/null || true
 
-## Validate renovate.json config
+## Validate renovate.json config in this repo
 renovate-validate:
-	docker run --rm -v $(CURDIR):/repo:ro -w /repo renovate/renovate renovate-config-validator
+	$(CURDIR)/bin/renovate-validate $(CURDIR)
 
-## Dry-run Renovate against the local repo to see what it would update (GITHUB_TOKEN required for github-releases datasource)
+## Dry-run Renovate against this repo (GITHUB_TOKEN required)
 renovate-dry-run:
-	@if [ -z "$$GITHUB_TOKEN" ]; then echo "GITHUB_TOKEN required for github-releases datasource lookups"; exit 1; fi
-	docker run --rm \
-		-v $(CURDIR):/repo \
-		-w /repo \
-		-e GITHUB_COM_TOKEN=$$GITHUB_TOKEN \
-		-e RENOVATE_DRY_RUN=lookup \
-		-e LOG_LEVEL=debug \
-		renovate/renovate \
-		--platform=local
+	$(CURDIR)/bin/renovate-dry-run $(CURDIR)
 
 ## Build the base agent image (with cache)
 base-build:
@@ -204,5 +198,5 @@ sbom-cursor:
 	syft podman:cursor-agent -o spdx-json=sbom/cursor-agent.spdx.json -o cyclonedx-json=sbom/cursor-agent.cdx.json
 	@echo "SBOMs written to sbom/cursor-agent.{spdx,cdx}.json"
 
-help: ## Show this help
-	@grep -E '^[a-zA-Z_-]+:.*?##' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
+help: ## Show available targets
+	@awk '/^## /{if(!desc) desc=substr($$0,4); next} /^[a-zA-Z_-]+:/{if(desc){split($$1,a,":"); printf "  \033[36m%-25s\033[0m %s\n", a[1], desc} desc=""} !/^##/ && !/^[a-zA-Z_-]+:/{desc=""}' $(MAKEFILE_LIST)

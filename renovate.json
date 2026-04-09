@@ -3,9 +3,7 @@
   "extends": [
     "config:recommended",
     "docker:pinDigests",
-    "group:all",
-    ":automergePr",
-    "schedule:weekly"
+    ":automergePr"
   ],
   "schedule": ["before 1am on sunday"],
   "separateMajorMinor": false,
@@ -14,6 +12,26 @@
     {
       "matchUpdateTypes": ["patch"],
       "enabled": false
+    },
+    {
+      "matchManagers": ["pip_requirements"],
+      "groupName": "python dependencies"
+    },
+    {
+      "matchManagers": ["dockerfile"],
+      "groupName": "container base images"
+    },
+    {
+      "matchManagers": ["regex"],
+      "groupName": "cli tools"
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "groupName": "github actions"
+    },
+    {
+      "matchManagers": ["npm"],
+      "groupName": "npm dependencies"
     }
   ],
   "customManagers": [
