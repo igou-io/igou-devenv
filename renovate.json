@@ -22,7 +22,7 @@
       "groupName": "container base images"
     },
     {
-      "matchManagers": ["regex"],
+      "matchManagers": ["custom.regex"],
       "groupName": "cli tools"
     },
     {
