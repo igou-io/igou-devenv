@@ -5,7 +5,7 @@
     "docker:pinDigests",
     ":automergePr"
   ],
-  "schedule": ["before 1am on sunday"],
+  "schedule": ["before 11pm on sunday"],
   "separateMajorMinor": false,
   "minimumReleaseAge": "10 days",
   "packageRules": [
