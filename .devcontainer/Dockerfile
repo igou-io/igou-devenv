@@ -120,13 +120,13 @@ ARG FLUX_VERSION="v2.8.3"
 # renovate: datasource=github-releases depName=getsops/sops
 ARG SOPS_VERSION="v3.12.2"
 # renovate: datasource=github-releases depName=kubevirt/kubevirt
-ARG VIRTCTL_VERSION="v1.7.2"
+ARG VIRTCTL_VERSION="v1.8.1"
 # renovate: datasource=github-releases depName=yannh/kubeconform
 ARG KUBECONFORM_VERSION="v0.7.0"
 # renovate: datasource=github-releases depName=nektos/act
 ARG ACT_VERSION="v0.2.84"
 # renovate: datasource=github-releases depName=cloud-bulldozer/kube-burner
-ARG KUBE_BURNER_VERSION="v2.4.2"
+ARG KUBE_BURNER_VERSION="v2.5.1"
 # renovate: datasource=github-releases depName=kube-burner/kube-burner-ocp
 ARG KUBE_BURNER_OCP_VERSION="v1.11.4"
 # renovate: datasource=github-releases depName=tektoncd/cli
