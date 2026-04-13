@@ -5,9 +5,12 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  schedule:
+    - cron: '0 6 * * 1' # Weekly on Monday at 06:00 UTC
 
 permissions:
   contents: write
+  packages: write
 
 jobs:
   build:
@@ -15,17 +18,24 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build and test devcontainer
         uses: devcontainers/ci@v0.3
         with:
-          push: never
-          imageName: igou-devenv
+          push: ${{ github.event_name != 'pull_request' && 'always' || 'never' }}
+          imageName: ghcr.io/igou-io/igou-devenv
           runCmd: /workspace/igou-devenv/tests/run-all.sh
 
       - name: Generate devcontainer SBOM
         uses: anchore/sbom-action@v0
         with:
-          image: igou-devenv
+          image: ghcr.io/igou-io/igou-devenv
           artifact-name: devcontainer-sbom
           output-file: devcontainer.spdx.json
           format: spdx-json

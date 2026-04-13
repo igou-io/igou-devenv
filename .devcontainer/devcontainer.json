@@ -3,7 +3,8 @@
     "build": {
         "dockerfile": "Dockerfile",
         "context": ".",
-        "options": ["--network=host"]
+        "options": ["--network=host"],
+        "cacheFrom": "ghcr.io/igou-io/igou-devenv"
     },
     "features": {},
     "runArgs": [

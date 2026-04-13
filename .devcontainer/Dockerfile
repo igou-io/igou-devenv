@@ -23,6 +23,7 @@ RUN dnf install -y epel-release && \
 # yamllint installed via pip (ansible-lint dependency) — EPEL build is broken on CS10
 RUN dnf install -y \
     git \
+    wget \
     curl \
     tar \
     xz \
