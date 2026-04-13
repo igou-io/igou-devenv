@@ -14,7 +14,8 @@
         "claude.ai",
         "statsig.anthropic.com",
         "sentry.io",
-        "github.com"
+        "github.com",
+        "openrouter.ai"
       ]
     },
     "seccomp": {

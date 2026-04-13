@@ -22,8 +22,12 @@ merge_json() {
 # Seed ~/.claude.json from the snapshot created by claude-run, then merge baked MCP config.
 # claude-run copies the host's ~/.claude.json to ~/.claude/.claude-state.json (inside the
 # mounted directory) to avoid file bind mounts that break on atomic writes.
+# Skip seeding when using API key or third-party provider auth — seeding the host's
+# OAuth tokens would cause an "auth conflict" warning in Claude Code.
+# ANTHROPIC_API_KEY: direct Anthropic API usage
+# ANTHROPIC_AUTH_TOKEN: third-party providers (e.g., OpenRouter)
 STATE_SNAPSHOT="$HOME/.claude/.claude-state.json"
-if [ -f "$STATE_SNAPSHOT" ] && [ ! -f "$HOME/.claude.json" ]; then
+if [ -z "${ANTHROPIC_API_KEY:-}" ] && [ -z "${ANTHROPIC_AUTH_TOKEN:-}" ] && [ -f "$STATE_SNAPSHOT" ] && [ ! -f "$HOME/.claude.json" ]; then
     cp "$STATE_SNAPSHOT" "$HOME/.claude.json"
 fi
 

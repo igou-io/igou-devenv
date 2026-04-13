@@ -1,66 +1,73 @@
-FROM mcr.microsoft.com/devcontainers/base:ubuntu@sha256:8b4bcf1724083458f8be40f620459d8f36f37a6e44ed1f75c75aa49c51850863
+FROM quay.io/centos/centos:stream10
 
 # Create igou user. UID 1000 is a conventional default; the devcontainer runtime's
 # updateRemoteUserUID remaps it to match the host user at startup.
-# Reassign vscode (UID 1000 in base image) to a different UID first, then create igou.
-# vscode is kept because Cursor/VS Code reference it from base image metadata.
-RUN usermod -u 65534 -o vscode && \
-    groupmod -g 65534 -o vscode && \
+# CentOS uses 'wheel' group for sudo access.
+RUN dnf install -y sudo && \
     groupadd -g 1000 igou && \
-    useradd -m -s /bin/bash -u 1000 -g 1000 -G sudo igou && \
-    echo "igou ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/igou
+    useradd -m -s /bin/bash -u 1000 -g 1000 -G wheel igou && \
+    echo "igou ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/igou && \
+    chmod 440 /etc/sudoers.d/igou && \
+    chmod 640 /etc/shadow && \
+    dnf clean all
 
-# Additional packages from apt — includes podman/buildah/skopeo for
+# Enable EPEL for additional packages
+RUN dnf install -y epel-release && \
+    dnf clean all
+
+# Additional packages from dnf — includes podman/buildah/skopeo for
 # native OCI image workflows alongside the Docker CLI compatibility
-RUN apt-get update && apt-get install -y --no-install-recommends \
+#
+# Packages dropped vs Ubuntu (not available in CentOS Stream 10 + EPEL):
+#   adb (android-tools), iozone3, arp-scan
+# yamllint installed via pip (ansible-lint dependency) — EPEL build is broken on CS10
+RUN dnf install -y \
     git \
+    curl \
+    tar \
+    xz \
     python3 \
     python3-pip \
-    python3-venv \
     podman \
     buildah \
     skopeo \
     fuse-overlayfs \
     slirp4netns \
     jq \
-    direnv \
-    shellcheck \
+    ShellCheck \
     make \
     sshpass \
-    age \
-    gpg \
+    gnupg2 \
     tree \
-    p7zip-full \
-    openssh-client \
-    iputils-ping \
-    nfs-common \
-    adb \
-    dnsutils \
+    p7zip \
+    p7zip-plugins \
+    openssh-clients \
+    iputils \
+    nfs-utils \
+    bind-utils \
     file \
     htop \
     iperf3 \
-    iozone3 \
     minicom \
     rsync \
     screen \
     tmux \
-    tftp-hpa \
+    tftp \
     unzip \
-    vim \
+    vim-enhanced \
     xorriso \
-    arp-scan \
     fping \
     ipmitool \
-    iproute2 \
+    iproute \
     lvm2 \
     mdadm \
-    mtr-tiny \
+    mtr \
     nmap \
-    netcat-openbsd \
+    nmap-ncat \
     parted \
     python3-netaddr \
     smartmontools \
-    snmp \
+    net-snmp-utils \
     socat \
     strace \
     sysstat \
@@ -68,32 +75,48 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     traceroute \
     whois \
     wireguard-tools \
-    yamllint \
-    && apt-get purge -y --auto-remove gcc g++ cpp gcc-13 g++-13 cpp-13 \
-       gcc-13-x86-64-linux-gnu g++-13-x86-64-linux-gnu cpp-13-x86-64-linux-gnu \
-       libstdc++-13-dev 2>/dev/null || true \
-    && rm -rf /var/lib/apt/lists/* \
-    && rm -rf /usr/share/doc /usr/share/man /usr/share/i18n/locales /usr/share/locale
+    && dnf clean all \
+    && rm -rf /var/cache/dnf \
+    && rm -rf /usr/share/doc /usr/share/man /usr/share/i18n/locales /usr/share/locale \
+    && chmod u+s /usr/bin/newuidmap /usr/bin/newgidmap
 
 # ---------------------------------------------------------------------------
-# 1Password CLI (installed via apt repo)
+# 1Password CLI (installed via rpm repo)
 # ---------------------------------------------------------------------------
-RUN curl -sS https://downloads.1password.com/linux/keys/1password.asc | \
-    gpg --dearmor --output /usr/share/keyrings/1password-archive-keyring.gpg && \
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/1password-archive-keyring.gpg] https://downloads.1password.com/linux/debian/$(dpkg --print-architecture) stable main" \
-    > /etc/apt/sources.list.d/1password.list && \
-    apt-get update && apt-get install -y 1password-cli && \
-    rm -rf /var/lib/apt/lists/*
+RUN rpm --import https://downloads.1password.com/linux/keys/1password.asc && \
+    printf '%s\n' \
+        '[1password]' \
+        'name=1Password Stable' \
+        'baseurl=https://downloads.1password.com/linux/rpm/stable/$basearch' \
+        'enabled=1' \
+        'gpgcheck=1' \
+        'gpgkey=https://downloads.1password.com/linux/keys/1password.asc' \
+    > /etc/yum.repos.d/1password.repo && \
+    dnf install -y 1password-cli && \
+    dnf clean all
 
 # ---------------------------------------------------------------------------
-# Docker CLI (via Docker's official apt repo — talks to host via socket mount)
+# Docker CLI (via Docker's official rpm repo — talks to host via socket mount)
 # ---------------------------------------------------------------------------
-RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
-    gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg && \
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo $VERSION_CODENAME) stable" \
-    > /etc/apt/sources.list.d/docker.list && \
-    apt-get update && apt-get install -y docker-ce-cli && \
-    rm -rf /var/lib/apt/lists/*
+RUN curl -fsSL https://download.docker.com/linux/centos/docker-ce.repo \
+    -o /etc/yum.repos.d/docker-ce.repo && \
+    dnf install -y docker-ce-cli && \
+    dnf clean all
+
+# ---------------------------------------------------------------------------
+# PAM fix: CentOS Stream 10 ships system-auth as a dangling symlink to
+# /etc/authselect/system-auth (authselect is pulled in as a dependency but
+# no profile is configured in a minimal container). Replace it so sudo works.
+# ---------------------------------------------------------------------------
+RUN rm -f /etc/pam.d/system-auth && \
+    printf '%s\n' \
+        '#%PAM-1.0' \
+        'auth      sufficient  pam_rootok.so' \
+        'auth      sufficient  pam_unix.so' \
+        'account   sufficient  pam_unix.so' \
+        'password  sufficient  pam_unix.so' \
+        'session   sufficient  pam_unix.so' \
+    > /etc/pam.d/system-auth
 
 # ---------------------------------------------------------------------------
 # CLI tools — pinned versions managed by Renovate
@@ -133,10 +156,15 @@ ARG KUBE_BURNER_OCP_VERSION="v1.11.4"
 ARG TKN_VERSION="v0.44.0"
 # renovate: datasource=github-releases depName=rclone/rclone
 ARG RCLONE_VERSION="v1.73.2"
+# renovate: datasource=github-releases depName=direnv/direnv
+ARG DIRENV_VERSION="v2.35.0"
+# renovate: datasource=github-releases depName=FiloSottile/age
+ARG AGE_VERSION="v1.2.1"
 
 RUN set -eux; \
-    ARCH=$(dpkg --print-architecture); \
-    ARCH_NODE=$([ "$ARCH" = "amd64" ] && echo "x64" || echo "$ARCH"); \
+    ARCH_RAW=$(uname -m); \
+    ARCH=$([ "$ARCH_RAW" = "x86_64" ] && echo "amd64" || echo "arm64"); \
+    ARCH_NODE=$([ "$ARCH_RAW" = "x86_64" ] && echo "x64" || echo "arm64"); \
     # Node.js (strip headers — not needed at runtime, saves ~65 MB)
     curl -sSL "https://nodejs.org/dist/${NODE_VERSION}/node-${NODE_VERSION}-linux-${ARCH_NODE}.tar.xz" \
       | tar -xJ --strip-components=1 -C /usr/local && \
@@ -186,9 +214,9 @@ RUN set -eux; \
     # kubeconform
     curl -sSL "https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/kubeconform-linux-${ARCH}.tar.gz" \
       | tar -xz -C /usr/local/bin kubeconform; \
-    # Architecture aliases for tools that use x86_64/aarch64 naming
-    ARCH_X86=$([ "$ARCH" = "amd64" ] && echo "x86_64" || echo "$ARCH"); \
-    ARCH_GNU=$([ "$ARCH" = "amd64" ] && echo "x86_64" || echo "aarch64"); \
+    # Architecture aliases for tools that use x86_64/arm64 naming
+    ARCH_X86=$([ "$ARCH_RAW" = "x86_64" ] && echo "x86_64" || echo "arm64"); \
+    ARCH_GNU=$ARCH_RAW; \
     # act
     curl -sSL "https://github.com/nektos/act/releases/download/${ACT_VERSION}/act_Linux_${ARCH_X86}.tar.gz" \
       | tar -xz -C /usr/local/bin act; \
@@ -212,7 +240,14 @@ RUN set -eux; \
       "https://github.com/rclone/rclone/releases/download/${RCLONE_VERSION}/rclone-${RCLONE_VERSION}-linux-${ARCH}.zip" && \
     unzip -j /tmp/rclone.zip "rclone-${RCLONE_VERSION}-linux-${ARCH}/rclone" -d /usr/local/bin && \
     chmod +x /usr/local/bin/rclone && \
-    rm /tmp/rclone.zip
+    rm /tmp/rclone.zip; \
+    # direnv (not available in CentOS repos)
+    curl -sSL -o /usr/local/bin/direnv \
+      "https://github.com/direnv/direnv/releases/download/${DIRENV_VERSION}/direnv.linux-${ARCH}" && \
+    chmod +x /usr/local/bin/direnv; \
+    # age (not available in CentOS repos)
+    curl -sSL "https://github.com/FiloSottile/age/releases/download/${AGE_VERSION}/age-${AGE_VERSION}-linux-${ARCH}.tar.gz" \
+      | tar -xz --strip-components=1 -C /usr/local/bin age/age age/age-keygen
 
 # ---------------------------------------------------------------------------
 # Python packages — pinned versions managed by Renovate (requirements.txt)
