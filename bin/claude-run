@@ -10,7 +10,7 @@
 #   claude-run -e aws -- --resume     # pass flags through to claude
 set -euo pipefail
 
-IMAGE="claude-devenv"
+IMAGE="${IMAGE:-ghcr.io/igou-io/claude-code:latest}"
 ENVS=()
 SHELL_MODE=false
 DRY_RUN=false
@@ -23,6 +23,10 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         -e|--env)
             ENVS+=("$2")
+            shift 2
+            ;;
+        --image)
+            IMAGE="$2"
             shift 2
             ;;
         --shell)
@@ -39,10 +43,11 @@ while [[ $# -gt 0 ]]; do
             break
             ;;
         -h|--help)
-            echo "Usage: claude-run [-e ENV]... [--shell] [--dry-run] [-- CLAUDE_ARGS...]"
+            echo "Usage: claude-run [-e ENV]... [--image IMG] [--shell] [--dry-run] [-- CLAUDE_ARGS...]"
             echo ""
             echo "Options:"
             echo "  -e, --env ENV   Resolve secrets from envs/ENV.env via op inject"
+            echo "  --image IMG     Use a custom container image (default: ghcr.io/igou-io/claude-code:latest)"
             echo "  --shell         Drop to bash instead of launching claude"
             echo "  --dry-run       Print the podman command without running it"
             echo "  -- ARGS         Pass remaining arguments to claude"
@@ -51,6 +56,7 @@ while [[ $# -gt 0 ]]; do
             echo "  claude-run                          # launch claude"
             echo "  claude-run -e ocp-rosa              # with cluster credentials"
             echo "  claude-run -e ocp-hub -e ansible    # stack environments"
+            echo "  claude-run --image claude-devenv    # use a local image"
             echo "  claude-run --shell                  # interactive bash"
             echo "  claude-run --dry-run -e aws         # preview the command"
             echo "  claude-run -e aws -- --resume       # resume with AWS creds"
@@ -65,12 +71,14 @@ while [[ $# -gt 0 ]]; do
 done
 
 # ---------------------------------------------------------------------------
-# Check image exists
+# Pull image if not present
 # ---------------------------------------------------------------------------
 if ! podman image exists "$IMAGE" 2>/dev/null; then
-    echo "Image '$IMAGE' not found. Build it first:"
-    echo "  make claude-build"
-    exit 1
+    echo "Pulling $IMAGE ..."
+    podman pull "$IMAGE" || {
+        echo "Failed to pull '$IMAGE'" >&2
+        exit 1
+    }
 fi
 
 # ---------------------------------------------------------------------------
