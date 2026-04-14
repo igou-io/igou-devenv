@@ -40,30 +40,3 @@ jobs:
           output-file: devcontainer.spdx.json
           format: spdx-json
           dependency-snapshot: true
-
-      - name: Build base agent image
-        run: docker build -t agent-base -f containers/base/Containerfile containers/base/
-
-      - name: Build Claude container
-        run: docker build -t claude-devenv -f containers/claude-code/Containerfile containers/claude-code/
-
-      - name: Generate Claude container SBOM
-        uses: anchore/sbom-action@v0
-        with:
-          image: claude-devenv
-          artifact-name: claude-devenv-sbom
-          output-file: claude-devenv.spdx.json
-          format: spdx-json
-          dependency-snapshot: true
-
-      - name: Build Cursor agent container
-        run: docker build -t cursor-agent -f containers/cursor-agent-cli/Containerfile containers/cursor-agent-cli/
-
-      - name: Generate Cursor agent container SBOM
-        uses: anchore/sbom-action@v0
-        with:
-          image: cursor-agent
-          artifact-name: cursor-agent-sbom
-          output-file: cursor-agent.spdx.json
-          format: spdx-json
-          dependency-snapshot: true

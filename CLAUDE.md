@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Purpose
 
-This repo is a reproducible development environment for homelab infrastructure work. It contains only the container spec — the actual project code (Kubernetes, Ansible, Terraform, etc.) lives in separate repos cloned into `/workspace/` at container creation time.
+This repo is a reproducible development environment for homelab infrastructure work. It contains the devcontainer spec and launch scripts for agent containers (whose images are built in `igou-containers`). The actual project code (Kubernetes, Ansible, Terraform, etc.) lives in separate repos cloned into `/workspace/` at container creation time.
 
 ## Architecture
 
@@ -17,30 +17,6 @@ This repo is a reproducible development environment for homelab infrastructure w
 ├── post-create.sh       # Configures shell (.bashrc), writes workspace file
 ├── post-start.sh        # SSH agent check, Docker socket perms, Claude config restore (every start)
 └── requirements.txt     # Pinned Python packages (Ansible ecosystem, yq, mkdocs-material)
-containers/
-├── base/
-│   ├── Containerfile    # Shared UBI10 three-stage build (system packages, CLI tools, Python, hardening)
-│   ├── requirements.txt # Pinned Python packages (single source of truth)
-│   └── test.sh          # Base tool verification
-├── claude-code/
-│   ├── Containerfile    # Overlay: FROM agent-base + Claude Code CLI + seccomp
-│   ├── package.json     # npm build-time deps (seccomp filter, Renovate-managed)
-│   ├── claude.json      # Baked MCP server config (→ /etc/claude/)
-│   ├── settings.json    # Baked sandbox settings (→ /etc/claude/)
-│   ├── CLAUDE.md        # Global CLAUDE.md for container sessions
-│   ├── merge-config.py  # JSON config merge script (→ /usr/local/lib/claude-container/)
-│   ├── entrypoint.sh    # Git config, config merging, GitHub auth
-│   ├── test.sh          # Claude-specific tool verification
-│   ├── test-hardened.sh # Integration tests under full hardening (cap-drop, noexec, etc.)
-│   └── test-claude-run.sh # Unit tests for claude-run launch script
-└── cursor-agent-cli/
-    ├── Containerfile    # Overlay: FROM agent-base + Cursor agent CLI
-    ├── sandbox.json     # Baked Cursor sandbox config (→ /etc/cursor/, merged by entrypoint)
-    ├── merge-sandbox.py # Sandbox config merge script (→ /usr/local/lib/cursor-container/)
-    ├── entrypoint.sh    # Git config, sandbox merge, GitHub auth
-    ├── test.sh          # Cursor-specific tool verification
-    ├── test-hardened.sh # Integration tests under full hardening
-    └── test-cursor-run.sh # Unit tests for cursor-run launch script
 dotfiles/
 ├── .bashrc              # Complete .bashrc copied to ~/.bashrc by post-create.sh
 └── homelab.code-workspace  # VS Code workspace file copied to /workspace/
@@ -103,31 +79,10 @@ make test-podman        # Test podman pull, run, and build
 make test-env           # Test environment switching functions
 make renovate-validate  # Validate renovate.json config
 GITHUB_TOKEN=... make renovate-dry-run  # Dry-run Renovate locally
-
-# Base agent image (shared tools and packages)
-make base-build         # Build the base agent image
-make base-rebuild       # Rebuild base from scratch (no cache)
-make base-test          # Run tool verification on the base image
-
-# Claude Code container (UBI10-based, rootless)
-make claude-build       # Build the Claude container image (builds base first)
-make claude-rebuild     # Rebuild from scratch (no cache)
-make claude-test        # Run tool verification in the Claude container
-make claude-test-hardened  # Test under full hardening (cap-drop, noexec, limits)
-make claude-test-run    # Test claude-run argument assembly (uses mock podman)
-make claude-test-all    # Run all Claude container tests
-make e2e                # Full end-to-end: rebuild devcontainer + all tests + Claude build/test
+make e2e                # Full end-to-end: rebuild devcontainer + all tests
 claude-run              # Launch Claude in the container (see bin/claude-run)
 claude-run -e ocp-rosa  # Launch with resolved cluster credentials
 claude-run --shell      # Drop to bash inside the container
-
-# Cursor agent CLI container (UBI10-based, rootless)
-make cursor-build       # Build the Cursor agent container image (builds base first)
-make cursor-rebuild     # Rebuild from scratch (no cache)
-make cursor-test        # Run tool verification in the Cursor agent container
-make cursor-test-hardened  # Test under full hardening (cap-drop, noexec, limits)
-make cursor-test-run    # Test cursor-run argument assembly (uses mock podman)
-make cursor-test-all    # Run all Cursor agent container tests
 cursor-run              # Launch Cursor agent in the container (see bin/cursor-run)
 cursor-run -e ocp-rosa  # Launch with resolved cluster credentials
 cursor-run --shell      # Drop to bash inside the container
