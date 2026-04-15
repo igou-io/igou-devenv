@@ -103,11 +103,23 @@ for envname in "${ENVS[@]}"; do
         exit 1
     fi
 
-    # Handle KUBECONFIG_DATA separately (op read + base64 decode to temp file)
+    # Parse kubeconfig strategy from env file (two mutually exclusive approaches)
     kubeconfig_ref=$(grep '^KUBECONFIG_DATA=' "$envfile" | head -1 | cut -d= -f2- || true)
+    kubeconfig_token_ref=$(grep '^KUBECONFIG_TOKEN=' "$envfile" | head -1 | cut -d= -f2- || true)
+    kubeconfig_host_ref=$(grep '^KUBECONFIG_HOST=' "$envfile" | head -1 | cut -d= -f2- || true)
 
-    # Resolve remaining vars via op inject
-    remaining=$(grep -v '^KUBECONFIG_DATA=' "$envfile" || true)
+    if [ -n "$kubeconfig_ref" ] && { [ -n "$kubeconfig_token_ref" ] || [ -n "$kubeconfig_host_ref" ]; }; then
+        echo "Error: ${envname}.env has both KUBECONFIG_DATA and KUBECONFIG_TOKEN/KUBECONFIG_HOST — use one or the other" >&2
+        exit 1
+    fi
+    if { [ -n "$kubeconfig_token_ref" ] && [ -z "$kubeconfig_host_ref" ]; } || \
+       { [ -z "$kubeconfig_token_ref" ] && [ -n "$kubeconfig_host_ref" ]; }; then
+        echo "Error: ${envname}.env must have both KUBECONFIG_TOKEN and KUBECONFIG_HOST (found only one)" >&2
+        exit 1
+    fi
+
+    # Resolve remaining vars via op inject (strip kubeconfig keys first)
+    remaining=$(grep -v '^KUBECONFIG_DATA=\|^KUBECONFIG_TOKEN=\|^KUBECONFIG_HOST=' "$envfile" || true)
     if [ -n "$remaining" ]; then
         resolved=$(echo "$remaining" | op inject) || {
             echo "Failed to resolve secrets for ${envname}" >&2
@@ -119,11 +131,36 @@ for envname in "${ENVS[@]}"; do
         done <<< "$resolved"
     fi
 
-    # Handle kubeconfig data
+    # Handle kubeconfig — either full base64-encoded or constructed from token+host
     if [ -n "$kubeconfig_ref" ]; then
         tmpkube=$(mktemp /tmp/kubeconfig.XXXXXX)
         TMPFILES+=("$tmpkube")
         op read "$kubeconfig_ref" | base64 -d > "$tmpkube"
+        ENV_ARGS+=("-e" "KUBECONFIG=/tmp/kubeconfig")
+    elif [ -n "$kubeconfig_token_ref" ]; then
+        tmpkube=$(mktemp /tmp/kubeconfig.XXXXXX)
+        TMPFILES+=("$tmpkube")
+        kube_token=$(echo "$kubeconfig_token_ref" | op inject)
+        kube_host=$(echo "$kubeconfig_host_ref" | op inject)
+        cat > "$tmpkube" << KUBECFG
+apiVersion: v1
+kind: Config
+clusters:
+- cluster:
+    server: ${kube_host}
+    insecure-skip-tls-verify: true
+  name: cluster
+contexts:
+- context:
+    cluster: cluster
+    user: user
+  name: context
+current-context: context
+users:
+- name: user
+  user:
+    token: ${kube_token}
+KUBECFG
         ENV_ARGS+=("-e" "KUBECONFIG=/tmp/kubeconfig")
     fi
 done

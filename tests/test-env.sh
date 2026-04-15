@@ -26,13 +26,13 @@ cp "$SCRIPT_DIR/mock-op.sh" "$TESTDIR/bin/op"
 export PATH="$TESTDIR/bin:$PATH"
 
 # If use() is not already defined (not running inside devcontainer), extract
-# the function definitions from the post-create.sh BASHRC heredoc and source them.
+# the function definitions from dotfiles/.bashrc and source them.
 if ! type -t use &>/dev/null; then
     _bashrc_funcs="$TESTDIR/bashrc-funcs.sh"
-    # Extract environment switching functions from the BASHRC heredoc in post-create.sh.
+    # Extract environment switching functions from dotfiles/.bashrc.
     # Grabs from "Environment switching" through the "Cursor/VS Code" comment (exclusive).
     sed -n '/^# Environment switching via 1Password/,/^# Cursor\/VS Code/{/^# Cursor\/VS Code/!p}' \
-        "$REPO_DIR/.devcontainer/post-create.sh" > "$_bashrc_funcs"
+        "$REPO_DIR/dotfiles/.bashrc" > "$_bashrc_funcs"
     # shellcheck disable=SC1090
     source "$_bashrc_funcs"
     # Provide a minimal __prompt_command and PROMPT_COMMAND for function-existence tests
