@@ -128,19 +128,19 @@ ARG NODE_VERSION="v24.14.1"
 # renovate: datasource=github-releases depName=kubernetes/kubernetes
 ARG KUBECTL_VERSION="v1.35.3"
 # renovate: datasource=github-releases depName=helm/helm
-ARG HELM_VERSION="v4.1.3"
+ARG HELM_VERSION="v4.1.4"
 # renovate: datasource=github-releases depName=hashicorp/terraform
 ARG TERRAFORM_VERSION="v1.14.8"
 # renovate: datasource=github-releases depName=cli/cli
 ARG GH_VERSION="v2.89.0"
 # renovate: datasource=github-releases depName=argoproj/argo-cd
-ARG ARGOCD_VERSION="v3.3.4"
+ARG ARGOCD_VERSION="v3.3.6"
 # renovate: datasource=github-releases depName=kubernetes-sigs/kustomize extractVersion=^kustomize/(?<version>.*)$
 ARG KUSTOMIZE_VERSION="v5.8.1"
 # renovate: datasource=github-releases depName=bitnami-labs/sealed-secrets
-ARG KUBESEAL_VERSION="v0.36.1"
+ARG KUBESEAL_VERSION="v0.36.6"
 # renovate: datasource=github-releases depName=fluxcd/flux2
-ARG FLUX_VERSION="v2.8.3"
+ARG FLUX_VERSION="v2.8.5"
 # renovate: datasource=github-releases depName=getsops/sops
 ARG SOPS_VERSION="v3.12.2"
 # renovate: datasource=github-releases depName=kubevirt/kubevirt
@@ -148,19 +148,19 @@ ARG VIRTCTL_VERSION="v1.8.1"
 # renovate: datasource=github-releases depName=yannh/kubeconform
 ARG KUBECONFORM_VERSION="v0.7.0"
 # renovate: datasource=github-releases depName=nektos/act
-ARG ACT_VERSION="v0.2.84"
+ARG ACT_VERSION="v0.2.87"
 # renovate: datasource=github-releases depName=cloud-bulldozer/kube-burner
 ARG KUBE_BURNER_VERSION="v2.5.1"
 # renovate: datasource=github-releases depName=kube-burner/kube-burner-ocp
-ARG KUBE_BURNER_OCP_VERSION="v1.11.4"
+ARG KUBE_BURNER_OCP_VERSION="v1.11.7"
 # renovate: datasource=github-releases depName=tektoncd/cli
-ARG TKN_VERSION="v0.44.0"
+ARG TKN_VERSION="v0.44.1"
 # renovate: datasource=github-releases depName=rclone/rclone
-ARG RCLONE_VERSION="v1.73.2"
+ARG RCLONE_VERSION="v1.73.4"
 # renovate: datasource=github-releases depName=direnv/direnv
-ARG DIRENV_VERSION="v2.35.0"
+ARG DIRENV_VERSION="v2.37.1"
 # renovate: datasource=github-releases depName=FiloSottile/age
-ARG AGE_VERSION="v1.2.1"
+ARG AGE_VERSION="v1.3.1"
 
 RUN set -eux; \
     ARCH_RAW=$(uname -m); \
