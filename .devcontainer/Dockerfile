@@ -124,9 +124,9 @@ RUN rm -f /etc/pam.d/system-auth && \
 # ---------------------------------------------------------------------------
 
 # renovate: datasource=node-version depName=node
-ARG NODE_VERSION="v24.14.1"
+ARG NODE_VERSION="v24.15.0"
 # renovate: datasource=github-releases depName=kubernetes/kubernetes
-ARG KUBECTL_VERSION="v1.35.3"
+ARG KUBECTL_VERSION="v1.35.4"
 # renovate: datasource=github-releases depName=helm/helm
 ARG HELM_VERSION="v4.1.4"
 # renovate: datasource=github-releases depName=hashicorp/terraform
@@ -150,9 +150,9 @@ ARG KUBECONFORM_VERSION="v0.7.0"
 # renovate: datasource=github-releases depName=nektos/act
 ARG ACT_VERSION="v0.2.87"
 # renovate: datasource=github-releases depName=cloud-bulldozer/kube-burner
-ARG KUBE_BURNER_VERSION="v2.5.1"
+ARG KUBE_BURNER_VERSION="v2.6.1"
 # renovate: datasource=github-releases depName=kube-burner/kube-burner-ocp
-ARG KUBE_BURNER_OCP_VERSION="v1.11.7"
+ARG KUBE_BURNER_OCP_VERSION="v1.11.8"
 # renovate: datasource=github-releases depName=tektoncd/cli
 ARG TKN_VERSION="v0.44.1"
 # renovate: datasource=github-releases depName=rclone/rclone
