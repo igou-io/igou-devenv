@@ -108,9 +108,9 @@ ARG HELM_VERSION="v4.1.4"
 # renovate: datasource=github-releases depName=hashicorp/terraform
 ARG TERRAFORM_VERSION="v1.14.8"
 # renovate: datasource=github-releases depName=cli/cli
-ARG GH_VERSION="v2.89.0"
+ARG GH_VERSION="v2.90.0"
 # renovate: datasource=github-releases depName=argoproj/argo-cd
-ARG ARGOCD_VERSION="v3.3.6"
+ARG ARGOCD_VERSION="v3.3.7"
 # renovate: datasource=github-releases depName=kubernetes-sigs/kustomize extractVersion=^kustomize/(?<version>.*)$
 ARG KUSTOMIZE_VERSION="v5.8.1"
 # renovate: datasource=github-releases depName=bitnami-labs/sealed-secrets
