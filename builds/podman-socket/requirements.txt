@@ -5,7 +5,7 @@ ansible-builder==3.1.1
 ansible-rulebook==1.2.2
 ansible-runner==2.4.3
 ansible-lint==26.4.0
-ansible-creator==26.4.1
+ansible-creator==26.4.2
 molecule==26.4.0
 awxkit==24.6.1
 yq==3.4.3
