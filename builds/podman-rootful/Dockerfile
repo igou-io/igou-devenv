@@ -104,25 +104,25 @@ RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
 # renovate: datasource=node-version depName=node
 ARG NODE_VERSION="v24.15.0"
 # renovate: datasource=github-releases depName=kubernetes/kubernetes
-ARG KUBECTL_VERSION="v1.35.4"
+ARG KUBECTL_VERSION="v1.36.0"
 # renovate: datasource=github-releases depName=helm/helm
 ARG HELM_VERSION="v4.1.4"
 # renovate: datasource=github-releases depName=hashicorp/terraform
-ARG TERRAFORM_VERSION="v1.14.8"
+ARG TERRAFORM_VERSION="v1.14.9"
 # renovate: datasource=github-releases depName=cli/cli
-ARG GH_VERSION="v2.90.0"
+ARG GH_VERSION="v2.91.0"
 # renovate: datasource=github-releases depName=argoproj/argo-cd
-ARG ARGOCD_VERSION="v3.3.7"
+ARG ARGOCD_VERSION="v3.3.8"
 # renovate: datasource=github-releases depName=kubernetes-sigs/kustomize extractVersion=^kustomize/(?<version>.*)$
 ARG KUSTOMIZE_VERSION="v5.8.1"
 # renovate: datasource=github-releases depName=bitnami-labs/sealed-secrets
 ARG KUBESEAL_VERSION="v0.36.6"
 # renovate: datasource=github-releases depName=fluxcd/flux2
-ARG FLUX_VERSION="v2.8.5"
+ARG FLUX_VERSION="v2.8.6"
 # renovate: datasource=github-releases depName=getsops/sops
 ARG SOPS_VERSION="v3.12.2"
 # renovate: datasource=github-releases depName=kubevirt/kubevirt
-ARG VIRTCTL_VERSION="v1.8.1"
+ARG VIRTCTL_VERSION="v1.8.2"
 # renovate: datasource=github-releases depName=yannh/kubeconform
 ARG KUBECONFORM_VERSION="v0.7.0"
 # renovate: datasource=github-releases depName=nektos/act
@@ -134,7 +134,7 @@ ARG KUBE_BURNER_OCP_VERSION="v1.11.8"
 # renovate: datasource=github-releases depName=tektoncd/cli
 ARG TKN_VERSION="v0.44.1"
 # renovate: datasource=github-releases depName=rclone/rclone
-ARG RCLONE_VERSION="v1.73.4"
+ARG RCLONE_VERSION="v1.73.5"
 
 RUN set -eux; \
     ARCH=$(dpkg --print-architecture); \
