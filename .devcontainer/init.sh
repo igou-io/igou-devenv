@@ -4,7 +4,7 @@
 # (including CI runners) where these paths may not exist yet.
 set -euo pipefail
 
-for dir in "$HOME/.claude" "$HOME/.config/cursor" "$HOME/.ssh" "$HOME/.kube" "$HOME/.config/argocd" "$HOME/.config/op" "$HOME/.terraform.d" "$HOME/workspace"; do
+for dir in "$HOME/.claude-container" "$HOME/.config/cursor" "$HOME/.config/opencode" "$HOME/.ssh" "$HOME/.kube" "$HOME/.config/argocd" "$HOME/.config/op" "$HOME/.terraform.d" "$HOME/workspace"; do
     if [ ! -d "$dir" ]; then
         mkdir -p "$dir"
         echo "[init] Created $dir"

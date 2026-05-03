@@ -29,7 +29,7 @@
     "workspaceMount": "source=${localWorkspaceFolder},target=/workspace/igou-devenv,type=bind",
     "workspaceFolder": "/workspace",
     "mounts": [
-        "source=${localEnv:HOME}/.claude,target=/home/igou/.claude,type=bind",
+        "source=${localEnv:HOME}/.claude-container,target=/home/igou/.claude,type=bind",
         "source=${localEnv:HOME}/.claude.json,target=/home/igou/.claude.json,type=bind",
         "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind",
         "source=${localEnv:HOME}/.gitconfig,target=/home/igou/.gitconfig,type=bind,readonly",
@@ -37,6 +37,7 @@
         "source=${localEnv:HOME}/.kube,target=/home/igou/.kube,type=bind",
         "source=${localEnv:HOME}/.config/op,target=/home/igou/.config/op,type=bind,readonly",
         "source=${localEnv:HOME}/.config/cursor,target=/home/igou/.config/cursor,type=bind",
+        "source=${localEnv:HOME}/.config/opencode,target=/home/igou/.config/opencode,type=bind",
         "source=${localEnv:HOME}/workspace,target=/workspace,type=bind"
     ],
     "customizations": {

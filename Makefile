@@ -6,7 +6,7 @@ SSH_MOUNT = $(shell [ -S "$$SSH_AUTH_SOCK" ] && echo '--mount type=bind,source=$
 
 .DEFAULT_GOAL := help
 
-.PHONY: build up down restart exec shell test test-all test-tools test-podman test-env clean rebuild help renovate-validate renovate-dry-run sbom sbom-devcontainer e2e
+.PHONY: build up down restart exec shell test test-all test-tools test-podman test-env clean rebuild help renovate-validate renovate-dry-run sbom sbom-devcontainer e2e opencode-build
 
 
 ## Build the devcontainer image (with cache)
@@ -97,6 +97,17 @@ sbom-devcontainer:
 	echo "Generating SBOM for $$DEVCONTAINER_IMAGE..."; \
 	syft "$$DEVCONTAINER_IMAGE" -o spdx-json=sbom/devcontainer.spdx.json -o cyclonedx-json=sbom/devcontainer.cdx.json; \
 	echo "SBOMs written to sbom/devcontainer.{spdx,cdx}.json"
+
+## Build the opencode container from igou-containers/apps/opencode/
+## Tags as ghcr.io/igou-io/opencode:latest so opencode-run picks it up by default
+opencode-build:
+	@OPENCODE_DIR=$(CURDIR)/../igou-containers/apps/opencode; \
+	if [ ! -d "$$OPENCODE_DIR" ]; then \
+		echo "opencode build context not found at $$OPENCODE_DIR"; \
+		echo "expected igou-containers checked out next to igou-devenv"; \
+		exit 1; \
+	fi; \
+	podman build -t ghcr.io/igou-io/opencode:latest -f $$OPENCODE_DIR/Containerfile $$OPENCODE_DIR
 
 help: ## Show available targets
 	@awk '/^## /{if(!desc) desc=substr($$0,4); next} /^[a-zA-Z_-]+:/{if(desc){split($$1,a,":"); printf "  \033[36m%-25s\033[0m %s\n", a[1], desc} desc=""} !/^##/ && !/^[a-zA-Z_-]+:/{desc=""}' $(MAKEFILE_LIST)

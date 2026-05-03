@@ -1,0 +1,267 @@
+#!/usr/bin/env bash
+# Launch a rootless opencode container with selective credential injection.
+#
+# Usage:
+#   opencode-run                          # launch opencode with workspace mounted
+#   opencode-run -e ocp-hub               # resolve ocp-hub secrets, pass as env vars
+#   opencode-run -e ocp-hub -e ansible    # stack multiple environments
+#   opencode-run --shell                  # drop to bash instead of opencode
+#   opencode-run --dry-run -e aws         # print podman command without running
+#   opencode-run -e aws -- run "fix lint" # pass flags through to opencode
+set -euo pipefail
+
+IMAGE="${IMAGE:-ghcr.io/igou-io/opencode:latest}"
+ENVS=()
+SHELL_MODE=false
+DRY_RUN=false
+OPENCODE_ARGS=()
+
+# ---------------------------------------------------------------------------
+# Argument parsing
+# ---------------------------------------------------------------------------
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -e|--env)
+            ENVS+=("$2")
+            shift 2
+            ;;
+        --image)
+            IMAGE="$2"
+            shift 2
+            ;;
+        --shell)
+            SHELL_MODE=true
+            shift
+            ;;
+        --dry-run)
+            DRY_RUN=true
+            shift
+            ;;
+        --)
+            shift
+            OPENCODE_ARGS=("$@")
+            break
+            ;;
+        -h|--help)
+            echo "Usage: opencode-run [-e ENV]... [--image IMG] [--shell] [--dry-run] [-- OPENCODE_ARGS...]"
+            echo ""
+            echo "Options:"
+            echo "  -e, --env ENV   Resolve secrets from envs/ENV.env via op inject"
+            echo "  --image IMG     Use a custom container image (default: ghcr.io/igou-io/opencode:latest)"
+            echo "  --shell         Drop to bash instead of launching opencode"
+            echo "  --dry-run       Print the podman command without running it"
+            echo "  -- ARGS         Pass remaining arguments to opencode"
+            echo ""
+            echo "Examples:"
+            echo "  opencode-run                          # launch opencode"
+            echo "  opencode-run -e ocp-rosa              # with cluster credentials"
+            echo "  opencode-run -e ocp-hub -e ansible    # stack environments"
+            echo "  opencode-run --image localhost/opencode:test  # use a local image"
+            echo "  opencode-run --shell                  # interactive bash"
+            echo "  opencode-run --dry-run -e aws         # preview the command"
+            echo "  opencode-run -- run 'fix lint'        # forward args to opencode"
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1" >&2
+            echo "Run 'opencode-run --help' for usage" >&2
+            exit 1
+            ;;
+    esac
+done
+
+# ---------------------------------------------------------------------------
+# Pull image if not present
+# ---------------------------------------------------------------------------
+if ! podman image exists "$IMAGE" 2>/dev/null; then
+    echo "Pulling $IMAGE ..."
+    podman pull "$IMAGE" || {
+        echo "Failed to pull '$IMAGE'" >&2
+        exit 1
+    }
+fi
+
+# ---------------------------------------------------------------------------
+# Resolve environments via op inject
+# ---------------------------------------------------------------------------
+ENVDIR="/workspace/igou-devenv/envs"
+ENV_ARGS=()
+TMPFILES=()
+
+cleanup() {
+    for f in "${TMPFILES[@]}"; do
+        rm -f "$f"
+    done
+}
+trap cleanup EXIT
+
+for envname in "${ENVS[@]}"; do
+    envfile="${ENVDIR}/${envname}.env"
+    if [ ! -f "$envfile" ]; then
+        echo "Environment file not found: $envfile" >&2
+        echo "Available: $(ls "${ENVDIR}"/*.env 2>/dev/null | xargs -n1 basename | sed 's/\.env$//' | tr '\n' ' ')" >&2
+        exit 1
+    fi
+
+    # Parse kubeconfig strategy from env file (two mutually exclusive approaches)
+    kubeconfig_ref=$(grep '^KUBECONFIG_DATA=' "$envfile" | head -1 | cut -d= -f2- || true)
+    kubeconfig_token_ref=$(grep '^KUBECONFIG_TOKEN=' "$envfile" | head -1 | cut -d= -f2- || true)
+    kubeconfig_host_ref=$(grep '^KUBECONFIG_HOST=' "$envfile" | head -1 | cut -d= -f2- || true)
+
+    if [ -n "$kubeconfig_ref" ] && { [ -n "$kubeconfig_token_ref" ] || [ -n "$kubeconfig_host_ref" ]; }; then
+        echo "Error: ${envname}.env has both KUBECONFIG_DATA and KUBECONFIG_TOKEN/KUBECONFIG_HOST — use one or the other" >&2
+        exit 1
+    fi
+    if { [ -n "$kubeconfig_token_ref" ] && [ -z "$kubeconfig_host_ref" ]; } || \
+       { [ -z "$kubeconfig_token_ref" ] && [ -n "$kubeconfig_host_ref" ]; }; then
+        echo "Error: ${envname}.env must have both KUBECONFIG_TOKEN and KUBECONFIG_HOST (found only one)" >&2
+        exit 1
+    fi
+
+    # Resolve remaining vars via op inject (strip kubeconfig keys first)
+    remaining=$(grep -v '^KUBECONFIG_DATA=\|^KUBECONFIG_TOKEN=\|^KUBECONFIG_HOST=' "$envfile" || true)
+    if [ -n "$remaining" ]; then
+        resolved=$(echo "$remaining" | op inject) || {
+            echo "Failed to resolve secrets for ${envname}" >&2
+            exit 1
+        }
+        while IFS= read -r line; do
+            [[ -z "$line" || "$line" == \#* ]] && continue
+            ENV_ARGS+=("-e" "$line")
+        done <<< "$resolved"
+    fi
+
+    # Handle kubeconfig — either full base64-encoded or constructed from token+host
+    if [ -n "$kubeconfig_ref" ]; then
+        tmpkube=$(mktemp /tmp/kubeconfig.XXXXXX)
+        TMPFILES+=("$tmpkube")
+        op read "$kubeconfig_ref" | base64 -d > "$tmpkube"
+        ENV_ARGS+=("-e" "KUBECONFIG=/tmp/kubeconfig")
+    elif [ -n "$kubeconfig_token_ref" ]; then
+        tmpkube=$(mktemp /tmp/kubeconfig.XXXXXX)
+        TMPFILES+=("$tmpkube")
+        kube_token=$(echo "$kubeconfig_token_ref" | op inject)
+        kube_host=$(echo "$kubeconfig_host_ref" | op inject)
+        cat > "$tmpkube" << KUBECFG
+apiVersion: v1
+kind: Config
+clusters:
+- cluster:
+    server: ${kube_host}
+    insecure-skip-tls-verify: true
+  name: cluster
+contexts:
+- context:
+    cluster: cluster
+    user: user
+  name: context
+current-context: context
+users:
+- name: user
+  user:
+    token: ${kube_token}
+KUBECFG
+        ENV_ARGS+=("-e" "KUBECONFIG=/tmp/kubeconfig")
+    fi
+done
+
+# ---------------------------------------------------------------------------
+# Build podman run arguments
+# ---------------------------------------------------------------------------
+
+# Dynamic container name based on envs
+if [ ${#ENVS[@]} -gt 0 ]; then
+    CONTAINER_NAME="opencode-$(IFS=-; echo "${ENVS[*]}")"
+else
+    CONTAINER_NAME="opencode-session"
+fi
+
+# --- Core flags ---
+RUN_ARGS=(
+    --rm -it
+    --userns=keep-id
+    --name "$CONTAINER_NAME"
+    --replace
+)
+
+# --init requires catatonit on the host
+if command -v catatonit &>/dev/null || [ -x /usr/libexec/podman/catatonit ]; then
+    RUN_ARGS+=(--init)
+fi
+
+# --- Filesystem hardening ---
+RUN_ARGS+=(
+    --tmpfs /tmp:rw,noexec,nosuid,size=256m
+    --tmpfs /run:rw,noexec,nosuid,size=64m
+)
+
+# --- Security restrictions ---
+RUN_ARGS+=(
+    --cap-drop=ALL
+    --security-opt no-new-privileges:true
+)
+
+# --- Resource limits ---
+RUN_ARGS+=(
+    --cpus=2
+    --pids-limit=512
+    --timeout=7200
+)
+
+# Memory limits require cgroup memory controller delegation
+if [ -w "/sys/fs/cgroup/$(cat /proc/self/cgroup 2>/dev/null | cut -d: -f3)/memory.max" ] 2>/dev/null; then
+    RUN_ARGS+=(--memory=4g --memory-swap=4g)
+fi
+
+# --- Ulimits ---
+RUN_ARGS+=(
+    --ulimit nofile=1024:2048
+    --ulimit nproc=512:512
+    --ulimit core=0
+)
+
+# --- Mounts ---
+# Mount workspace at the same absolute path so project memory
+# (keyed by path) stays consistent with devcontainer sessions.
+RUN_ARGS+=(-v "$PWD:$PWD:Z" -w "$PWD")
+
+# opencode config — read-write so opencode can update auth tokens / cache.
+OPENCODE_CONFIG="${OPENCODE_CONFIG:-$HOME/.config/opencode}"
+mkdir -p "$OPENCODE_CONFIG"
+RUN_ARGS+=(-v "$OPENCODE_CONFIG:/home/igou/.config/opencode:Z")
+
+# opencode local state (auth tokens, session history) — persists across runs.
+OPENCODE_STATE="${OPENCODE_STATE:-$HOME/.local/share/opencode}"
+mkdir -p "$OPENCODE_STATE"
+RUN_ARGS+=(-v "$OPENCODE_STATE:/home/igou/.local/share/opencode:Z")
+
+for f in "${TMPFILES[@]}"; do
+    RUN_ARGS+=(-v "$f:/tmp/kubeconfig:ro,Z")
+done
+
+# --- Environment variables from resolved envs ---
+if [ ${#ENV_ARGS[@]} -gt 0 ]; then
+    RUN_ARGS+=("${ENV_ARGS[@]}")
+fi
+
+# ---------------------------------------------------------------------------
+# Build final command
+# ---------------------------------------------------------------------------
+if $SHELL_MODE; then
+    CMD=("$IMAGE" bash)
+else
+    CMD=("$IMAGE" opencode "${OPENCODE_ARGS[@]}")
+fi
+
+# ---------------------------------------------------------------------------
+# Launch or dry-run
+# ---------------------------------------------------------------------------
+if $DRY_RUN; then
+    printf "podman run"
+    printf " %q" "${RUN_ARGS[@]}"
+    printf " %q" "${CMD[@]}"
+    echo
+    exit 0
+fi
+
+exec podman run "${RUN_ARGS[@]}" "${CMD[@]}"

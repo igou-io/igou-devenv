@@ -80,6 +80,7 @@ tree, nmap, tmux, vim, htop
    - `~/.gitconfig` — Git identity (mounted read-only)
    - `~/.config/argocd/` — ArgoCD CLI config
    - `~/.config/op/service-account-token` — 1Password service account token
+   - `~/.config/opencode/` — opencode config (bind-mounted into devcontainer + opencode container)
    - `~/.terraform.d/` — Terraform plugin cache/credentials
    - `~/.claude/` and `~/.claude.json` — Claude Code config
 
@@ -172,6 +173,7 @@ secrets are stored in the repo.
 | `make claude-test-hardened` | Test under full hardening (cap-drop=ALL, noexec, limits) |
 | `make claude-test-run` | Test claude-run secret resolution and argument assembly |
 | `make claude-test-all` | Run all Claude container tests (tools, hardened, claude-run) |
+| `make opencode-build` | Build the opencode container image from `igou-containers/apps/opencode/` |
 | `make e2e` | Full end-to-end: rebuild devcontainer, run all tests, build + test Claude container |
 
 ## Claude Container
@@ -214,6 +216,80 @@ never has direct access to 1Password.
 | Privileged mode | Yes (for nested podman) | No (rootless via `--userns=keep-id`) |
 | Hardening | None (general-purpose) | `--cap-drop=ALL`, noexec /tmp, bubblewrap + seccomp sandbox |
 | Launched via | Cursor / `make up` | `claude-run` from inside devcontainer |
+
+## Opencode Container
+
+A hardened UBI10-based container for running [opencode](https://opencode.ai)
+against the Qwen3.6-35B-A3B endpoint hosted by `applications/llmkube/` in
+`igou-openshift` (or any other OpenAI-compatible endpoint configured in
+`~/.config/opencode/opencode.jsonc`). Runs rootless via podman from inside
+the devcontainer, with the same secret-injection plumbing as `claude-run` and
+`cursor-run`.
+
+### Build
+
+```bash
+make opencode-build      # builds ghcr.io/igou-io/opencode:latest from igou-containers
+```
+
+The image is also built and pushed to GHCR by the `igou-containers` workflow on
+every push to `main`. Local `make opencode-build` is for fast iteration before
+pushing to that repo.
+
+### Usage
+
+The `opencode-run` script (in `bin/`, on PATH) launches the container:
+
+```bash
+opencode-run                          # launch opencode against the configured provider
+opencode-run -e ocp-hub               # with cluster credentials (kubectl/oc/argocd in container)
+opencode-run --shell                  # drop to bash instead of opencode
+opencode-run -- run "fix lint errors" # forward args to opencode
+```
+
+The launcher bind-mounts `~/.config/opencode/` (config) and
+`~/.local/share/opencode/` (auth tokens, session history) so state persists
+across container runs and is shared with the devcontainer.
+
+### Pointing at the Qwen endpoint
+
+`~/.config/opencode/opencode.jsonc`:
+
+```jsonc
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "llama.cpp": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "llama-server (igou.systems)",
+      "options": {
+        "baseURL": "https://qwen3-35b-a3b-llmkube-system.apps.ocp.igou.systems/v1"
+      },
+      "models": {
+        "qwen3.6-35b-a3b": {
+          "name": "Qwen3.6-35B-A3B (local)",
+          "limit": { "context": 65536, "output": 32768 },
+          "reasoning": true,
+          "tools": true,
+          "temperature": true,
+          "options": { "temperature": 0.7, "top_p": 0.8 }
+        }
+      }
+    }
+  },
+  "model": "llama.cpp/qwen3.6-35b-a3b"
+}
+```
+
+The InferenceService is scaled to 0 by default — scale up before use:
+
+```bash
+oc patch inferenceservice qwen3-35b-a3b -n llmkube-system \
+  --type merge -p '{"spec":{"replicas":1}}'
+```
+
+See `applications/llmkube/README.md` in `igou-openshift` for the full server-side
+tuning rationale (flash attention, q8 KV cache, jinja chat template, etc.).
 
 ## SSH Agent Forwarding
 
@@ -308,7 +384,7 @@ sudo dnf install -y podman podman-docker openssh-server
 systemctl --user enable --now podman.socket
 loginctl enable-linger $USER
 
-mkdir -p ~/.ssh ~/.kube ~/.config/argocd ~/.config/op ~/.terraform.d ~/.claude
+mkdir -p ~/.ssh ~/.kube ~/.config/argocd ~/.config/op ~/.config/opencode ~/.terraform.d ~/.claude
 echo '{}' > ~/.claude.json
 touch ~/.gitconfig
 
