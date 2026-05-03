@@ -1,5 +1,5 @@
 # Managed by Renovate — pin versions for automated updates
-ansible-core==2.20.4
+ansible-core==2.20.5
 ansible-navigator==26.4.0
 ansible-builder==3.1.1
 ansible-rulebook==1.2.2
