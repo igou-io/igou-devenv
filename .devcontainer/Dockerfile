@@ -1,4 +1,4 @@
-FROM quay.io/centos/centos:stream10
+FROM quay.io/centos/centos:stream10@sha256:3b8f124a92f3f647f267cddb6b83fdb2b1d9cd41d6cb5c4fe75b06e34d4607c2
 
 # Create igou user. UID 1000 is a conventional default; the devcontainer runtime's
 # updateRemoteUserUID remaps it to match the host user at startup.
