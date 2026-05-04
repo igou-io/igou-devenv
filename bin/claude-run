@@ -25,6 +25,10 @@ while [[ $# -gt 0 ]]; do
             ENVS+=("$2")
             shift 2
             ;;
+        --claude-home)
+            CLAUDE_HOME="$2"
+            shift 2
+            ;;
         --image)
             IMAGE="$2"
             shift 2
@@ -43,11 +47,12 @@ while [[ $# -gt 0 ]]; do
             break
             ;;
         -h|--help)
-            echo "Usage: claude-run [-e ENV]... [--image IMG] [--shell] [--dry-run] [-- CLAUDE_ARGS...]"
+            echo "Usage: claude-run [-e ENV]... [--image IMG] [--claude-home DIR] [--shell] [--dry-run] [-- CLAUDE_ARGS...]"
             echo ""
             echo "Options:"
-            echo "  -e, --env ENV   Resolve secrets from envs/ENV.env via op inject"
-            echo "  --image IMG     Use a custom container image (default: ghcr.io/igou-io/claude-code:latest)"
+            echo "  -e, --env ENV       Resolve secrets from envs/ENV.env via op inject"
+            echo "  --claude-home DIR   Use DIR as Claude home (default: ~/.claude, or ~/.claude-<envs> with -e)"
+            echo "  --image IMG         Use a custom container image (default: ghcr.io/igou-io/claude-code:latest)"
             echo "  --shell         Drop to bash instead of launching claude"
             echo "  --dry-run       Print the podman command without running it"
             echo "  -- ARGS         Pass remaining arguments to claude"
@@ -229,9 +234,15 @@ RUN_ARGS+=(
 RUN_ARGS+=(-v "$PWD:$PWD:Z" -w "$PWD")
 
 # Claude home — configurable, defaults to ~/.claude (shared with host).
+# When environments are specified via -e, Claude home is automatically scoped
+# per-environment (e.g. ~/.claude-ocp-rosa) so project memory and conversation
+# history stay isolated. Override with CLAUDE_HOME= or --claude-home.
 # ~/.claude.json is NOT mounted — file bind mounts break when the host replaces
 # the file (atomic write, token refresh, re-login). The entrypoint creates it
 # from baked config at /etc/claude/claude.json instead.
+if [ -z "${CLAUDE_HOME:-}" ] && [ ${#ENVS[@]} -gt 0 ]; then
+    CLAUDE_HOME="$HOME/.claude-$(IFS=-; echo "${ENVS[*]}")"
+fi
 CLAUDE_HOME="${CLAUDE_HOME:-$HOME/.claude}"
 mkdir -p "$CLAUDE_HOME"
 # Snapshot ~/.claude.json into the mounted directory so the entrypoint can
