@@ -241,6 +241,15 @@ OPENCODE_STATE="${OPENCODE_STATE:-$HOME/.local/share/opencode}"
 mkdir -p "$OPENCODE_STATE"
 RUN_ARGS+=(-v "$OPENCODE_STATE:/home/igou/.local/share/opencode:Z")
 
+# opencode plugin/package cache — plugins declared in opencode.jsonc (e.g.
+# superpowers) are fetched from git into ~/.cache/opencode/packages/ on every
+# launch. Persisting it avoids refetching from GitHub each container start.
+# (Mount the subdir, not all of ~/.cache, since TMPDIR=/home/igou/.cache is
+# also used by Bun for native library extraction baked into the image.)
+OPENCODE_CACHE="${OPENCODE_CACHE:-$HOME/.cache/opencode}"
+mkdir -p "$OPENCODE_CACHE"
+RUN_ARGS+=(-v "$OPENCODE_CACHE:/home/igou/.cache/opencode:Z")
+
 for f in "${TMPFILES[@]}"; do
     RUN_ARGS+=(-v "$f:/tmp/kubeconfig:ro,Z")
 done
