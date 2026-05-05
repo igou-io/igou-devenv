@@ -29,6 +29,10 @@ while [[ $# -gt 0 ]]; do
             IMAGE="$2"
             shift 2
             ;;
+        --dev)
+            IMAGE="ghcr.io/igou-io/opencode-dev:latest"
+            shift
+            ;;
         --shell)
             SHELL_MODE=true
             shift
@@ -43,11 +47,12 @@ while [[ $# -gt 0 ]]; do
             break
             ;;
         -h|--help)
-            echo "Usage: opencode-run [-e ENV]... [--image IMG] [--shell] [--dry-run] [-- OPENCODE_ARGS...]"
+            echo "Usage: opencode-run [-e ENV]... [--image IMG | --dev] [--shell] [--dry-run] [-- OPENCODE_ARGS...]"
             echo ""
             echo "Options:"
             echo "  -e, --env ENV   Resolve secrets from envs/ENV.env via op inject"
             echo "  --image IMG     Use a custom container image (default: ghcr.io/igou-io/opencode:latest)"
+            echo "  --dev           Shortcut for --image ghcr.io/igou-io/opencode-dev:latest (pip + uv available)"
             echo "  --shell         Drop to bash instead of launching opencode"
             echo "  --dry-run       Print the podman command without running it"
             echo "  -- ARGS         Pass remaining arguments to opencode"
@@ -56,6 +61,7 @@ while [[ $# -gt 0 ]]; do
             echo "  opencode-run                          # launch opencode"
             echo "  opencode-run -e ocp-rosa              # with cluster credentials"
             echo "  opencode-run -e ocp-hub -e ansible    # stack environments"
+            echo "  opencode-run --dev                    # use the dev image (pip + uv installable)"
             echo "  opencode-run --image localhost/opencode:test  # use a local image"
             echo "  opencode-run --shell                  # interactive bash"
             echo "  opencode-run --dry-run -e aws         # preview the command"
