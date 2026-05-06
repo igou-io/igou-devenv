@@ -22,6 +22,7 @@ declare -A TOOLS=(
     [python3]="python3 --version"
     [node]="node --version"
     [claude]="claude --version"
+    [opencode]="opencode --version"
     [ansible]="ansible --version"
     [argocd]="argocd version --client --short"
     [kustomize]="kustomize version"

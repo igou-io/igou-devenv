@@ -104,6 +104,7 @@ shellcheck .devcontainer/post-create.sh .devcontainer/post-start.sh .devcontaine
 - **Pre-cloned workspaces**: Repos are expected to be pre-cloned on the host at `~/workspace` and bind-mounted into the container. The devcontainer does not clone repos.
 - **SSH agent forwarding**: `devcontainer.json` sets `containerEnv.SSH_AUTH_SOCK` to `/tmp/ssh-agent.sock`. The Makefile dynamically mounts the host socket only if it exists (`[ -S "$SSH_AUTH_SOCK" ]`), avoiding errors from stale sockets.
 - **Podman-in-container**: Uses `--privileged` with `/dev/fuse` and `/dev/net/tun` devices for nested container support.
+- **Host `/dev` bind-mount**: `/dev` is bind-mounted from host to container so USB/serial devices (e.g. `/dev/ttyUSB0`, `/dev/serial/by-id/...`) are accessible without per-device declarations and survive hotplug. Combined with `--privileged`, this gives the container access to all host devices including block devices and `/dev/mem` — acceptable here because the container is single-user homelab tooling.
 - **pip over pipx**: Python packages installed directly via pip since isolation is unnecessary in a disposable container.
 - **Read-only mounts**: `~/.ssh`, `~/.gitconfig`, and `~/.config/op` are bind-mounted read-only. GitHub known_hosts must be written to `/etc/ssh/ssh_known_hosts` via `sudo tee`.
 - **`podman-docker` required on host**: Cursor's devcontainer extension calls `docker` under the hood.

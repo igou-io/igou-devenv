@@ -38,7 +38,8 @@
         "source=${localEnv:HOME}/.config/op,target=/home/igou/.config/op,type=bind,readonly",
         "source=${localEnv:HOME}/.config/cursor,target=/home/igou/.config/cursor,type=bind",
         "source=${localEnv:HOME}/.config/opencode,target=/home/igou/.config/opencode,type=bind",
-        "source=${localEnv:HOME}/workspace,target=/workspace,type=bind"
+        "source=${localEnv:HOME}/workspace,target=/workspace,type=bind",
+        "source=/dev,target=/dev,type=bind"
     ],
     "customizations": {
         "vscode": {
