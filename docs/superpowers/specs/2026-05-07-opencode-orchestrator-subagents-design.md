@@ -34,8 +34,11 @@ The standalone `opencode-run` container (`bin/opencode-run`) already bind-mounts
 │    reasoning:    effort = medium                          │
 │    small_model:  llama.cpp/qwen3.6-35b-a3b  (local, free) │
 │    tools:        Read, Grep, Glob, Task, Skill, WebFetch  │
-│    permissions:  edit/write/bash = deny  (built-in)       │
-│    role:         brainstorm → write plan → dispatch       │
+│    permissions:  edit  → deny except docs/superpowers/**  │
+│                  bash  → deny except git status/diff/log, │
+│                          git add docs/superpowers/*,      │
+│                          git commit*                      │
+│    role:         brainstorm → write spec/plan → dispatch  │
 └───────────────────────────────────────────────────────────┘
                        │ Task(subagent, prompt)
                        │   parallel for independent steps
@@ -101,9 +104,19 @@ Diff against the current file. The existing `llama.cpp` provider entry is preser
       "model": "openrouter/openai/gpt-5.5",
       "prompt": "{file:./prompts/plan-orchestrator.md}",
       "permission": {
-        "edit":  "deny",
-        "write": "deny",
-        "bash":  "deny"
+        "edit": {
+          "*": "deny",
+          "docs/superpowers/specs/**": "allow",
+          "docs/superpowers/plans/**": "allow"
+        },
+        "bash": {
+          "*": "deny",
+          "git status*": "allow",
+          "git diff*": "allow",
+          "git log*": "allow",
+          "git add docs/superpowers/*": "allow",
+          "git commit*": "allow"
+        }
       }
     },
     "general": {
@@ -126,7 +139,8 @@ Notes on field choices:
 
 - `options.reasoning.effort` (nested) is the OpenRouter form. Native-OpenAI provider uses `reasoningEffort` (flat); this design uses OpenRouter, so the nested form applies.
 - `effort: "medium"` chosen for balanced cost/latency on the orchestrator. Easy to bump to `high` later.
-- The `agent` block overrides built-in primary/subagent definitions rather than creating new agents. This keeps the user's Tab/`switch_agent` muscle memory. Whether opencode merges user agent definitions with built-ins or replaces them outright is undocumented; the spec defensively re-asserts plan-mode's `edit`/`write`/`bash` denies on the `plan` block so the read-only contract holds either way.
+- The `agent` block overrides built-in primary/subagent definitions rather than creating new agents. This keeps the user's Tab/`switch_agent` muscle memory. Whether opencode merges user agent definitions with built-ins or replaces them outright is undocumented; the spec asserts plan-mode permissions defensively so the contract holds either way.
+- The `plan` agent's permissions are path-globbed rather than blanket-deny. `edit` covers all file mutation (`edit`, `write`, `patch` per opencode's permission semantics) and is denied except for paths under `docs/superpowers/specs/**` and `docs/superpowers/plans/**` — the artifacts the orchestrator authors itself via `superpowers:brainstorming` and `superpowers:writing-plans`. `bash` is denied except for read-only git inspection (`git status*`, `git diff*`, `git log*`) and the two write commands needed to commit those artifacts (`git add docs/superpowers/*`, `git commit*`). Without these narrow allows, the orchestrator cannot write its own spec/plan files and would have to delegate that to a subagent — a round-trip that risks transcription fidelity loss when GPT-5.5 prose passes through Qwen3-35B. The blanket `edit`/`bash` denies would also conflict directly with the brainstorming and writing-plans skills, which mandate that the agent running them writes the spec/plan files.
 - `{file:./prompts/...}` references are resolved relative to the config file, so they live in `~/.config/opencode/prompts/`.
 
 ### Prompt augmentations
@@ -139,7 +153,11 @@ Two new files alongside the config.
 You operate in opencode `plan` mode. You are a superpowers-aware orchestrator.
 
 Hard rules:
-- You do not edit, write, or run bash. Those tools are denied for you.
+- You write your own spec and plan artifacts under `docs/superpowers/specs/`
+  and `docs/superpowers/plans/`, and you may `git add` / `git commit` those
+  paths. You may run read-only git inspection (`git status`, `diff`, `log`).
+  Every other file edit, every other bash command, is denied for you —
+  dispatch all code/test/build/run work to subagents via the Task tool.
 - For any non-trivial task, follow the superpowers skill chain:
     1. superpowers:brainstorming  — refine intent, write a spec.
     2. superpowers:writing-plans  — convert spec to implementation plan.

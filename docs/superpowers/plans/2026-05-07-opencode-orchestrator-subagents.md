@@ -497,9 +497,132 @@ Expected: both subagent invocations show `llama.cpp` / `qwen3.6-35b-a3b`. No Ope
 
 ---
 
+## Task 10 (Amendment): Narrow plan-mode permissions to allow superpowers artifacts
+
+**Why this task exists:** The original Task 4 set `plan` agent permissions to a blanket `edit/write/bash: deny`. Smoke testing surfaced that this conflicts with the `superpowers:brainstorming` and `superpowers:writing-plans` skills, both of which require the agent running them to write spec/plan files (`docs/superpowers/specs/...md`, `docs/superpowers/plans/...md`) and `git add`/`git commit` those artifacts. Without this amendment, the orchestrator must Tab-switch to `build` mode mid-session — which loses GPT-5.5 context and fails the orchestrator role at exactly the moments it should be active.
+
+opencode supports per-agent path-globbed permissions on both `edit` and `bash` (last matching rule wins, see https://opencode.ai/docs/permissions/). The amendment uses that to allow narrow exceptions for the orchestrator's own artifacts while keeping all code/test/build/run paths denied.
+
+**Files:**
+- Modify: `~/.config/opencode/opencode.jsonc`
+- Modify: `~/.config/opencode/prompts/plan-orchestrator.md`
+
+- [ ] **Step 1: Replace the `plan` agent's `permission` block**
+
+In `~/.config/opencode/opencode.jsonc`, find the `agent.plan.permission` block and replace it. The whole `plan` agent block becomes:
+
+```jsonc
+"plan": {
+  "model": "openrouter/openai/gpt-5.5",
+  "prompt": "{file:./prompts/plan-orchestrator.md}",
+  "permission": {
+    "edit": {
+      "*": "deny",
+      "docs/superpowers/specs/**": "allow",
+      "docs/superpowers/plans/**": "allow"
+    },
+    "bash": {
+      "*": "deny",
+      "git status*": "allow",
+      "git diff*": "allow",
+      "git log*": "allow",
+      "git add docs/superpowers/*": "allow",
+      "git commit*": "allow"
+    }
+  }
+}
+```
+
+Notes on the change:
+- `edit` becomes object-form. opencode treats `edit` as covering `edit`, `write`, and `patch` — a single key blocks all mutation primitives. The catch-all `*: deny` runs first, the `docs/superpowers/{specs,plans}/**` allows override (last matching rule wins).
+- `bash` becomes object-form with five allowed patterns: read-only git inspection (status, diff, log) plus the two write commands needed to commit orchestrator artifacts (`git add docs/superpowers/*`, `git commit*`).
+- The previous explicit `write: "deny"` entry is removed — it was a no-op (opencode has no standalone `write` permission key).
+- Wildcard patterns require an argument per opencode docs; trailing `*` covers both `git status` and `git status -s`.
+
+- [ ] **Step 2: Validate JSONC parses and opencode accepts the config**
+
+```bash
+python3 <<'PYEOF'
+import json, re, sys
+src = open('/home/igou/.config/opencode/opencode.jsonc').read()
+src = re.sub(r'/\*[\s\S]*?\*/', '', src)
+src = re.sub(r'(^|\s)//[^\n]*', r'\1', src)
+src = re.sub(r',(\s*[}\]])', r'\1', src)
+data = json.loads(src)
+p = data['agent']['plan']['permission']
+assert isinstance(p['edit'], dict) and p['edit']['*'] == 'deny'
+assert p['edit']['docs/superpowers/specs/**'] == 'allow'
+assert p['edit']['docs/superpowers/plans/**'] == 'allow'
+assert isinstance(p['bash'], dict) and p['bash']['*'] == 'deny'
+assert p['bash']['git commit*'] == 'allow'
+assert 'write' not in p, "stale write key still present"
+print("OK: plan.permission updated correctly")
+PYEOF
+```
+
+Then confirm opencode itself still loads the config (use `opencode-run` if `opencode` is not on PATH in the current devcontainer):
+
+```bash
+opencode-run -- --version 2>&1 | tail -3
+```
+
+Expected: a version string (e.g. `1.14.33`) and no config-error output.
+
+- [ ] **Step 3: Update `~/.config/opencode/prompts/plan-orchestrator.md`**
+
+The existing prompt's first hard rule says "You do not edit, write, or run bash. Those tools are denied for you." That is now incorrect — the orchestrator can edit/write within `docs/superpowers/**` and run a small set of git commands. Replace the first hard-rule bullet with:
+
+```markdown
+- You write your own spec and plan artifacts under `docs/superpowers/specs/`
+  and `docs/superpowers/plans/`, and you may `git add` / `git commit` those
+  paths. You may run read-only git inspection (`git status`, `diff`, `log`).
+  Every other file edit, every other bash command, is denied for you —
+  dispatch all code/test/build/run work to subagents via the Task tool.
+```
+
+Verify the file still has 19–20 lines and no other content changed:
+
+```bash
+wc -l ~/.config/opencode/prompts/plan-orchestrator.md
+diff ~/.config/opencode/prompts/plan-orchestrator.md - <<'EOF' || true
+You operate in opencode `plan` mode. You are a superpowers-aware orchestrator.
+
+Hard rules:
+- You write your own spec and plan artifacts under `docs/superpowers/specs/`
+  and `docs/superpowers/plans/`, and you may `git add` / `git commit` those
+  paths. You may run read-only git inspection (`git status`, `diff`, `log`).
+  Every other file edit, every other bash command, is denied for you —
+  dispatch all code/test/build/run work to subagents via the Task tool.
+- For any non-trivial task, follow the superpowers skill chain:
+    1. superpowers:brainstorming  — refine intent, write a spec.
+    2. superpowers:writing-plans  — convert spec to implementation plan.
+    3. superpowers:subagent-driven-development +
+       superpowers:dispatching-parallel-agents — dispatch via Task tool.
+- Prefer parallel dispatch: when a plan has ≥2 steps with no shared state
+  or sequential dependency, emit multiple Task calls in a single message.
+- Subagents run on a smaller local model (Qwen3-35B). Brief them
+  thoroughly: file paths, exact changes, which superpowers skills to use,
+  what evidence to return.
+- Before declaring a step complete, require evidence in the subagent's
+  report (command run, output observed) — not just a claim of success.
+EOF
+```
+
+`diff` should produce no output.
+
+- [ ] **Step 4: Re-run the superpowers loop smoke test (Task 8 with the new permissions)**
+
+Switch to `plan` mode in opencode and submit a task that exercises the brainstorming → writing-plans flow. The orchestrator should now write its own spec/plan files without prompting you to switch modes. If you observe the orchestrator (a) writing a spec file under `docs/superpowers/specs/...`, (b) successfully `git add`/`git commit`-ing it, then dispatching to subagents, the amendment is working as designed.
+
+If `edit` denials surface for the `docs/superpowers/...` paths the orchestrator is supposed to be allowed to write, the path glob is wrong (most likely the working directory root differs from what the glob assumes — confirm via `git rev-parse --show-toplevel` inside the opencode session).
+
+(No git commit for the prompt file or the config — both are dotfiles outside the repo. The plan-doc and spec-doc updates that record this amendment ARE in-repo and should be committed together.)
+
+---
+
 ## Done
 
-When Tasks 1–8 pass and Task 9 either passes or is skipped, the implementation is complete.
+When Tasks 1–8 pass, Task 9 passes or is skipped, and Task 10 (this amendment) is applied, the implementation is complete.
 
 Final verification checklist:
 - [ ] `envs/openrouter.env` committed in `igou-devenv` (Task 1).
@@ -510,5 +633,6 @@ Final verification checklist:
 - [ ] Plan mode routes to OpenRouter, build mode routes to local (Tasks 6–7).
 - [ ] End-to-end superpowers loop runs with subagents on local Qwen3 (Task 8).
 - [ ] (Optional) Parallel dispatch confirmed (Task 9).
+- [ ] `plan` agent permissions narrowed to allow `docs/superpowers/**` writes and the git commands needed to commit them (Task 10 amendment).
 
 No documentation update is needed — the spec at `docs/superpowers/specs/2026-05-07-opencode-orchestrator-subagents-design.md` already records the design and the `CLAUDE.md` doesn't describe per-user opencode config.
