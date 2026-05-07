@@ -108,27 +108,11 @@ Diff against the current file. The existing `llama.cpp` provider entry is preser
   "small_model": "llama.cpp/qwen3.6-35b-a3b",   // NEW — title gen on local
 
   "agent": {
-    "orchestrator": {
-      "description": "Superpowers-driven planner. Brainstorms, writes spec/plan, dispatches subagents via Task. Runs on GPT-5.5 (paid OpenRouter).",
-      "mode": "primary",
-      "model": "openrouter/openai/gpt-5.5",
-      "prompt": "{file:./prompts/orchestrator.md}",
-      "permission": {
-        "edit": {
-          "*": "deny",
-          "docs/superpowers/specs/**": "allow",
-          "docs/superpowers/plans/**": "allow"
-        },
-        "bash": {
-          "*": "deny",
-          "git status*": "allow",
-          "git diff*": "allow",
-          "git log*": "allow",
-          "git add docs/superpowers/*": "allow",
-          "git commit*": "allow"
-        }
-      }
-    },
+    // The `orchestrator` primary agent lives in a separate markdown file
+    // at ~/.config/opencode/agents/orchestrator.md (see Prompt section below).
+    // Custom-named primary agents declared here in JSONC have their permission
+    // blocks silently dropped by opencode 1.14.33; the markdown form is the
+    // canonical definition path. See Amendment 3.
     "general": {
       "mode": "subagent",
       "model": "llama.cpp/qwen3.6-35b-a3b",
@@ -149,17 +133,37 @@ Notes on field choices:
 
 - `options.reasoning.effort` (nested) is the OpenRouter form. Native-OpenAI provider uses `reasoningEffort` (flat); this design uses OpenRouter, so the nested form applies.
 - `effort: "medium"` chosen for balanced cost/latency on the orchestrator. Easy to bump to `high` later.
-- The orchestrator role is a **custom primary agent**, not an override of the built-in `plan` mode. Smoke testing (Amendment 2 below) showed opencode's built-in plan mode injects an unmovable system reminder forbidding edits, regardless of the agent-level permission rules — the model treats it as inviolable and refuses to attempt writes even when the rules would allow them. A custom primary inherits no such reminder and lets path-globbed permissions actually bind. The `general` and `explore` overrides remain merge-style on the built-in subagents because subagents have no equivalent built-in restriction.
-- The `orchestrator` agent's permissions are path-globbed rather than blanket-deny. `edit` covers all file mutation (`edit`, `write`, `patch` per opencode's permission semantics) and is denied except for paths under `docs/superpowers/specs/**` and `docs/superpowers/plans/**` — the artifacts the orchestrator authors itself via `superpowers:brainstorming` and `superpowers:writing-plans`. `bash` is denied except for read-only git inspection (`git status*`, `git diff*`, `git log*`) and the two write commands needed to commit those artifacts (`git add docs/superpowers/*`, `git commit*`). Without these narrow allows, the orchestrator cannot write its own spec/plan files and would have to delegate that to a subagent — a round-trip that risks transcription fidelity loss when GPT-5.5 prose passes through Qwen3-35B. The blanket `edit`/`bash` denies would also conflict directly with the brainstorming and writing-plans skills, which mandate that the agent running them writes the spec/plan files.
+- The orchestrator role is a **custom primary agent**, not an override of the built-in `plan` mode. Smoke testing (Amendment 2 below) showed opencode's built-in plan mode injects an unmovable system reminder forbidding edits, regardless of the agent-level permission rules — the model treats it as inviolable and refuses to attempt writes even when the rules would allow them. A custom primary inherits no such reminder. Subsequent testing also showed that custom-named primary agents declared in JSONC have their `permission` blocks silently dropped (Amendment 3); the canonical form for custom primaries is a markdown file under `~/.config/opencode/agents/`. The `general` and `explore` overrides remain in JSONC because subagent-level overrides via JSONC do work correctly.
+- The `orchestrator` agent's permissions are path-globbed rather than blanket-deny. `edit` covers all file mutation (`edit`, `write`, `patch` per opencode's permission semantics) and is denied except for paths matching `**/docs/superpowers/specs/**` and `**/docs/superpowers/plans/**` — the artifacts the orchestrator authors itself via `superpowers:brainstorming` and `superpowers:writing-plans`. The `**/` prefix is necessary because opencode evaluates path globs against absolute resolved paths, not project-relative ones (Amendment 3). `bash` is denied except for read-only git inspection (`git status*`, `git diff*`, `git log*`) and the two write commands needed to commit those artifacts (`git add docs/superpowers/*`, `git add **/docs/superpowers/*`, `git commit*`). Without these narrow allows, the orchestrator cannot write its own spec/plan files and would have to delegate that to a subagent — a round-trip that risks transcription fidelity loss when GPT-5.5 prose passes through Qwen3-35B. The blanket `edit`/`bash` denies would also conflict directly with the brainstorming and writing-plans skills, which mandate that the agent running them writes the spec/plan files.
 - `{file:./prompts/...}` references are resolved relative to the config file, so they live in `~/.config/opencode/prompts/`.
 
-### Prompt augmentations
+### Agent definition file + prompt augmentation
 
-Two new files alongside the config.
+Two files alongside the JSONC config.
 
-**`~/.config/opencode/prompts/orchestrator.md`** — system prompt for the custom orchestrator agent:
+**`~/.config/opencode/agents/orchestrator.md`** — canonical definition of the orchestrator primary agent. YAML frontmatter holds the metadata and permission rules; the markdown body holds the system prompt.
 
 ```markdown
+---
+description: Superpowers-driven planner. Brainstorms, writes spec/plan, dispatches subagents via Task. Runs on GPT-5.5 (paid OpenRouter).
+mode: primary
+model: openrouter/openai/gpt-5.5
+permission:
+  edit:
+    "*": deny
+    "docs/superpowers/specs/**": allow
+    "docs/superpowers/plans/**": allow
+    "**/docs/superpowers/specs/**": allow
+    "**/docs/superpowers/plans/**": allow
+  bash:
+    "*": deny
+    "git status*": allow
+    "git diff*": allow
+    "git log*": allow
+    "git add docs/superpowers/*": allow
+    "git add **/docs/superpowers/*": allow
+    "git commit*": allow
+---
 You are the `orchestrator` primary agent in opencode — a superpowers-aware planner that runs on GPT-5.5.
 
 Hard rules:
@@ -285,3 +289,25 @@ Removed the `agent.plan` override entirely (plan mode reverts to opencode defaul
 Custom primary agents do not inherit plan-mode's hardcoded read-only system reminder, so the agent-level permission rules become the binding constraint. The user accesses the orchestrator via Tab cycling or `/agent orchestrator`. Build mode and the two subagents are unchanged.
 
 **Smoke test for the architectural switch:** ask the orchestrator agent to write a small test file under `docs/superpowers/specs/`. If the model attempts the write and opencode permits it, the architecture is correct. If the model still refuses (or opencode denies despite our allow rule), the issue is deeper than agent typing and the design needs another revision.
+
+### Amendment 3 — move orchestrator from JSONC to markdown agent file, prefix path globs with `**/`
+
+Smoke testing Amendment 2 surfaced two distinct problems:
+
+1. **opencode silently drops `permission` blocks for custom-named primary agents declared in JSONC.** Permission rules under `agent.plan.permission` (built-in name) had been correctly loaded into the runtime ruleset (verified by inspecting session logs). The same shape moved under `agent.orchestrator.permission` (custom name) was absent from the ruleset entirely, and every permission decision matched the default `*: allow` global rule. Effect: the orchestrator agent ran with no path restrictions at all.
+
+2. **opencode evaluates path globs against absolute file paths.** Once Amendment 3's first half (markdown move) made the rules visible in the ruleset, a subsequent test showed both probe paths denied: even `docs/superpowers/specs/permission-test.md` failed to match the relative pattern `docs/superpowers/specs/**` because opencode passed the full resolved path `/workspace/scratch/.../docs/superpowers/specs/permission-test.md` to the matcher.
+
+Two-part fix:
+
+- **Move the orchestrator definition to `~/.config/opencode/agents/orchestrator.md`** with YAML frontmatter (`description`, `mode: primary`, `model`, `permission`) and the system prompt as the markdown body. opencode's docs describe this as the canonical form for custom agents; the alternate JSONC form turns out to be partial. Remove the corresponding `agent.orchestrator` block from `opencode.jsonc` and delete the now-unreferenced `~/.config/opencode/prompts/orchestrator.md`.
+- **Prefix each path glob with `**/`** so it matches at any depth: `docs/superpowers/specs/**` becomes `**/docs/superpowers/specs/**` (relative form retained alongside for projects where opencode resolves to a project root rather than absolute path). Same prefix added to the `git add docs/superpowers/*` bash pattern.
+
+**Smoke test result (Amendment 3):** the orchestrator wrote `docs/superpowers/specs/permission-test.md` directly (allowed, file landed). For a write to a non-allowed path, the orchestrator dispatched a `Task` call to the `general` subagent, which performed the write — exactly the dispatch behavior the design intended. The narrow orchestrator permissions shape orchestrator *behavior* (force delegation of non-doc work) rather than acting as a hard sandbox over subagents; subagents retain full execution freedom because executing is their role.
+
+### Final state after all amendments
+
+- `~/.config/opencode/agents/orchestrator.md` — YAML frontmatter + system-prompt body, the canonical definition of the custom primary orchestrator agent.
+- `~/.config/opencode/opencode.jsonc` — `provider`, `model`, `small_model`, `agent.general` and `agent.explore` overrides on built-in subagents, `plugin` array. No `agent.plan` override; no `agent.orchestrator` block; no `prompts/` references for orchestrator.
+- `~/.config/opencode/prompts/general-executor.md` — kept; referenced from the JSONC `agent.general.prompt` field (subagent overrides via JSONC do work).
+- `envs/openrouter.env` — paid OpenRouter key resolution; in-repo, committed.

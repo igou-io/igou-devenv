@@ -733,9 +733,157 @@ Three outcomes:
 
 ---
 
+## Task 12 (Amendment 3): Move orchestrator to markdown agent form, prefix path globs with `**/`
+
+**Why this task exists:** Smoke testing Amendment 2 surfaced two distinct problems:
+
+1. **opencode silently drops `permission` blocks for custom-named primary agents declared in JSONC.** The same `permission` shape that worked under `agent.plan.permission` (built-in name) was absent from the runtime ruleset entirely when moved under `agent.orchestrator.permission` (custom name). Verified by grepping the session log: every permission decision matched the default `*: allow` global rule, and none of the orchestrator-specific patterns appeared in the ruleset.
+2. **opencode evaluates path globs against absolute resolved paths.** Once the markdown move made the rules visible, even `docs/superpowers/specs/permission-test.md` failed because opencode passed `/workspace/scratch/.../docs/superpowers/specs/permission-test.md` to the matcher and the relative pattern `docs/superpowers/specs/**` doesn't anchor against absolute paths.
+
+This task applies both fixes together.
+
+**Files:**
+- Create: `~/.config/opencode/agents/orchestrator.md`
+- Modify: `~/.config/opencode/opencode.jsonc`
+- Delete: `~/.config/opencode/prompts/orchestrator.md`
+
+- [ ] **Step 1: Create `~/.config/opencode/agents/orchestrator.md`**
+
+```bash
+mkdir -p ~/.config/opencode/agents
+```
+
+Write the file with this exact content (YAML frontmatter, then the system prompt body):
+
+```markdown
+---
+description: Superpowers-driven planner. Brainstorms, writes spec/plan, dispatches subagents via Task. Runs on GPT-5.5 (paid OpenRouter).
+mode: primary
+model: openrouter/openai/gpt-5.5
+permission:
+  edit:
+    "*": deny
+    "docs/superpowers/specs/**": allow
+    "docs/superpowers/plans/**": allow
+    "**/docs/superpowers/specs/**": allow
+    "**/docs/superpowers/plans/**": allow
+  bash:
+    "*": deny
+    "git status*": allow
+    "git diff*": allow
+    "git log*": allow
+    "git add docs/superpowers/*": allow
+    "git add **/docs/superpowers/*": allow
+    "git commit*": allow
+---
+You are the `orchestrator` primary agent in opencode — a superpowers-aware planner that runs on GPT-5.5.
+
+Hard rules:
+- You write your own spec and plan artifacts under `docs/superpowers/specs/`
+  and `docs/superpowers/plans/`, and you may `git add` / `git commit` those
+  paths. You may run read-only git inspection (`git status`, `diff`, `log`).
+  Every other file edit, every other bash command, is denied for you —
+  dispatch all code/test/build/run work to subagents via the Task tool.
+- For any non-trivial task, follow the superpowers skill chain:
+    1. superpowers:brainstorming  — refine intent, write a spec.
+    2. superpowers:writing-plans  — convert spec to implementation plan.
+    3. superpowers:subagent-driven-development +
+       superpowers:dispatching-parallel-agents — dispatch via Task tool.
+- Prefer parallel dispatch: when a plan has ≥2 steps with no shared state
+  or sequential dependency, emit multiple Task calls in a single message.
+- Subagents run on a smaller local model (Qwen3-35B). Brief them
+  thoroughly: file paths, exact changes, which superpowers skills to use,
+  what evidence to return.
+- Before declaring a step complete, require evidence in the subagent's
+  report (command run, output observed) — not just a claim of success.
+```
+
+Notes:
+- Frontmatter uses YAML, not JSON. Quoted keys like `"docs/superpowers/specs/**"` are required because the keys contain glob special characters that would otherwise confuse YAML's parser.
+- Each pattern appears in two forms: relative (`docs/superpowers/specs/**`) AND `**/`-prefixed (`**/docs/superpowers/specs/**`). The relative form covers the case where opencode resolves to a project root; the prefixed form covers the absolute-path case observed in this session.
+- The body of the markdown is the system prompt. opencode merges this with its built-in primary-agent base prompt (which is much less restrictive than plan-mode's base prompt).
+
+- [ ] **Step 2: Remove the `agent.orchestrator` block from `opencode.jsonc`**
+
+The JSONC `agent` block should now contain only the `general` and `explore` subagent overrides (subagent overrides via JSONC do work correctly):
+
+```jsonc
+"agent": {
+  // The `orchestrator` primary agent lives in a separate markdown file
+  // at ~/.config/opencode/agents/orchestrator.md
+  "general": {
+    "mode": "subagent",
+    "model": "llama.cpp/qwen3.6-35b-a3b",
+    "prompt": "{file:./prompts/general-executor.md}"
+  },
+  "explore": {
+    "mode": "subagent",
+    "model": "llama.cpp/qwen3.6-35b-a3b"
+  }
+}
+```
+
+- [ ] **Step 3: Delete the now-unreferenced `prompts/orchestrator.md`**
+
+```bash
+rm ~/.config/opencode/prompts/orchestrator.md
+ls ~/.config/opencode/prompts/
+```
+
+Expected: only `general-executor.md` remains.
+
+- [ ] **Step 4: Validate**
+
+```bash
+python3 <<'PYEOF'
+import re, yaml, json
+content = open('/home/igou/.config/opencode/agents/orchestrator.md').read()
+m = re.match(r'^---\n(.*?)\n---\n(.*)$', content, re.DOTALL)
+assert m, "no YAML frontmatter delimiters"
+fm = yaml.safe_load(m.group(1))
+assert fm['mode'] == 'primary'
+assert fm['model'] == 'openrouter/openai/gpt-5.5'
+assert fm['permission']['edit']['**/docs/superpowers/specs/**'] == 'allow'
+assert fm['permission']['bash']['git commit*'] == 'allow'
+assert m.group(2).startswith('You are the `orchestrator`')
+
+src = open('/home/igou/.config/opencode/opencode.jsonc').read()
+src = re.sub(r'/\*[\s\S]*?\*/', '', src)
+src = re.sub(r'(^|\s)//[^\n]*', r'\1', src)
+src = re.sub(r',(\s*[}\]])', r'\1', src)
+data = json.loads(src)
+assert 'orchestrator' not in data['agent'], "stale orchestrator JSONC block"
+assert data['agent']['general']['model'] == 'llama.cpp/qwen3.6-35b-a3b'
+print("OK: markdown agent loads, JSONC has only subagent overrides")
+PYEOF
+opencode-run -- --version 2>&1 | tail -2
+```
+
+Expected: the Python check prints `OK: ...` and `opencode-run -- --version` returns a clean version string.
+
+- [ ] **Step 5: Re-run the smoke test from Task 11 Step 5**
+
+Restart opencode, switch to the `orchestrator` agent, ask it to write two files: one to `docs/superpowers/specs/permission-test.md` and one to a non-allowed scratch path. Verify:
+- Direct write to `docs/superpowers/specs/...` succeeds (allow rule binds).
+- Direct write to a scratch path either gets denied OR gets dispatched to the `general` subagent (which has full permissions and will succeed). Both outcomes are correct: the orchestrator's narrow permissions shape its *direct* behavior; subagent dispatch is unconstrained because subagent freedom is the design intent.
+
+Confirm by inspecting the latest session log under `~/.local/share/opencode/log/` for the permission decision lines:
+
+```bash
+LATEST=$(ls -t ~/.local/share/opencode/log/ | head -1)
+grep -E "service=permission .*permission=(edit|bash) .*evaluated" \
+  ~/.local/share/opencode/log/$LATEST | tail -10
+```
+
+Expected: edit/bash decisions matching `docs/superpowers/...` paths show `action: allow`; decisions matching other paths show `action: deny` (when the orchestrator attempts directly). If subagent dispatch fired, look for an additional permission decision under `agent=general` with `action: allow` for the broader path.
+
+(No git commits for the agent definition or the prompt/config changes — all live in dotfiles outside the repo. The plan-doc and spec-doc updates that record Amendment 3 ARE in-repo and should be committed together.)
+
+---
+
 ## Done
 
-When Tasks 1–8 pass, Task 9 passes or is skipped, and Tasks 10 + 11 (the amendments) are applied and the architectural smoke test from Task 11 Step 5 succeeds, the implementation is complete.
+When Tasks 1–8 pass, Task 9 passes or is skipped, and Tasks 10–12 (the amendments) are applied and the smoke tests for the final form (Task 12 Step 5) succeed, the implementation is complete.
 
 Final verification checklist:
 - [ ] `envs/openrouter.env` committed in `igou-devenv` (Task 1).
@@ -747,6 +895,7 @@ Final verification checklist:
 - [ ] End-to-end superpowers loop runs with subagents on local Qwen3 (Task 8).
 - [ ] (Optional) Parallel dispatch confirmed (Task 9).
 - [ ] `plan` agent permissions narrowed to allow `docs/superpowers/**` writes and the git commands needed to commit them (Task 10 amendment — superseded by Task 11).
-- [ ] Custom `orchestrator` primary agent registered, `plan` override removed, prompt renamed and rewritten, and the architectural smoke test (Step 5) succeeds (Task 11 amendment).
+- [ ] Custom `orchestrator` primary agent registered, `plan` override removed, prompt renamed and rewritten (Task 11 amendment — superseded by Task 12 for primary-agent definition method).
+- [ ] Orchestrator agent moved to `~/.config/opencode/agents/orchestrator.md` (markdown form, YAML frontmatter), path globs prefixed with `**/` for absolute-path matching, and the smoke test from Task 12 Step 5 confirms allow/deny verdicts (Task 12 amendment).
 
 No documentation update is needed — the spec at `docs/superpowers/specs/2026-05-07-opencode-orchestrator-subagents-design.md` already records the design and the `CLAUDE.md` doesn't describe per-user opencode config.
