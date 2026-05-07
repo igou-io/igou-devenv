@@ -11,3 +11,4 @@ awxkit==24.6.1
 yq==3.4.3
 kubernetes==35.0.0
 jmespath==1.1.0
+paramiko==3.5.1
