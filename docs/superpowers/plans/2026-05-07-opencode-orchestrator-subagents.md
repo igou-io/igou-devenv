@@ -620,9 +620,122 @@ If `edit` denials surface for the `docs/superpowers/...` paths the orchestrator 
 
 ---
 
+## Task 11 (Amendment 2): Replace plan-mode override with a custom `orchestrator` primary agent
+
+**Why this task exists:** Task 10's amendment narrowed the `plan` agent's permissions to allow `docs/superpowers/**` writes, but that approach failed at the LLM layer. opencode's built-in plan mode injects an unmovable system reminder telling the model "you cannot edit." When the orchestrator was asked to write a permission-test file, GPT-5.5 refused outright, citing the higher-priority built-in instruction. The permission rules were correctly configured but never reached, because the model never attempted the write. plan mode is structurally inappropriate for the orchestrator role.
+
+This task replaces the `plan` override with a brand-new primary agent named `orchestrator`. Custom primary agents do not inherit plan-mode's hardcoded restrictions, so agent-level permissions actually bind.
+
+**Files:**
+- Modify: `~/.config/opencode/opencode.jsonc`
+- Rename: `~/.config/opencode/prompts/plan-orchestrator.md` → `~/.config/opencode/prompts/orchestrator.md`
+- Modify (one line): `~/.config/opencode/prompts/orchestrator.md`
+
+- [ ] **Step 1: Replace the `plan` agent block with an `orchestrator` block**
+
+In `~/.config/opencode/opencode.jsonc`, remove the entire `agent.plan` block (including the path-globbed permissions added in Task 10) and add a new `agent.orchestrator` block in its place. The `general` and `explore` blocks stay unchanged. The new block:
+
+```jsonc
+"orchestrator": {
+  "description": "Superpowers-driven planner. Brainstorms, writes spec/plan, dispatches subagents via Task. Runs on GPT-5.5 (paid OpenRouter).",
+  "mode": "primary",
+  "model": "openrouter/openai/gpt-5.5",
+  "prompt": "{file:./prompts/orchestrator.md}",
+  "permission": {
+    "edit": {
+      "*": "deny",
+      "docs/superpowers/specs/**": "allow",
+      "docs/superpowers/plans/**": "allow"
+    },
+    "bash": {
+      "*": "deny",
+      "git status*": "allow",
+      "git diff*": "allow",
+      "git log*": "allow",
+      "git add docs/superpowers/*": "allow",
+      "git commit*": "allow"
+    }
+  }
+}
+```
+
+Notes on the change:
+- `mode: "primary"` is required for new primary agents (built-in agents like `plan`/`build` carry it implicitly).
+- The `description` field surfaces in opencode's agent-picker UI so the user can tell what they're switching to.
+- Removing the `plan` override means plan mode reverts to opencode's default — read-only with the global default model (`llama.cpp/qwen3.6-35b-a3b`). That's intentional; plan mode becomes useful for local-model exploration but is no longer the orchestrator role.
+- The permissions are identical to Task 10's amendment — those were always correct; the issue was just where they were attached.
+
+- [ ] **Step 2: Rename the prompt file**
+
+```bash
+mv ~/.config/opencode/prompts/plan-orchestrator.md \
+   ~/.config/opencode/prompts/orchestrator.md
+ls ~/.config/opencode/prompts/
+```
+
+Expected: only `general-executor.md` and `orchestrator.md` exist; the old `plan-orchestrator.md` is gone.
+
+- [ ] **Step 3: Update the prompt's opening line**
+
+Replace the first line of `~/.config/opencode/prompts/orchestrator.md` from:
+
+```
+You operate in opencode `plan` mode. You are a superpowers-aware orchestrator.
+```
+
+to:
+
+```
+You are the `orchestrator` primary agent in opencode — a superpowers-aware planner that runs on GPT-5.5.
+```
+
+The rest of the file content (the hard rules block) stays identical.
+
+- [ ] **Step 4: Validate JSONC parses and opencode accepts the new structure**
+
+```bash
+python3 <<'PYEOF'
+import json, re, sys
+src = open('/home/igou/.config/opencode/opencode.jsonc').read()
+src = re.sub(r'/\*[\s\S]*?\*/', '', src)
+src = re.sub(r'(^|\s)//[^\n]*', r'\1', src)
+src = re.sub(r',(\s*[}\]])', r'\1', src)
+data = json.loads(src)
+agents = data['agent']
+assert 'orchestrator' in agents, "orchestrator agent missing"
+assert 'plan' not in agents, "stale plan override still present"
+o = agents['orchestrator']
+assert o['mode'] == 'primary'
+assert o['model'] == 'openrouter/openai/gpt-5.5'
+assert o['prompt'] == '{file:./prompts/orchestrator.md}'
+p = o['permission']
+assert p['edit']['*'] == 'deny' and p['edit']['docs/superpowers/specs/**'] == 'allow'
+assert p['bash']['*'] == 'deny' and p['bash']['git commit*'] == 'allow'
+print("OK: orchestrator agent registered, plan override removed")
+PYEOF
+opencode-run -- --version 2>&1 | tail -3
+```
+
+Expected: the Python check prints `OK: ...` and `opencode-run -- --version` returns a clean version string (e.g. `1.14.33`) with no config-error output.
+
+- [ ] **Step 5: Smoke-test the architectural switch**
+
+Restart your opencode session if you have one open. Switch to the `orchestrator` agent (Tab cycle, or `/agent orchestrator`). Ask the agent to write a small test file:
+
+> *Test your write permissions. Use the Write tool to create the file `docs/superpowers/specs/permission-test.md` with the content "permission test". The opencode permissions explicitly allow that path. If you get a denial, paste the exact error message verbatim. If it succeeds, delete the file and commit nothing.*
+
+Three outcomes:
+1. **Write succeeds, file appears, then gets deleted:** the architecture works. Proceed to use the orchestrator for real work.
+2. **Write fails with a permission denial from opencode (`permission denied: edit`):** the path glob is wrong (most likely working-directory mismatch). Re-check that opencode's project root matches where you launched it.
+3. **Model refuses to attempt the write:** custom primary agents have hidden built-in restrictions too — escalate; the orchestrator approach via opencode agents has hit its limit and the design needs another revision.
+
+(No git commit for the prompt file or the config — both are dotfiles outside the repo. The plan-doc and spec-doc updates that record this amendment ARE in-repo and should be committed together.)
+
+---
+
 ## Done
 
-When Tasks 1–8 pass, Task 9 passes or is skipped, and Task 10 (this amendment) is applied, the implementation is complete.
+When Tasks 1–8 pass, Task 9 passes or is skipped, and Tasks 10 + 11 (the amendments) are applied and the architectural smoke test from Task 11 Step 5 succeeds, the implementation is complete.
 
 Final verification checklist:
 - [ ] `envs/openrouter.env` committed in `igou-devenv` (Task 1).
@@ -633,6 +746,7 @@ Final verification checklist:
 - [ ] Plan mode routes to OpenRouter, build mode routes to local (Tasks 6–7).
 - [ ] End-to-end superpowers loop runs with subagents on local Qwen3 (Task 8).
 - [ ] (Optional) Parallel dispatch confirmed (Task 9).
-- [ ] `plan` agent permissions narrowed to allow `docs/superpowers/**` writes and the git commands needed to commit them (Task 10 amendment).
+- [ ] `plan` agent permissions narrowed to allow `docs/superpowers/**` writes and the git commands needed to commit them (Task 10 amendment — superseded by Task 11).
+- [ ] Custom `orchestrator` primary agent registered, `plan` override removed, prompt renamed and rewritten, and the architectural smoke test (Step 5) succeeds (Task 11 amendment).
 
 No documentation update is needed — the spec at `docs/superpowers/specs/2026-05-07-opencode-orchestrator-subagents-design.md` already records the design and the `CLAUDE.md` doesn't describe per-user opencode config.

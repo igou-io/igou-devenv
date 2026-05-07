@@ -19,7 +19,7 @@ The user's existing global opencode config (`~/.config/opencode/opencode.jsonc`)
 Two things are missing for the orchestrator pattern:
 
 1. An OpenRouter provider entry with a paid GPT-5.5 model and explicit reasoning-effort.
-2. Per-agent model overrides that pin the built-in `plan` primary agent to GPT-5.5 and the built-in `general`/`explore` subagents to local Qwen3 — plus prompt augmentations that wire the superpowers skill loop into both roles.
+2. A custom `orchestrator` primary agent pinned to GPT-5.5 (with path-globbed edit/bash permissions for `docs/superpowers/**`), and per-agent model overrides on the built-in `general`/`explore` subagents pinning them to local Qwen3 — plus prompt augmentations that wire the superpowers skill loop into both roles.
 
 The standalone `opencode-run` container (`bin/opencode-run`) already bind-mounts `~/.config/opencode` and accepts `-e <env>` for 1Password-resolved secrets, so global config edits cover both the VS Code devcontainer and the standalone container with no launcher changes.
 
@@ -29,11 +29,12 @@ The standalone `opencode-run` container (`bin/opencode-run`) already bind-mounts
 
 ```
 ┌───────────────────────────────────────────────────────────┐
-│  plan mode  (primary; user types here)                    │
+│  orchestrator agent  (custom primary; user types here)    │
 │    model:        openai/gpt-5.5  (OpenRouter, paid)       │
 │    reasoning:    effort = medium                          │
 │    small_model:  llama.cpp/qwen3.6-35b-a3b  (local, free) │
-│    tools:        Read, Grep, Glob, Task, Skill, WebFetch  │
+│    tools:        Read, Grep, Glob, Task, Skill, WebFetch, │
+│                  Edit/Write (path-globbed), Bash (git)    │
 │    permissions:  edit  → deny except docs/superpowers/**  │
 │                  bash  → deny except git status/diff/log, │
 │                          git add docs/superpowers/*,      │
@@ -56,11 +57,18 @@ The standalone `opencode-run` container (`bin/opencode-run`) already bind-mounts
   build mode (Tab to switch — unchanged)
     model: llama.cpp/qwen3.6-35b-a3b   (existing global default)
     use when:  direct hands-on work without orchestration
+
+  plan mode (Tab to switch — opencode default, no override)
+    model: llama.cpp/qwen3.6-35b-a3b   (global default)
+    use when:  read-only exploration on the local model
+    note:      opencode's built-in plan-mode system reminder is
+               unmovable, so plan mode is intentionally NOT the
+               orchestrator role — see Amendment 2 below.
 ```
 
 End-to-end skill loop:
 
-1. User types a task into `plan` mode. GPT-5.5 invokes `superpowers:brainstorming` → writes `docs/superpowers/specs/<date>-<topic>-design.md`.
+1. User types a task into the `orchestrator` agent. GPT-5.5 invokes `superpowers:brainstorming` → writes `docs/superpowers/specs/<date>-<topic>-design.md`.
 2. After spec approval, GPT-5.5 invokes `superpowers:writing-plans` → writes the implementation plan.
 3. GPT-5.5 invokes `subagent-driven-development` + `dispatching-parallel-agents` → emits parallel `Task` calls to `general` (and `explore` for lookups).
 4. Each `general` invocation runs on local Qwen3 with TDD/verification rails baked into its system prompt. Returns evidence-bearing report.
@@ -100,9 +108,11 @@ Diff against the current file. The existing `llama.cpp` provider entry is preser
   "small_model": "llama.cpp/qwen3.6-35b-a3b",   // NEW — title gen on local
 
   "agent": {
-    "plan": {
+    "orchestrator": {
+      "description": "Superpowers-driven planner. Brainstorms, writes spec/plan, dispatches subagents via Task. Runs on GPT-5.5 (paid OpenRouter).",
+      "mode": "primary",
       "model": "openrouter/openai/gpt-5.5",
-      "prompt": "{file:./prompts/plan-orchestrator.md}",
+      "prompt": "{file:./prompts/orchestrator.md}",
       "permission": {
         "edit": {
           "*": "deny",
@@ -139,18 +149,18 @@ Notes on field choices:
 
 - `options.reasoning.effort` (nested) is the OpenRouter form. Native-OpenAI provider uses `reasoningEffort` (flat); this design uses OpenRouter, so the nested form applies.
 - `effort: "medium"` chosen for balanced cost/latency on the orchestrator. Easy to bump to `high` later.
-- The `agent` block overrides built-in primary/subagent definitions rather than creating new agents. This keeps the user's Tab/`switch_agent` muscle memory. Whether opencode merges user agent definitions with built-ins or replaces them outright is undocumented; the spec asserts plan-mode permissions defensively so the contract holds either way.
-- The `plan` agent's permissions are path-globbed rather than blanket-deny. `edit` covers all file mutation (`edit`, `write`, `patch` per opencode's permission semantics) and is denied except for paths under `docs/superpowers/specs/**` and `docs/superpowers/plans/**` — the artifacts the orchestrator authors itself via `superpowers:brainstorming` and `superpowers:writing-plans`. `bash` is denied except for read-only git inspection (`git status*`, `git diff*`, `git log*`) and the two write commands needed to commit those artifacts (`git add docs/superpowers/*`, `git commit*`). Without these narrow allows, the orchestrator cannot write its own spec/plan files and would have to delegate that to a subagent — a round-trip that risks transcription fidelity loss when GPT-5.5 prose passes through Qwen3-35B. The blanket `edit`/`bash` denies would also conflict directly with the brainstorming and writing-plans skills, which mandate that the agent running them writes the spec/plan files.
+- The orchestrator role is a **custom primary agent**, not an override of the built-in `plan` mode. Smoke testing (Amendment 2 below) showed opencode's built-in plan mode injects an unmovable system reminder forbidding edits, regardless of the agent-level permission rules — the model treats it as inviolable and refuses to attempt writes even when the rules would allow them. A custom primary inherits no such reminder and lets path-globbed permissions actually bind. The `general` and `explore` overrides remain merge-style on the built-in subagents because subagents have no equivalent built-in restriction.
+- The `orchestrator` agent's permissions are path-globbed rather than blanket-deny. `edit` covers all file mutation (`edit`, `write`, `patch` per opencode's permission semantics) and is denied except for paths under `docs/superpowers/specs/**` and `docs/superpowers/plans/**` — the artifacts the orchestrator authors itself via `superpowers:brainstorming` and `superpowers:writing-plans`. `bash` is denied except for read-only git inspection (`git status*`, `git diff*`, `git log*`) and the two write commands needed to commit those artifacts (`git add docs/superpowers/*`, `git commit*`). Without these narrow allows, the orchestrator cannot write its own spec/plan files and would have to delegate that to a subagent — a round-trip that risks transcription fidelity loss when GPT-5.5 prose passes through Qwen3-35B. The blanket `edit`/`bash` denies would also conflict directly with the brainstorming and writing-plans skills, which mandate that the agent running them writes the spec/plan files.
 - `{file:./prompts/...}` references are resolved relative to the config file, so they live in `~/.config/opencode/prompts/`.
 
 ### Prompt augmentations
 
 Two new files alongside the config.
 
-**`~/.config/opencode/prompts/plan-orchestrator.md`** — augments the built-in plan-mode prompt:
+**`~/.config/opencode/prompts/orchestrator.md`** — system prompt for the custom orchestrator agent:
 
 ```markdown
-You operate in opencode `plan` mode. You are a superpowers-aware orchestrator.
+You are the `orchestrator` primary agent in opencode — a superpowers-aware planner that runs on GPT-5.5.
 
 Hard rules:
 - You write your own spec and plan artifacts under `docs/superpowers/specs/`
@@ -203,7 +213,7 @@ The 1Password item path `op://claude/openrouter-paid/token` is a placeholder —
 
 Usage paths:
 
-- **In the devcontainer (VS Code/Cursor):** `use openrouter` in the shell (the existing 1Password env-injection function from ADR-0001), then run `opencode`. GPT-5.5 picks up the key only when the user switches to `plan` mode.
+- **In the devcontainer (VS Code/Cursor):** `use openrouter` in the shell (the existing 1Password env-injection function from ADR-0001), then run `opencode`. GPT-5.5 picks up the key only when the user switches to the `orchestrator` agent.
 - **Standalone:** `opencode-run -e openrouter`. The launcher already wires `-e`.
 - **`build` mode never touches OpenRouter.** No key is required for solo Qwen3 work; the provider's `apiKey: "{env:OPENROUTER_API_KEY}"` only resolves when an OpenRouter call is actually made.
 
@@ -226,19 +236,20 @@ Manual smoke test, ordered. There is no automated test for this — it's config 
 
 1. Create the paid OpenRouter key in 1Password under `op://claude/openrouter-paid/token`.
 2. `use openrouter` in the devcontainer shell; confirm `echo $OPENROUTER_API_KEY` resolves to a non-empty value.
-3. Launch `opencode` → Tab to `plan` mode → ask a trivial question. Confirm in opencode's session log that the request routed to OpenRouter (`openai/gpt-5.5`) and returned.
-4. Tab back to `build` mode → ask the same trivial question. Confirm it routed to `llama.cpp/qwen3.6-35b-a3b`.
-5. In `plan` mode, ask: *"Add a test to `tests/test-tools.sh` that verifies `jq` is on PATH."* Confirm:
+3. Launch `opencode` → Tab (or `/agent orchestrator`) to switch to the `orchestrator` agent → ask a trivial question. Confirm in opencode's session log that the request routed to OpenRouter (`openai/gpt-5.5`) and returned.
+4. Tab to `build` mode → ask the same trivial question. Confirm it routed to `llama.cpp/qwen3.6-35b-a3b`.
+5. In the `orchestrator` agent, ask: *"Add a test to `tests/test-tools.sh` that verifies `jq` is on PATH."* Confirm:
     - GPT-5.5 announces invoking `superpowers:brainstorming` or `superpowers:writing-plans`.
+    - The orchestrator writes the spec/plan files itself (under `docs/superpowers/specs/` and `docs/superpowers/plans/`) without prompting you to switch modes.
     - At least one `Task` call lands on `general` and runs against the local Qwen3 endpoint.
     - The subagent's report contains actual command output (e.g. the result of grepping the test file), not a paraphrased summary.
-6. Optional: ask `plan` mode to do something with two independent steps (e.g. *"add a test for `jq` and a test for `yq`"*) and confirm the Task calls go out in parallel rather than sequentially.
+6. Optional: ask the `orchestrator` to do something with two independent steps (e.g. *"add a test for `jq` and a test for `yq`"*) and confirm the Task calls go out in parallel rather than sequentially.
 
 ## Risks & mitigations
 
 | Risk | Mitigation |
 |---|---|
-| `apiKey: "{env:OPENROUTER_API_KEY}"` fails silently if the env var is unset | First call into `plan` mode fails loudly with an auth error; user runs `use openrouter` and retries. Documented in the verification steps. |
+| `apiKey: "{env:OPENROUTER_API_KEY}"` fails silently if the env var is unset | First call into the `orchestrator` agent fails loudly with an auth error; user runs `use openrouter` and retries. Documented in the verification steps. |
 | Qwen3 endpoint is single-replica, so parallel dispatch serializes anyway | Acceptable — parallel dispatch becomes a no-op rather than an error. Revisit by scaling the OCP `llmkube-system` deployment if it becomes a bottleneck. |
 | Subagent prompt augmentation conflicts with built-in opencode subagent prompts (merge vs replace semantics) | If conflicts surface, switch to writing markdown agents under `~/.config/opencode/agents/general.md`, which fully replaces the built-in prompt rather than augmenting it. |
 | Plugin propagation to subagents is not as assumed (subagents lack the `Skill` tool at runtime) | Fall back: bake the relevant skill *content* directly into the subagent prompt rather than relying on `Skill`-tool invocation. The procedural rails are what matter; the tool is just the delivery mechanism. |
@@ -252,3 +263,25 @@ Manual smoke test, ordered. There is no automated test for this — it's config 
 - A Renovate datasource for the GPT-5.5 model string (no version-pinning convention for OpenRouter model names).
 - Replacing or restructuring the existing `llama.cpp` provider entry — it is already correct.
 - Adding the orchestrator pattern to the runtime container launched by `claude-run` — that container is built from `igou-containers` and runs the Anthropic Claude Code CLI, not opencode.
+
+## Amendments
+
+Both amendments were applied during initial smoke testing. The body of this spec already reflects the final state; this section preserves the reasoning trail.
+
+### Amendment 1 — narrow `plan` permissions to allow superpowers artifacts (superseded by Amendment 2)
+
+The original draft specified blanket `edit`/`write`/`bash: deny` on the `plan` agent override. Smoke testing surfaced that `superpowers:brainstorming` and `superpowers:writing-plans` both require the agent running them to write spec/plan files — forcing a Tab to `build` mode mid-session and losing the orchestrator's GPT-5.5 context at exactly the wrong moments.
+
+The first attempted fix narrowed the `plan` agent's permissions with path globs: `edit` allowed only under `docs/superpowers/{specs,plans}/**`, `bash` allowed only for read-only git inspection plus `git add docs/superpowers/*` and `git commit*`. The opencode permission ruleset accepted the new structure (verified in session logs), and bash decisions evaluated correctly.
+
+This approach failed at the LLM layer. opencode's built-in plan mode injects an unmovable system reminder telling the model "you cannot edit." When asked to test write permissions explicitly, GPT-5.5 refused to attempt any edit, citing the higher-priority built-in instruction. The permission rules were never reached because the model never tried.
+
+**Outcome:** plan mode is structurally inappropriate for the orchestrator role. Amendment 2 supersedes this approach.
+
+### Amendment 2 — replace plan-mode override with a custom `orchestrator` primary agent
+
+Removed the `agent.plan` override entirely (plan mode reverts to opencode default — read-only with the global `model: llama.cpp/qwen3.6-35b-a3b`, useful for local-model exploration but not for orchestration). Added a new custom primary agent `orchestrator` with `mode: primary`, the GPT-5.5 model, the same path-globbed `edit`/`bash` permissions from Amendment 1, and a renamed prompt file at `~/.config/opencode/prompts/orchestrator.md`.
+
+Custom primary agents do not inherit plan-mode's hardcoded read-only system reminder, so the agent-level permission rules become the binding constraint. The user accesses the orchestrator via Tab cycling or `/agent orchestrator`. Build mode and the two subagents are unchanged.
+
+**Smoke test for the architectural switch:** ask the orchestrator agent to write a small test file under `docs/superpowers/specs/`. If the model attempts the write and opencode permits it, the architecture is correct. If the model still refuses (or opencode denies despite our allow rule), the issue is deeper than agent typing and the design needs another revision.
