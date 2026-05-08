@@ -147,6 +147,8 @@ ARG SOPS_VERSION="v3.12.2"
 ARG VIRTCTL_VERSION="v1.8.2"
 # renovate: datasource=github-releases depName=yannh/kubeconform
 ARG KUBECONFORM_VERSION="v0.7.0"
+# renovate: datasource=github-releases depName=kubernetes-sigs/kind
+ARG KIND_VERSION="v0.31.0"
 # renovate: datasource=github-releases depName=nektos/act
 ARG ACT_VERSION="v0.2.87"
 # renovate: datasource=github-releases depName=cloud-bulldozer/kube-burner
@@ -215,6 +217,10 @@ RUN set -eux; \
     # kubeconform
     curl -sSL "https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/kubeconform-linux-${ARCH}.tar.gz" \
       | tar -xz -C /usr/local/bin kubeconform; \
+    # kind
+    curl -sSL -o /usr/local/bin/kind \
+      "https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-linux-${ARCH}" && \
+    chmod +x /usr/local/bin/kind; \
     # Architecture aliases for tools that use x86_64/arm64 naming
     ARCH_X86=$([ "$ARCH_RAW" = "x86_64" ] && echo "x86_64" || echo "arm64"); \
     ARCH_GNU=$ARCH_RAW; \

@@ -32,6 +32,7 @@ declare -A TOOLS=(
     [op]="op --version"
     [virtctl]="virtctl version --client"
     [kubeconform]="kubeconform -v"
+    [kind]="kind version"
     [podman]="podman --version"
     [buildah]="buildah --version"
     [skopeo]="skopeo --version"

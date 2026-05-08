@@ -42,7 +42,7 @@ renovate.json            # Renovate config with custom regex manager for Dockerf
 | Layer | What | Where to add |
 |---|---|---|
 | Dockerfile (apt) | podman, buildah, skopeo, jq, direnv, 1Password CLI, etc. | `.devcontainer/Dockerfile` |
-| Dockerfile (binary downloads) | ArgoCD, kustomize, kubeseal, flux, SOPS, oc, virtctl, act, crc, kube-burner, tkn, mc, rclone, claude-code | `.devcontainer/Dockerfile` (ARG + RUN) |
+| Dockerfile (binary downloads) | ArgoCD, kustomize, kubeseal, flux, SOPS, oc, virtctl, kubeconform, kind, act, kube-burner, tkn, mc, rclone, claude-code | `.devcontainer/Dockerfile` (ARG + RUN) |
 | Devcontainer Features | kubectl, helm, terraform, python, node, gh, docker CLI | `devcontainer.json` `features` block |
 | pip (onCreateCommand) | Ansible ecosystem, yq, mkdocs-material | `.devcontainer/requirements.txt` |
 
