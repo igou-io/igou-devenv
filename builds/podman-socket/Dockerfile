@@ -106,9 +106,9 @@ ARG KUBECTL_VERSION="v1.36.0"
 # renovate: datasource=github-releases depName=helm/helm
 ARG HELM_VERSION="v4.1.4"
 # renovate: datasource=github-releases depName=hashicorp/terraform
-ARG TERRAFORM_VERSION="v1.14.9"
+ARG TERRAFORM_VERSION="v1.15.0"
 # renovate: datasource=github-releases depName=cli/cli
-ARG GH_VERSION="v2.91.0"
+ARG GH_VERSION="v2.92.0"
 # renovate: datasource=github-releases depName=argoproj/argo-cd
 ARG ARGOCD_VERSION="v3.3.8"
 # renovate: datasource=github-releases depName=kubernetes-sigs/kustomize extractVersion=^kustomize/(?<version>.*)$
@@ -128,7 +128,7 @@ ARG ACT_VERSION="v0.2.87"
 # renovate: datasource=github-releases depName=cloud-bulldozer/kube-burner
 ARG KUBE_BURNER_VERSION="v2.6.1"
 # renovate: datasource=github-releases depName=kube-burner/kube-burner-ocp
-ARG KUBE_BURNER_OCP_VERSION="v1.11.8"
+ARG KUBE_BURNER_OCP_VERSION="v1.11.11"
 # renovate: datasource=github-releases depName=tektoncd/cli
 ARG TKN_VERSION="v0.44.1"
 # renovate: datasource=github-releases depName=rclone/rclone
