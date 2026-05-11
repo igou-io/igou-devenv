@@ -110,7 +110,7 @@ ARG TERRAFORM_VERSION="v1.15.0"
 # renovate: datasource=github-releases depName=cli/cli
 ARG GH_VERSION="v2.92.0"
 # renovate: datasource=github-releases depName=argoproj/argo-cd
-ARG ARGOCD_VERSION="v3.3.8"
+ARG ARGOCD_VERSION="v3.3.9"
 # renovate: datasource=github-releases depName=kubernetes-sigs/kustomize extractVersion=^kustomize/(?<version>.*)$
 ARG KUSTOMIZE_VERSION="v5.8.1"
 # renovate: datasource=github-releases depName=bitnami-labs/sealed-secrets
