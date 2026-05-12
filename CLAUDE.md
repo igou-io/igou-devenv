@@ -24,7 +24,10 @@ adr/                     # Architecture Decision Records
 bin/                     # Custom scripts (symlinked to ~/bin, on PATH)
 │   ├── claude-run       # Launch script for the Claude container
 │   ├── cursor-run       # Launch script for the Cursor agent container
-│   └── argocd-refresh-all
+│   ├── opencode-run     # Launch script for the opencode agent container
+│   ├── argocd-refresh-all
+│   ├── renovate-validate
+│   └── renovate-dry-run
 envs/                    # 1Password env files (op:// references only, no secrets) for use() function
 Makefile                 # Devcontainer lifecycle: build, up, down, shell, test, renovate targets
 tests/
