@@ -385,11 +385,13 @@ RUN set -eux; \
     BASE="https://github.com/getsops/sops/releases/download/${SOPS_VERSION}"; \
     WORK=$(mktemp -d); \
     cd "$WORK"; \
-    curl -fsSL -o "$BIN"                       "${BASE}/${BIN}"; \
-    curl -fsSL -o checksums.txt                "${BASE}/sops-${SOPS_VERSION}.checksums.txt"; \
-    curl -fsSL -o checksums.sigstore.json      "${BASE}/sops-${SOPS_VERSION}.checksums.sigstore.json"; \
+    curl -fsSL -o "$BIN"                "${BASE}/${BIN}"; \
+    curl -fsSL -o checksums.txt         "${BASE}/sops-${SOPS_VERSION}.checksums.txt"; \
+    curl -fsSL -o checksums.txt.sig     "${BASE}/sops-${SOPS_VERSION}.checksums.sig"; \
+    curl -fsSL -o checksums.txt.pem     "${BASE}/sops-${SOPS_VERSION}.checksums.pem"; \
     cosign verify-blob \
-      --bundle checksums.sigstore.json \
+      --certificate checksums.txt.pem \
+      --signature checksums.txt.sig \
       --certificate-identity-regexp "${SOPS_CERT_IDENTITY_REGEXP}" \
       --certificate-oidc-issuer "${SOPS_CERT_OIDC_ISSUER}" \
       checksums.txt; \
