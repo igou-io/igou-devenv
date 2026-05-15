@@ -313,10 +313,56 @@ RUN set -eux; \
     "$HOME/.local/bin/claude" --version
 USER root
 
-# Cursor agent CLI
+# Refuse to install unsigned upstream releases (Cursor, opencode) younger than
+# this many days. Defense-in-depth against compromised releases that haven't
+# been publicly noticed yet — mirrors `minimumReleaseAge: 10` in
+# renovate-base.json at the build layer, so it applies even if Renovate is
+# bypassed by a direct edit. Override at build time with:
+#   --build-arg MINIMUM_RELEASE_AGE_DAYS=0
+ARG MINIMUM_RELEASE_AGE_DAYS=10
+
+# Cursor agent CLI — pinned + SHA256-verified + release-age gated. No upstream
+# SHASUMS file is published; SHAs must be re-captured on version bumps.
+# Manual update process:
+#   curl -sL https://cursor.com/install | grep -oP "lab/\K[0-9a-zA-Z.-]+"
+#   curl -sL "https://downloads.cursor.com/lab/<VER>/linux/x64/agent-cli-package.tar.gz" | sha256sum
+#   (repeat for arm64)
+ARG CURSOR_AGENT_VERSION="2026.05.09-0afadcc"
+ARG CURSOR_AGENT_SHA256_X64="20dd07cdb1e2e6baef8bb7e08ca70ce6d9754f84c9f2562562d402e76344f57c"
+ARG CURSOR_AGENT_SHA256_ARM64="c684f2a8fecdcaaf9db763b2451e666f707c150c3b94f66ebc16f405c556fb87"
 USER igou
-RUN curl -fsSL https://cursor.com/install | bash && \
-    ~/.local/bin/agent --version
+RUN set -eux; \
+    ARCH_RAW=$(uname -m); \
+    case "$ARCH_RAW" in \
+      x86_64)  ARCH="x64";   EXPECTED_SHA="${CURSOR_AGENT_SHA256_X64}" ;; \
+      aarch64) ARCH="arm64"; EXPECTED_SHA="${CURSOR_AGENT_SHA256_ARM64}" ;; \
+      *) echo "Unsupported arch: $ARCH_RAW" >&2; exit 1 ;; \
+    esac; \
+    # Release-age gate: Cursor version strings are YYYY.MM.DD-<short-sha>, so we
+    # parse the date directly from the pinned version — no upstream API call.
+    DATE_PART="${CURSOR_AGENT_VERSION%-*}"; \
+    case "$DATE_PART" in \
+      [0-9][0-9][0-9][0-9].[0-9][0-9].[0-9][0-9]) ;; \
+      *) echo "Unexpected Cursor version format (expected YYYY.MM.DD-<sha>): ${CURSOR_AGENT_VERSION}" >&2; exit 1 ;; \
+    esac; \
+    RELEASE_EPOCH=$(date -u -d "$(echo "$DATE_PART" | tr . -)" +%s); \
+    AGE_DAYS=$(( ($(date -u +%s) - RELEASE_EPOCH) / 86400 )); \
+    if [ "$AGE_DAYS" -lt "${MINIMUM_RELEASE_AGE_DAYS}" ]; then \
+      echo "Cursor agent ${CURSOR_AGENT_VERSION} is only ${AGE_DAYS} days old (minimum: ${MINIMUM_RELEASE_AGE_DAYS}). Wait, or override with --build-arg MINIMUM_RELEASE_AGE_DAYS=0." >&2; \
+      exit 1; \
+    fi; \
+    URL="https://downloads.cursor.com/lab/${CURSOR_AGENT_VERSION}/linux/${ARCH}/agent-cli-package.tar.gz"; \
+    DEST="$HOME/.local/share/cursor-agent/versions/${CURSOR_AGENT_VERSION}"; \
+    WORK=$(mktemp -d); \
+    cd "$WORK"; \
+    curl -fsSL -o agent.tar.gz "$URL"; \
+    echo "${EXPECTED_SHA}  agent.tar.gz" | sha256sum -c -; \
+    mkdir -p "$DEST" "$HOME/.local/bin"; \
+    tar -xzf agent.tar.gz -C "$DEST" --strip-components=1; \
+    ln -sfn "$DEST/cursor-agent" "$HOME/.local/bin/agent"; \
+    ln -sfn "$DEST/cursor-agent" "$HOME/.local/bin/cursor-agent"; \
+    cd / && rm -rf "$WORK"; \
+    "$HOME/.local/bin/agent" --version
 USER root
 
 # opencode CLI
