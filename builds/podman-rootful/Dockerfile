@@ -122,6 +122,29 @@ RUN set -eux; \
     chmod +x /usr/local/bin/cosign; \
     cosign version
 
+# slsa-verifier — TOFU SHA bootstrap (same chicken-and-egg as cosign).
+# Used for argocd: cosign verify-blob-attestation has a 128MB blob size
+# limit that argocd's 217MB binary exceeds; slsa-verifier is purpose-built
+# for SLSA provenance and is also what argocd's docs recommend.
+# Manual SHA update on version bump:
+#   for arch in amd64 arm64; do curl -sL "https://github.com/slsa-framework/slsa-verifier/releases/download/<ver>/slsa-verifier-linux-${arch}" | sha256sum; done
+# renovate: datasource=github-releases depName=slsa-framework/slsa-verifier
+ARG SLSA_VERIFIER_VERSION="v2.7.1"
+ARG SLSA_VERIFIER_SHA256_AMD64="946dbec729094195e88ef78e1734324a27869f03e2c6bd2f61cbc06bd5350339"
+ARG SLSA_VERIFIER_SHA256_ARM64="5d3b2349ede7bfec19e7a21569f18b9f7410145ad12e9584b175370669e14061"
+RUN set -eux; \
+    ARCH_RAW=$(uname -m); \
+    case "$ARCH_RAW" in \
+      x86_64)  ARCH="amd64"; EXPECTED_SHA="${SLSA_VERIFIER_SHA256_AMD64}" ;; \
+      aarch64) ARCH="arm64"; EXPECTED_SHA="${SLSA_VERIFIER_SHA256_ARM64}" ;; \
+      *) echo "Unsupported arch: $ARCH_RAW" >&2; exit 1 ;; \
+    esac; \
+    URL="https://github.com/slsa-framework/slsa-verifier/releases/download/${SLSA_VERIFIER_VERSION}/slsa-verifier-linux-${ARCH}"; \
+    curl -fsSL -o /usr/local/bin/slsa-verifier "$URL"; \
+    echo "${EXPECTED_SHA}  /usr/local/bin/slsa-verifier" | sha256sum -c -; \
+    chmod +x /usr/local/bin/slsa-verifier; \
+    slsa-verifier version
+
 # Node.js — out of H3 scope (not in audit list). Preserves existing
 # unverified install.
 # renovate: datasource=node-version depName=node
@@ -238,12 +261,12 @@ RUN set -eux; \
     cd / && rm -rf "$WORK"; \
     gh --version
 
-# argocd — pinned + SLSA L3 attestation-verified via cosign.
-# Trust anchor: cosign cert-identity-regexp + GitHub OIDC issuer.
+# argocd — pinned + SLSA L3 attestation-verified via slsa-verifier.
+# slsa-verifier is argocd's documented verification tool. Cosign's
+# verify-blob-attestation can't be used here — it has a 128MB blob size
+# limit that the 217MB argocd binary exceeds.
 # renovate: datasource=github-releases depName=argoproj/argo-cd
 ARG ARGOCD_VERSION="v3.3.9"
-ARG ARGOCD_CERT_IDENTITY_REGEXP="^https://github.com/argoproj/argo-cd/.*"
-ARG ARGOCD_CERT_OIDC_ISSUER="https://token.actions.githubusercontent.com"
 RUN set -eux; \
     ARCH_RAW=$(uname -m); \
     case "$ARCH_RAW" in \
@@ -255,15 +278,13 @@ RUN set -eux; \
     BASE="https://github.com/argoproj/argo-cd/releases/download/${ARGOCD_VERSION}"; \
     WORK=$(mktemp -d); \
     cd "$WORK"; \
-    curl -fsSL -o "$BIN"                "${BASE}/${BIN}"; \
-    curl -fsSL -o cli_checksums.txt     "${BASE}/cli_checksums.txt"; \
+    curl -fsSL -o "$BIN"                  "${BASE}/${BIN}"; \
+    curl -fsSL -o cli_checksums.txt       "${BASE}/cli_checksums.txt"; \
     curl -fsSL -o argocd-cli.intoto.jsonl "${BASE}/argocd-cli.intoto.jsonl"; \
-    cosign verify-blob-attestation \
-      --type slsaprovenance \
-      --bundle argocd-cli.intoto.jsonl \
-      --certificate-identity-regexp "${ARGOCD_CERT_IDENTITY_REGEXP}" \
-      --certificate-oidc-issuer "${ARGOCD_CERT_OIDC_ISSUER}" \
-      "$BIN"; \
+    slsa-verifier verify-artifact "$BIN" \
+      --provenance-path argocd-cli.intoto.jsonl \
+      --source-uri github.com/argoproj/argo-cd \
+      --source-tag "${ARGOCD_VERSION}"; \
     grep " ${BIN}\$" cli_checksums.txt | sha256sum -c -; \
     install -m 0755 "$BIN" /usr/local/bin/argocd; \
     cd / && rm -rf "$WORK"; \
