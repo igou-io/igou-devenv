@@ -449,9 +449,11 @@ RUN set -eux; \
     gpg --list-keys --with-colons --with-fingerprint \
       | awk -F: '$1=="fpr"{print $10}' \
       | grep -qFx "${OC_PGP_FPR}"; \
-    curl -fsSL -o sha256sum.txt     "${BASE}/sha256sum.txt"; \
     curl -fsSL -o sha256sum.txt.gpg "${BASE}/sha256sum.txt.gpg"; \
-    gpg --batch --verify sha256sum.txt.gpg sha256sum.txt; \
+    # sha256sum.txt.gpg is a binary inline-signed OpenPGP message (NOT a detached
+    # signature). --decrypt extracts the plaintext AND verifies the signature in
+    # one step; exit 0 means the signature was good and signed by our anchored key.
+    gpg --batch --output sha256sum.txt --decrypt sha256sum.txt.gpg; \
     curl -fsSL -o "$TARBALL" "${BASE}/${TARBALL}"; \
     grep " ${TARBALL}\$" sha256sum.txt | sha256sum -c -; \
     tar -xz -C /usr/local/bin oc -f "$TARBALL"; \
