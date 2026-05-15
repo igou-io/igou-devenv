@@ -12,5 +12,14 @@
   "automergeType": "pr",
   "minimumReleaseAge": "10 days",
   "schedule": ["before 11pm on sunday"],
-  "separateMajorMinor": false
+  "separateMajorMinor": false,
+  "customDatasources": {
+    "openshift-mirror": {
+      "defaultRegistryUrlTemplate": "https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/stable-4.21/release.txt",
+      "format": "plain",
+      "transformTemplates": [
+        "{ \"releases\": [ { \"version\": $match($, /^Version:\\s+(\\S+)/).groups[0] } ] }"
+      ]
+    }
+  }
 }
