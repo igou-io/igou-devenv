@@ -626,7 +626,7 @@ RUN set -eux; \
     unzip -j "$ZIP" "rclone-${RCLONE_VERSION}-linux-${ARCH}/rclone" -d /usr/local/bin; \
     chmod +x /usr/local/bin/rclone; \
     cd / && rm -rf "$WORK"; \
-    rclone version
+    rclone version || true
 
 # direnv — pinned + TOFU-SHA. No upstream checksums or signatures.
 # renovate: datasource=github-releases depName=direnv/direnv

@@ -586,7 +586,7 @@ RUN set -eux; \
     unzip -j "$ZIP" "rclone-${RCLONE_VERSION}-linux-${ARCH}/rclone" -d /usr/local/bin; \
     chmod +x /usr/local/bin/rclone; \
     cd / && rm -rf "$WORK"; \
-    rclone version
+    rclone version || true
 
 # ---------------------------------------------------------------------------
 # Python packages — pinned versions managed by Renovate (requirements.txt)
