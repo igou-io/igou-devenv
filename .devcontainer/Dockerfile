@@ -268,9 +268,49 @@ RUN mkdir -p /home/igou/.config/containers
 COPY containers-storage.conf /home/igou/.config/containers/storage.conf
 RUN chown -R igou:igou /home/igou/.config
 
-# Claude Code — native binary install (replaces deprecated npm package)
+# Claude Code — pinned download, verified via Anthropic-signed SHASUMS256.txt.sig.
+# Trust anchor is the pinned key fingerprint below: the key is fetched from
+# Anthropic's HTTPS endpoint at build time but rejected if its fingerprint
+# doesn't match. An attacker would need to both control downloads.claude.ai
+# AND produce a colliding SHA-1 fingerprint (computationally infeasible).
+# Key UID (out-of-band-verified): "Anthropic Claude Code Release Signing <security@anthropic.com>"
+# renovate: datasource=github-releases depName=anthropics/claude-code
+ARG CLAUDE_CODE_VERSION="v2.1.142"
+ARG CLAUDE_CODE_KEY_FINGERPRINT="31DDDE24DDFAB679F42D7BD2BAA929FF1A7ECACE"
+ARG CLAUDE_CODE_KEY_URL="https://downloads.claude.ai/keys/claude-code.asc"
 USER igou
-RUN curl -fsSL https://claude.ai/install.sh | bash
+RUN set -eux; \
+    ARCH_RAW=$(uname -m); \
+    case "$ARCH_RAW" in \
+      x86_64)  ARCH="x64" ;; \
+      aarch64) ARCH="arm64" ;; \
+      *) echo "Unsupported arch: $ARCH_RAW" >&2; exit 1 ;; \
+    esac; \
+    TARBALL="claude-linux-${ARCH}.tar.gz"; \
+    BASE="https://github.com/anthropics/claude-code/releases/download/${CLAUDE_CODE_VERSION}"; \
+    WORK=$(mktemp -d); \
+    export GNUPGHOME="$WORK/gnupg"; \
+    mkdir -p -m 0700 "$GNUPGHOME"; \
+    cd "$WORK"; \
+    curl -fsSL -o key.asc "${CLAUDE_CODE_KEY_URL}"; \
+    gpg --batch --import key.asc; \
+    # Reject any key whose fingerprint doesn't match the pinned anchor.
+    gpg --list-keys --with-colons --with-fingerprint \
+      | awk -F: '$1=="fpr"{print $10}' \
+      | grep -qFx "${CLAUDE_CODE_KEY_FINGERPRINT}"; \
+    curl -fsSL -o "$TARBALL" "${BASE}/${TARBALL}"; \
+    curl -fsSL -o SHASUMS256.txt "${BASE}/SHASUMS256.txt"; \
+    curl -fsSL -o SHASUMS256.txt.sig "${BASE}/SHASUMS256.txt.sig"; \
+    # Require not just a valid signature, but one from our pinned key.
+    # gpg's --status-fd emits "VALIDSIG <fpr>" only on a good signature from <fpr>.
+    gpg --batch --status-fd 1 --verify SHASUMS256.txt.sig SHASUMS256.txt 2>/dev/null \
+      | grep -qF "VALIDSIG ${CLAUDE_CODE_KEY_FINGERPRINT}"; \
+    grep " ${TARBALL}\$" SHASUMS256.txt | sha256sum -c -; \
+    mkdir -p "$HOME/.local/share/claude" "$HOME/.local/bin"; \
+    tar -xzf "$TARBALL" -C "$HOME/.local/share/claude"; \
+    ln -sfn "$HOME/.local/share/claude/claude" "$HOME/.local/bin/claude"; \
+    cd / && rm -rf "$WORK"; \
+    "$HOME/.local/bin/claude" --version
 USER root
 
 # Cursor agent CLI
