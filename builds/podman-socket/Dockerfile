@@ -406,7 +406,7 @@ RUN set -eux; \
 # renovate: datasource=custom.openshift-mirror depName=oc
 ARG OC_VERSION="4.21.16"
 ARG OC_PGP_FPR="567E347AD0044ADE55BA8A5F199E2F91FD431D51"
-ARG OC_PGP_URL="https://access.redhat.com/sites/default/files/pages/attachments/RPM-GPG-KEY-redhat-release"
+ARG OC_PGP_URL="https://www.redhat.com/security/data/fd431d51.txt"
 RUN set -eux; \
     ARCH_RAW=$(uname -m); \
     case "$ARCH_RAW" in \
