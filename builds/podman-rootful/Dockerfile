@@ -177,8 +177,7 @@ RUN set -eux; \
     gpg --list-keys --with-colons --with-fingerprint \
       | awk -F: '$1=="fpr"{print $10}' \
       | grep -qFx "${HELM_PGP_FPR}"; \
-    gpg --batch --status-fd 1 --verify "${TARBALL}.asc" "$TARBALL" 2>/dev/null \
-      | grep -qF "VALIDSIG ${HELM_PGP_FPR}"; \
+    gpg --batch --verify "${TARBALL}.asc" "$TARBALL"; \
     tar -xz --strip-components=1 -C /usr/local/bin "linux-${ARCH}/helm" -f "$TARBALL"; \
     cd / && rm -rf "$WORK"; \
     helm version --short
@@ -210,8 +209,7 @@ RUN set -eux; \
       | grep -qFx "${TERRAFORM_PGP_FPR}"; \
     curl -fsSL -o SHA256SUMS     "${BASE}/terraform_${TF_VER_BARE}_SHA256SUMS"; \
     curl -fsSL -o SHA256SUMS.sig "${BASE}/terraform_${TF_VER_BARE}_SHA256SUMS.sig"; \
-    gpg --batch --status-fd 1 --verify SHA256SUMS.sig SHA256SUMS 2>/dev/null \
-      | grep -qF "VALIDSIG ${TERRAFORM_PGP_FPR}"; \
+    gpg --batch --verify SHA256SUMS.sig SHA256SUMS; \
     curl -fsSL -o "$ZIP" "${BASE}/${ZIP}"; \
     grep " ${ZIP}\$" SHA256SUMS | sha256sum -c -; \
     unzip -o "$ZIP" -d /usr/local/bin; \
@@ -408,8 +406,7 @@ RUN set -eux; \
       | grep -qFx "${OC_PGP_FPR}"; \
     curl -fsSL -o sha256sum.txt     "${BASE}/sha256sum.txt"; \
     curl -fsSL -o sha256sum.txt.gpg "${BASE}/sha256sum.txt.gpg"; \
-    gpg --batch --status-fd 1 --verify sha256sum.txt.gpg sha256sum.txt 2>/dev/null \
-      | grep -qF "VALIDSIG ${OC_PGP_FPR}"; \
+    gpg --batch --verify sha256sum.txt.gpg sha256sum.txt; \
     curl -fsSL -o "$TARBALL" "${BASE}/${TARBALL}"; \
     grep " ${TARBALL}\$" sha256sum.txt | sha256sum -c -; \
     tar -xz -C /usr/local/bin oc -f "$TARBALL"; \
