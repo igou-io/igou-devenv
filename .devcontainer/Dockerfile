@@ -185,14 +185,16 @@ RUN set -eux; \
       *) echo "Unsupported arch: $ARCH_RAW" >&2; exit 1 ;; \
     esac; \
     TARBALL="helm-${HELM_VERSION}-linux-${ARCH}.tar.gz"; \
-    BASE="https://get.helm.sh"; \
+    TARBALL_URL="https://get.helm.sh/${TARBALL}"; \
+    ASC_URL="https://github.com/helm/helm/releases/download/${HELM_VERSION}/${TARBALL}.asc"; \
+    KEYS_URL="https://raw.githubusercontent.com/helm/helm/main/KEYS"; \
     WORK=$(mktemp -d); \
     export GNUPGHOME="$WORK/gnupg"; \
     mkdir -p -m 0700 "$GNUPGHOME"; \
     cd "$WORK"; \
-    curl -fsSL -o "$TARBALL" "${BASE}/${TARBALL}"; \
-    curl -fsSL -o "${TARBALL}.asc" "${BASE}/${TARBALL}.asc"; \
-    curl -fsSL -o key.asc "https://raw.githubusercontent.com/helm/helm/main/KEYS"; \
+    curl -fsSL -o "$TARBALL" "$TARBALL_URL"; \
+    curl -fsSL -o "${TARBALL}.asc" "$ASC_URL"; \
+    curl -fsSL -o key.asc "$KEYS_URL"; \
     gpg --batch --import key.asc; \
     gpg --list-keys --with-colons --with-fingerprint \
       | awk -F: '$1=="fpr"{print $10}' \
