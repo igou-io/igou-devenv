@@ -123,6 +123,27 @@ RUN rm -f /etc/pam.d/system-auth && \
 # CLI tools — pinned versions managed by Renovate
 # ---------------------------------------------------------------------------
 
+# cosign — sigstore CLI. Bootstrap via TOFU SHA256 because we can't verify
+# cosign with cosign yet. Once installed, used to verify flux/sops/argocd.
+# Manual SHA update on version bump:
+#   curl -sL https://github.com/sigstore/cosign/releases/download/<ver>/cosign_checksums.txt | grep -E 'cosign-linux-(amd64|arm64)$'
+# renovate: datasource=github-releases depName=sigstore/cosign
+ARG COSIGN_VERSION="v3.0.6"
+ARG COSIGN_SHA256_AMD64="c956e5dfcac53d52bcf058360d579472f0c1d2d9b69f55209e256fe7783f4c74"
+ARG COSIGN_SHA256_ARM64="bedac92e8c3729864e13d4a17048007cfafa79d5deca993a43a90ffe018ef2b8"
+RUN set -eux; \
+    ARCH_RAW=$(uname -m); \
+    case "$ARCH_RAW" in \
+      x86_64)  ARCH="amd64"; EXPECTED_SHA="${COSIGN_SHA256_AMD64}" ;; \
+      aarch64) ARCH="arm64"; EXPECTED_SHA="${COSIGN_SHA256_ARM64}" ;; \
+      *) echo "Unsupported arch: $ARCH_RAW" >&2; exit 1 ;; \
+    esac; \
+    URL="https://github.com/sigstore/cosign/releases/download/${COSIGN_VERSION}/cosign-linux-${ARCH}"; \
+    curl -fsSL -o /usr/local/bin/cosign "$URL"; \
+    echo "${EXPECTED_SHA}  /usr/local/bin/cosign" | sha256sum -c -; \
+    chmod +x /usr/local/bin/cosign; \
+    cosign version
+
 # renovate: datasource=node-version depName=node
 ARG NODE_VERSION="v24.15.0"
 # renovate: datasource=github-releases depName=kubernetes/kubernetes
