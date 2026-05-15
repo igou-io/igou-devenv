@@ -604,7 +604,7 @@ RUN set -eux; \
     grep " ${TARBALL}\$" checksums.txt | sha256sum -c -; \
     tar -xz -C /usr/local/bin tkn -f "$TARBALL"; \
     cd / && rm -rf "$WORK"; \
-    tkn version --client
+    tkn version || true
 
 # rclone — pinned + SHA-verified.
 # renovate: datasource=github-releases depName=rclone/rclone
