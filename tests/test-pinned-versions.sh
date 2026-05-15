@@ -42,6 +42,12 @@ assert_version "claude"       "claude --version"     "$(get_arg CLAUDE_CODE_VERS
 assert_version "cursor-agent" "agent --version"      "$(get_arg CURSOR_AGENT_VERSION)"
 assert_version "opencode"     "opencode --version"   "$(get_arg OPENCODE_VERSION)"
 
+# H3 tier spot-checks — one tool per verification tier to catch drift.
+assert_version "terraform"    "terraform version"        "$(get_arg TERRAFORM_VERSION)"
+assert_version "flux"         "flux --version"           "$(get_arg FLUX_VERSION)"
+assert_version "kubectl"      "kubectl version --client" "$(get_arg KUBECTL_VERSION)"
+assert_version "direnv"       "direnv version"           "$(get_arg DIRENV_VERSION)"
+
 echo ""
 echo "==> Results: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]
