@@ -230,8 +230,8 @@ RUN chown -R igou:igou /home/igou/.config
 # See .devcontainer/Dockerfile for the full trust-anchor rationale.
 # renovate: datasource=github-releases depName=anthropics/claude-code
 ARG CLAUDE_CODE_VERSION="v2.1.142"
-ARG CLAUDE_CODE_KEY_FINGERPRINT="31DDDE24DDFAB679F42D7BD2BAA929FF1A7ECACE"
-ARG CLAUDE_CODE_KEY_URL="https://downloads.claude.ai/keys/claude-code.asc"
+ARG CLAUDE_CODE_PGP_FPR="31DDDE24DDFAB679F42D7BD2BAA929FF1A7ECACE"
+ARG CLAUDE_CODE_PGP_URL="https://downloads.claude.ai/keys/claude-code.asc"
 USER igou
 RUN set -eux; \
     ARCH_RAW=$(uname -m); \
@@ -246,16 +246,16 @@ RUN set -eux; \
     export GNUPGHOME="$WORK/gnupg"; \
     mkdir -p -m 0700 "$GNUPGHOME"; \
     cd "$WORK"; \
-    curl -fsSL -o key.asc "${CLAUDE_CODE_KEY_URL}"; \
+    curl -fsSL -o key.asc "${CLAUDE_CODE_PGP_URL}"; \
     gpg --batch --import key.asc; \
     gpg --list-keys --with-colons --with-fingerprint \
       | awk -F: '$1=="fpr"{print $10}' \
-      | grep -qFx "${CLAUDE_CODE_KEY_FINGERPRINT}"; \
+      | grep -qFx "${CLAUDE_CODE_PGP_FPR}"; \
     curl -fsSL -o "$TARBALL" "${BASE}/${TARBALL}"; \
     curl -fsSL -o SHASUMS256.txt "${BASE}/SHASUMS256.txt"; \
     curl -fsSL -o SHASUMS256.txt.sig "${BASE}/SHASUMS256.txt.sig"; \
     gpg --batch --status-fd 1 --verify SHASUMS256.txt.sig SHASUMS256.txt 2>/dev/null \
-      | grep -qF "VALIDSIG ${CLAUDE_CODE_KEY_FINGERPRINT}"; \
+      | grep -qF "VALIDSIG ${CLAUDE_CODE_PGP_FPR}"; \
     grep " ${TARBALL}\$" SHASUMS256.txt | sha256sum -c -; \
     mkdir -p "$HOME/.local/share/claude" "$HOME/.local/bin"; \
     tar -xzf "$TARBALL" -C "$HOME/.local/share/claude"; \
@@ -272,9 +272,9 @@ ARG MINIMUM_RELEASE_AGE_DAYS=10
 # Cursor agent CLI — pinned + SHA256-verified + release-age gated. No upstream
 # signature available (feature requested upstream since 2023, still unimplemented).
 # See .devcontainer/Dockerfile for the manual SHA-update procedure.
-ARG CURSOR_AGENT_VERSION="2026.05.09-0afadcc"
-ARG CURSOR_AGENT_SHA256_X64="20dd07cdb1e2e6baef8bb7e08ca70ce6d9754f84c9f2562562d402e76344f57c"
-ARG CURSOR_AGENT_SHA256_ARM64="c684f2a8fecdcaaf9db763b2451e666f707c150c3b94f66ebc16f405c556fb87"
+ARG CURSOR_AGENT_VERSION="2026.05.01-eea359f"
+ARG CURSOR_AGENT_SHA256_X64="63b17a0ec0f4b73bf3ed540a24d51391bfe01c37d5961dffadcbbf1a8b02499c"
+ARG CURSOR_AGENT_SHA256_ARM64="8c06f06834c7472b68df07353462889c7b284b280a2a3a323ea1dfd26972ade9"
 USER igou
 RUN set -eux; \
     ARCH_RAW=$(uname -m); \
