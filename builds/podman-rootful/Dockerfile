@@ -230,15 +230,86 @@ COPY containers-storage.conf /etc/containers/storage.conf
 COPY containers.conf /etc/containers/containers.conf
 RUN chown -R igou:igou /home/igou/.config
 
-# Claude Code — native binary install (replaces deprecated npm package)
+# Claude Code — pinned download, PGP-verified against Anthropic's published key.
+# See .devcontainer/Dockerfile for the full trust-anchor rationale.
+# renovate: datasource=github-releases depName=anthropics/claude-code
+ARG CLAUDE_CODE_VERSION="v2.1.142"
+ARG CLAUDE_CODE_PGP_FPR="31DDDE24DDFAB679F42D7BD2BAA929FF1A7ECACE"
+ARG CLAUDE_CODE_PGP_URL="https://downloads.claude.ai/keys/claude-code.asc"
 USER igou
-RUN curl -fsSL https://claude.ai/install.sh | bash
+RUN set -eux; \
+    ARCH_RAW=$(uname -m); \
+    case "$ARCH_RAW" in \
+      x86_64)  ARCH="x64" ;; \
+      aarch64) ARCH="arm64" ;; \
+      *) echo "Unsupported arch: $ARCH_RAW" >&2; exit 1 ;; \
+    esac; \
+    TARBALL="claude-linux-${ARCH}.tar.gz"; \
+    BASE="https://github.com/anthropics/claude-code/releases/download/${CLAUDE_CODE_VERSION}"; \
+    WORK=$(mktemp -d); \
+    export GNUPGHOME="$WORK/gnupg"; \
+    mkdir -p -m 0700 "$GNUPGHOME"; \
+    cd "$WORK"; \
+    curl -fsSL -o key.asc "${CLAUDE_CODE_PGP_URL}"; \
+    gpg --batch --import key.asc; \
+    gpg --list-keys --with-colons --with-fingerprint \
+      | awk -F: '$1=="fpr"{print $10}' \
+      | grep -qFx "${CLAUDE_CODE_PGP_FPR}"; \
+    curl -fsSL -o "$TARBALL" "${BASE}/${TARBALL}"; \
+    curl -fsSL -o SHASUMS256.txt "${BASE}/SHASUMS256.txt"; \
+    curl -fsSL -o SHASUMS256.txt.sig "${BASE}/SHASUMS256.txt.sig"; \
+    gpg --batch --status-fd 1 --verify SHASUMS256.txt.sig SHASUMS256.txt 2>/dev/null \
+      | grep -qF "VALIDSIG ${CLAUDE_CODE_PGP_FPR}"; \
+    grep " ${TARBALL}\$" SHASUMS256.txt | sha256sum -c -; \
+    mkdir -p "$HOME/.local/share/claude" "$HOME/.local/bin"; \
+    tar -xzf "$TARBALL" -C "$HOME/.local/share/claude"; \
+    ln -sfn "$HOME/.local/share/claude/claude" "$HOME/.local/bin/claude"; \
+    cd / && rm -rf "$WORK"; \
+    "$HOME/.local/bin/claude" --version
 USER root
 
-# Cursor agent CLI
+# Refuse to install unsigned upstream releases younger than this many days.
+# See .devcontainer/Dockerfile for full rationale. Override with:
+#   --build-arg MINIMUM_RELEASE_AGE_DAYS=0
+ARG MINIMUM_RELEASE_AGE_DAYS=10
+
+# Cursor agent CLI — pinned + SHA256-verified + release-age gated. No upstream
+# signature available (feature requested upstream since 2023, still unimplemented).
+# See .devcontainer/Dockerfile for the manual SHA-update procedure.
+ARG CURSOR_AGENT_VERSION="2026.05.01-eea359f"
+ARG CURSOR_AGENT_SHA256_X64="63b17a0ec0f4b73bf3ed540a24d51391bfe01c37d5961dffadcbbf1a8b02499c"
+ARG CURSOR_AGENT_SHA256_ARM64="8c06f06834c7472b68df07353462889c7b284b280a2a3a323ea1dfd26972ade9"
 USER igou
-RUN curl -fsSL https://cursor.com/install | bash && \
-    ~/.local/bin/agent --version
+RUN set -eux; \
+    ARCH_RAW=$(uname -m); \
+    case "$ARCH_RAW" in \
+      x86_64)  ARCH="x64";   EXPECTED_SHA="${CURSOR_AGENT_SHA256_X64}" ;; \
+      aarch64) ARCH="arm64"; EXPECTED_SHA="${CURSOR_AGENT_SHA256_ARM64}" ;; \
+      *) echo "Unsupported arch: $ARCH_RAW" >&2; exit 1 ;; \
+    esac; \
+    DATE_PART="${CURSOR_AGENT_VERSION%-*}"; \
+    case "$DATE_PART" in \
+      [0-9][0-9][0-9][0-9].[0-9][0-9].[0-9][0-9]) ;; \
+      *) echo "Unexpected Cursor version format (expected YYYY.MM.DD-<sha>): ${CURSOR_AGENT_VERSION}" >&2; exit 1 ;; \
+    esac; \
+    RELEASE_EPOCH=$(date -u -d "$(echo "$DATE_PART" | tr . -)" +%s); \
+    AGE_DAYS=$(( ($(date -u +%s) - RELEASE_EPOCH) / 86400 )); \
+    if [ "$AGE_DAYS" -lt "${MINIMUM_RELEASE_AGE_DAYS}" ]; then \
+      echo "Cursor agent ${CURSOR_AGENT_VERSION} is only ${AGE_DAYS} days old (minimum: ${MINIMUM_RELEASE_AGE_DAYS}). Wait, or override with --build-arg MINIMUM_RELEASE_AGE_DAYS=0." >&2; \
+      exit 1; \
+    fi; \
+    URL="https://downloads.cursor.com/lab/${CURSOR_AGENT_VERSION}/linux/${ARCH}/agent-cli-package.tar.gz"; \
+    DEST="$HOME/.local/share/cursor-agent/versions/${CURSOR_AGENT_VERSION}"; \
+    WORK=$(mktemp -d); \
+    cd "$WORK"; \
+    curl -fsSL -o agent.tar.gz "$URL"; \
+    echo "${EXPECTED_SHA}  agent.tar.gz" | sha256sum -c -; \
+    mkdir -p "$DEST" "$HOME/.local/bin"; \
+    tar -xzf agent.tar.gz -C "$DEST" --strip-components=1; \
+    ln -sfn "$DEST/cursor-agent" "$HOME/.local/bin/agent"; \
+    ln -sfn "$DEST/cursor-agent" "$HOME/.local/bin/cursor-agent"; \
+    cd / && rm -rf "$WORK"; \
+    "$HOME/.local/bin/agent" --version
 USER root
 
 WORKDIR /workspace

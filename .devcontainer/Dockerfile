@@ -268,22 +268,148 @@ RUN mkdir -p /home/igou/.config/containers
 COPY containers-storage.conf /home/igou/.config/containers/storage.conf
 RUN chown -R igou:igou /home/igou/.config
 
-# Claude Code — native binary install (replaces deprecated npm package)
+# Claude Code — pinned download, verified via Anthropic-signed SHASUMS256.txt.sig.
+# Trust anchor is the pinned key fingerprint below: the key is fetched from
+# Anthropic's HTTPS endpoint at build time but rejected if its fingerprint
+# doesn't match. An attacker would need to both control downloads.claude.ai
+# AND produce a colliding SHA-1 fingerprint (computationally infeasible).
+# Key UID (out-of-band-verified): "Anthropic Claude Code Release Signing <security@anthropic.com>"
+# renovate: datasource=github-releases depName=anthropics/claude-code
+ARG CLAUDE_CODE_VERSION="v2.1.142"
+ARG CLAUDE_CODE_PGP_FPR="31DDDE24DDFAB679F42D7BD2BAA929FF1A7ECACE"
+ARG CLAUDE_CODE_PGP_URL="https://downloads.claude.ai/keys/claude-code.asc"
 USER igou
-RUN curl -fsSL https://claude.ai/install.sh | bash
+RUN set -eux; \
+    ARCH_RAW=$(uname -m); \
+    case "$ARCH_RAW" in \
+      x86_64)  ARCH="x64" ;; \
+      aarch64) ARCH="arm64" ;; \
+      *) echo "Unsupported arch: $ARCH_RAW" >&2; exit 1 ;; \
+    esac; \
+    TARBALL="claude-linux-${ARCH}.tar.gz"; \
+    BASE="https://github.com/anthropics/claude-code/releases/download/${CLAUDE_CODE_VERSION}"; \
+    WORK=$(mktemp -d); \
+    export GNUPGHOME="$WORK/gnupg"; \
+    mkdir -p -m 0700 "$GNUPGHOME"; \
+    cd "$WORK"; \
+    curl -fsSL -o key.asc "${CLAUDE_CODE_PGP_URL}"; \
+    gpg --batch --import key.asc; \
+    # Reject any key whose fingerprint doesn't match the pinned anchor.
+    gpg --list-keys --with-colons --with-fingerprint \
+      | awk -F: '$1=="fpr"{print $10}' \
+      | grep -qFx "${CLAUDE_CODE_PGP_FPR}"; \
+    curl -fsSL -o "$TARBALL" "${BASE}/${TARBALL}"; \
+    curl -fsSL -o SHASUMS256.txt "${BASE}/SHASUMS256.txt"; \
+    curl -fsSL -o SHASUMS256.txt.sig "${BASE}/SHASUMS256.txt.sig"; \
+    # Require not just a valid signature, but one from our pinned key.
+    # gpg's --status-fd emits "VALIDSIG <fpr>" only on a good signature from <fpr>.
+    gpg --batch --status-fd 1 --verify SHASUMS256.txt.sig SHASUMS256.txt 2>/dev/null \
+      | grep -qF "VALIDSIG ${CLAUDE_CODE_PGP_FPR}"; \
+    grep " ${TARBALL}\$" SHASUMS256.txt | sha256sum -c -; \
+    mkdir -p "$HOME/.local/share/claude" "$HOME/.local/bin"; \
+    tar -xzf "$TARBALL" -C "$HOME/.local/share/claude"; \
+    ln -sfn "$HOME/.local/share/claude/claude" "$HOME/.local/bin/claude"; \
+    cd / && rm -rf "$WORK"; \
+    "$HOME/.local/bin/claude" --version
 USER root
 
-# Cursor agent CLI
+# Refuse to install unsigned upstream releases (Cursor, opencode) younger than
+# this many days. Defense-in-depth against compromised releases that haven't
+# been publicly noticed yet — mirrors `minimumReleaseAge: 10` in
+# renovate-base.json at the build layer, so it applies even if Renovate is
+# bypassed by a direct edit. Override at build time with:
+#   --build-arg MINIMUM_RELEASE_AGE_DAYS=0
+ARG MINIMUM_RELEASE_AGE_DAYS=10
+
+# Cursor agent CLI — pinned + SHA256-verified + release-age gated. No upstream
+# SHASUMS file is published; SHAs must be re-captured on version bumps.
+# Manual update process:
+#   curl -sL https://cursor.com/install | grep -oP "lab/\K[0-9a-zA-Z.-]+"
+#   curl -sL "https://downloads.cursor.com/lab/<VER>/linux/x64/agent-cli-package.tar.gz" | sha256sum
+#   (repeat for arm64)
+ARG CURSOR_AGENT_VERSION="2026.05.01-eea359f"
+ARG CURSOR_AGENT_SHA256_X64="63b17a0ec0f4b73bf3ed540a24d51391bfe01c37d5961dffadcbbf1a8b02499c"
+ARG CURSOR_AGENT_SHA256_ARM64="8c06f06834c7472b68df07353462889c7b284b280a2a3a323ea1dfd26972ade9"
 USER igou
-RUN curl -fsSL https://cursor.com/install | bash && \
-    ~/.local/bin/agent --version
+RUN set -eux; \
+    ARCH_RAW=$(uname -m); \
+    case "$ARCH_RAW" in \
+      x86_64)  ARCH="x64";   EXPECTED_SHA="${CURSOR_AGENT_SHA256_X64}" ;; \
+      aarch64) ARCH="arm64"; EXPECTED_SHA="${CURSOR_AGENT_SHA256_ARM64}" ;; \
+      *) echo "Unsupported arch: $ARCH_RAW" >&2; exit 1 ;; \
+    esac; \
+    # Release-age gate: Cursor version strings are YYYY.MM.DD-<short-sha>, so we
+    # parse the date directly from the pinned version — no upstream API call.
+    DATE_PART="${CURSOR_AGENT_VERSION%-*}"; \
+    case "$DATE_PART" in \
+      [0-9][0-9][0-9][0-9].[0-9][0-9].[0-9][0-9]) ;; \
+      *) echo "Unexpected Cursor version format (expected YYYY.MM.DD-<sha>): ${CURSOR_AGENT_VERSION}" >&2; exit 1 ;; \
+    esac; \
+    RELEASE_EPOCH=$(date -u -d "$(echo "$DATE_PART" | tr . -)" +%s); \
+    AGE_DAYS=$(( ($(date -u +%s) - RELEASE_EPOCH) / 86400 )); \
+    if [ "$AGE_DAYS" -lt "${MINIMUM_RELEASE_AGE_DAYS}" ]; then \
+      echo "Cursor agent ${CURSOR_AGENT_VERSION} is only ${AGE_DAYS} days old (minimum: ${MINIMUM_RELEASE_AGE_DAYS}). Wait, or override with --build-arg MINIMUM_RELEASE_AGE_DAYS=0." >&2; \
+      exit 1; \
+    fi; \
+    URL="https://downloads.cursor.com/lab/${CURSOR_AGENT_VERSION}/linux/${ARCH}/agent-cli-package.tar.gz"; \
+    DEST="$HOME/.local/share/cursor-agent/versions/${CURSOR_AGENT_VERSION}"; \
+    WORK=$(mktemp -d); \
+    cd "$WORK"; \
+    curl -fsSL -o agent.tar.gz "$URL"; \
+    echo "${EXPECTED_SHA}  agent.tar.gz" | sha256sum -c -; \
+    mkdir -p "$DEST" "$HOME/.local/bin"; \
+    tar -xzf agent.tar.gz -C "$DEST" --strip-components=1; \
+    ln -sfn "$DEST/cursor-agent" "$HOME/.local/bin/agent"; \
+    ln -sfn "$DEST/cursor-agent" "$HOME/.local/bin/cursor-agent"; \
+    cd / && rm -rf "$WORK"; \
+    "$HOME/.local/bin/agent" --version
 USER root
 
-# opencode CLI
+# opencode CLI — pinned + SHA256-verified + release-age gated from
+# anomalyco/opencode releases. No upstream SHASUMS file is published; SHAs must
+# be re-captured on version bumps. Manual update process:
+#   curl -sL https://github.com/anomalyco/opencode/releases/download/vX.Y.Z/opencode-linux-x64.tar.gz | sha256sum
+#   (repeat for arm64)
+# MINIMUM_RELEASE_AGE_DAYS is inherited from the ARG declared above the Cursor block.
+# renovate: datasource=github-releases depName=anomalyco/opencode
+ARG OPENCODE_VERSION="v1.14.30"
+ARG OPENCODE_SHA256_X64="13b2dd32c5549f7b031e8bb67fb8d6e8d87aa9e07bd6f0017620836f1fb7cdce"
+ARG OPENCODE_SHA256_ARM64="ca86ae22b1db986650eac4e3017539e15570569689fb6724cb8f33c0e4cdf668"
 USER igou
-RUN curl -fsSL https://opencode.ai/install | bash -s -- --no-modify-path && \
-    ln -s /home/igou/.opencode/bin/opencode /home/igou/.local/bin/opencode && \
-    ~/.local/bin/opencode --version
+RUN set -eux; \
+    ARCH_RAW=$(uname -m); \
+    case "$ARCH_RAW" in \
+      x86_64)  ARCH="x64";   EXPECTED_SHA="${OPENCODE_SHA256_X64}" ;; \
+      aarch64) ARCH="arm64"; EXPECTED_SHA="${OPENCODE_SHA256_ARM64}" ;; \
+      *) echo "Unsupported arch: $ARCH_RAW" >&2; exit 1 ;; \
+    esac; \
+    # Release-age gate: fetch the release's published_at from the GitHub API.
+    # No auth needed (public repo); rate limits are 60/hr unauthenticated.
+    META_URL="https://api.github.com/repos/anomalyco/opencode/releases/tags/${OPENCODE_VERSION}"; \
+    PUBLISHED_AT=$(curl -fsSL "$META_URL" | jq -r '.published_at'); \
+    if [ -z "$PUBLISHED_AT" ] || [ "$PUBLISHED_AT" = "null" ]; then \
+      echo "Failed to fetch published_at for opencode ${OPENCODE_VERSION} from $META_URL" >&2; \
+      exit 1; \
+    fi; \
+    RELEASE_EPOCH=$(date -u -d "$PUBLISHED_AT" +%s); \
+    AGE_DAYS=$(( ($(date -u +%s) - RELEASE_EPOCH) / 86400 )); \
+    if [ "$AGE_DAYS" -lt "${MINIMUM_RELEASE_AGE_DAYS}" ]; then \
+      echo "opencode ${OPENCODE_VERSION} is only ${AGE_DAYS} days old (minimum: ${MINIMUM_RELEASE_AGE_DAYS}). Wait, or override with --build-arg MINIMUM_RELEASE_AGE_DAYS=0." >&2; \
+      exit 1; \
+    fi; \
+    TARBALL="opencode-linux-${ARCH}.tar.gz"; \
+    URL="https://github.com/anomalyco/opencode/releases/download/${OPENCODE_VERSION}/${TARBALL}"; \
+    DEST="$HOME/.opencode/bin"; \
+    WORK=$(mktemp -d); \
+    cd "$WORK"; \
+    curl -fsSL -o "$TARBALL" "$URL"; \
+    echo "${EXPECTED_SHA}  ${TARBALL}" | sha256sum -c -; \
+    mkdir -p "$DEST" "$HOME/.local/bin"; \
+    tar -xzf "$TARBALL" -C "$DEST"; \
+    chmod +x "$DEST/opencode"; \
+    ln -sfn "$DEST/opencode" "$HOME/.local/bin/opencode"; \
+    cd / && rm -rf "$WORK"; \
+    "$HOME/.local/bin/opencode" --version
 USER root
 
 WORKDIR /workspace

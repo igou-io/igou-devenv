@@ -39,5 +39,11 @@ bash "$DIR/test-run-scripts.sh"
 
 echo ""
 echo "========================================="
+echo "  test-pinned-versions"
+echo "========================================="
+"$DIR/test-pinned-versions.sh"
+
+echo ""
+echo "========================================="
 echo "  All tests passed"
 echo "========================================="
