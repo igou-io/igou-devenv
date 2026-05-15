@@ -365,11 +365,51 @@ RUN set -eux; \
     "$HOME/.local/bin/agent" --version
 USER root
 
-# opencode CLI
+# opencode CLI — pinned + SHA256-verified + release-age gated from
+# anomalyco/opencode releases. No upstream SHASUMS file is published; SHAs must
+# be re-captured on version bumps. Manual update process:
+#   curl -sL https://github.com/anomalyco/opencode/releases/download/vX.Y.Z/opencode-linux-x64.tar.gz | sha256sum
+#   (repeat for arm64)
+# MINIMUM_RELEASE_AGE_DAYS is inherited from the ARG declared above the Cursor block.
+# renovate: datasource=github-releases depName=anomalyco/opencode
+ARG OPENCODE_VERSION="v1.14.30"
+ARG OPENCODE_SHA256_X64="13b2dd32c5549f7b031e8bb67fb8d6e8d87aa9e07bd6f0017620836f1fb7cdce"
+ARG OPENCODE_SHA256_ARM64="ca86ae22b1db986650eac4e3017539e15570569689fb6724cb8f33c0e4cdf668"
 USER igou
-RUN curl -fsSL https://opencode.ai/install | bash -s -- --no-modify-path && \
-    ln -s /home/igou/.opencode/bin/opencode /home/igou/.local/bin/opencode && \
-    ~/.local/bin/opencode --version
+RUN set -eux; \
+    ARCH_RAW=$(uname -m); \
+    case "$ARCH_RAW" in \
+      x86_64)  ARCH="x64";   EXPECTED_SHA="${OPENCODE_SHA256_X64}" ;; \
+      aarch64) ARCH="arm64"; EXPECTED_SHA="${OPENCODE_SHA256_ARM64}" ;; \
+      *) echo "Unsupported arch: $ARCH_RAW" >&2; exit 1 ;; \
+    esac; \
+    # Release-age gate: fetch the release's published_at from the GitHub API.
+    # No auth needed (public repo); rate limits are 60/hr unauthenticated.
+    META_URL="https://api.github.com/repos/anomalyco/opencode/releases/tags/${OPENCODE_VERSION}"; \
+    PUBLISHED_AT=$(curl -fsSL "$META_URL" | jq -r '.published_at'); \
+    if [ -z "$PUBLISHED_AT" ] || [ "$PUBLISHED_AT" = "null" ]; then \
+      echo "Failed to fetch published_at for opencode ${OPENCODE_VERSION} from $META_URL" >&2; \
+      exit 1; \
+    fi; \
+    RELEASE_EPOCH=$(date -u -d "$PUBLISHED_AT" +%s); \
+    AGE_DAYS=$(( ($(date -u +%s) - RELEASE_EPOCH) / 86400 )); \
+    if [ "$AGE_DAYS" -lt "${MINIMUM_RELEASE_AGE_DAYS}" ]; then \
+      echo "opencode ${OPENCODE_VERSION} is only ${AGE_DAYS} days old (minimum: ${MINIMUM_RELEASE_AGE_DAYS}). Wait, or override with --build-arg MINIMUM_RELEASE_AGE_DAYS=0." >&2; \
+      exit 1; \
+    fi; \
+    TARBALL="opencode-linux-${ARCH}.tar.gz"; \
+    URL="https://github.com/anomalyco/opencode/releases/download/${OPENCODE_VERSION}/${TARBALL}"; \
+    DEST="$HOME/.opencode/bin"; \
+    WORK=$(mktemp -d); \
+    cd "$WORK"; \
+    curl -fsSL -o "$TARBALL" "$URL"; \
+    echo "${EXPECTED_SHA}  ${TARBALL}" | sha256sum -c -; \
+    mkdir -p "$DEST" "$HOME/.local/bin"; \
+    tar -xzf "$TARBALL" -C "$DEST"; \
+    chmod +x "$DEST/opencode"; \
+    ln -sfn "$DEST/opencode" "$HOME/.local/bin/opencode"; \
+    cd / && rm -rf "$WORK"; \
+    "$HOME/.local/bin/opencode" --version
 USER root
 
 WORKDIR /workspace
