@@ -50,7 +50,6 @@ declare -A TOOLS=(
     [kube-burner]="kube-burner version"
     [kube-burner-ocp]="kube-burner-ocp version"
     [tkn]="tkn version --client"
-    [mc]="mc --version"
     [rclone]="rclone version"
 )
 
