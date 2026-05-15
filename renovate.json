@@ -31,7 +31,8 @@
       "customType": "regex",
       "managerFilePatterns": ["/\\.sh$/", "/Dockerfile$/", "/Containerfile$/"],
       "matchStrings": [
-        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: extractVersion=(?<extractVersion>\\S+))?\\n(?:ARG )?\\w+_VERSION=\"(?<currentValue>[^\"]+)\""
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: extractVersion=(?<extractVersion>\\S+))?\\n(?:ARG )?\\w+_VERSION=\"(?<currentValue>[^\"]+)\"",
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: extractVersion=(?<extractVersion>\\S+))?\\n(?:ARG )?\\w+_VERSION=\"(?<currentValue>[^\"]+)\"\\n(?:ARG )?\\w+_SHA256_AMD64=\"(?<currentDigest>[a-f0-9]+)\""
       ],
       "versioningTemplate": "semver"
     }
