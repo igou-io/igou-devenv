@@ -79,6 +79,38 @@ test-mise:
 test-mise-lockfile:
 	bash $(CURDIR)/tests/test-mise-lockfile.sh
 
+## Regenerate mise.lock against the current mise.toml.
+## Run this after manually editing mise.toml; commit both files together.
+## Renovate handles this automatically via postUpgradeTasks.
+##
+## Uses a one-shot ghcr.io/jdx/mise container so this works on any host
+## with podman (the host does not need mise installed). Mise will only
+## populate mise.lock if the file already exists, so we unconditionally
+## rm + touch it before invoking.
+mise-lock:
+	@if ! command -v podman >/dev/null 2>&1; then \
+		echo "podman not on PATH. Install podman or run mise locally."; \
+		exit 1; \
+	fi
+	rm -f $(CURDIR)/mise.lock
+	touch $(CURDIR)/mise.lock
+	podman run --rm --entrypoint sh \
+		-v "$(CURDIR):/work" \
+		-w /work \
+		-e MISE_GLOBAL_CONFIG_FILE=/work/mise.toml \
+		-e MISE_TRUSTED_CONFIG_PATHS=/work \
+		-e MISE_LOCKED=0 \
+		ghcr.io/jdx/mise:latest -c '\
+			rm -f /mise/config.toml; \
+			mise trust --quiet --all >/dev/null 2>&1 || true; \
+			mise install --yes \
+		'
+	@if [ ! -s mise.lock ]; then \
+		echo "mise.lock empty after regeneration; check mise.toml for errors"; \
+		exit 1; \
+	fi
+	@echo "mise.lock regenerated. Commit both mise.toml and mise.lock together."
+
 ## Remove the devcontainer and clean up dangling images
 clean: down
 	@docker image prune -f 2>/dev/null || true
