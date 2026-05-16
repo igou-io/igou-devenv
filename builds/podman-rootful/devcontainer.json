@@ -1,8 +1,8 @@
 {
     "name": "igou-io Homelab",
     "build": {
-        "dockerfile": "Dockerfile",
-        "context": "."
+        "dockerfile": "builds/podman-rootful/Dockerfile",
+        "context": "../.."
     },
     "features": {},
     "updateRemoteUserUID": false,

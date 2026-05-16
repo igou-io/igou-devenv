@@ -1,0 +1,92 @@
+# What verification method we EXPECT each tool to use.
+# If aqua-registry silently downgrades any of these, tests/test-mise.sh fails.
+# Update intentionally when migrating a tool — this is the audit trail
+# from H3/PR#43.
+#
+# Value semantics:
+#   "sha256"           — aqua-registry SHA256-only (upstream checksums file)
+#   "cosign-keyless"   — cosign keyless (Sigstore Fulcio + OIDC identity)
+#   "gpg"              — aqua-registry GPG-verified against pinned fingerprint
+#   "slsa"             — SLSA L3 provenance verified by mise's built-in SLSA verifier
+#   "blake3"           — TOFU on first install (mise computed the digest itself)
+#   "core"             — uses a mise core backend whose verification happens
+#                        inside the mise binary and is not recorded in mise.lock
+#                        (e.g. core:node, which verifies against nodejs.org's
+#                        GPG-signed SHASUMS256.txt internally).
+#   "postinstall-gpg"  — http: backend baseline (blake3 TOFU) plus a postinstall
+#                        hook that re-verifies an upstream-signed checksum file
+#                        against a pinned GPG key (e.g. oc against Red Hat key 2).
+#                        Audit asserts the lockfile entry exists AND mise.toml
+#                        points to a postinstall script that mentions `gpg`.
+#   "<alg>+<prov>"     — compound: checksum prefix must be <alg> AND lockfile
+#                        must record a `provenance.<prov>` subsection on each
+#                        platform. Used for tools that aqua-registry verifies
+#                        with both a per-asset SHA256 and an upstream
+#                        attestation (e.g. SLSA L3 for flux2/sops).
+#
+# Optional `# binary: <name>` trailing comment overrides the launch-check
+# command when the installed binary differs from the mise registry key
+# (e.g. tekton-cli installs a binary named `tkn`).
+
+kubectl = "sha256"   # dl.k8s.io publishes per-binary .sha256
+
+# Task 2.1 — SHA256-verified tools.
+gh = "sha256"
+kustomize = "sha256"
+kubeseal = "sha256"
+kubeconform = "sha256"
+kind = "sha256"
+act = "sha256"
+tekton-cli = "sha256"   # binary: tkn
+rclone = "sha256"
+direnv = "sha256"
+age = "sha256"
+"aqua:nodejs/node" = "blake3"   # binary: node — aqua-registry has no SHASUMS reference; mise pins blake3 TOFU. Strictly better than the prior unverified curl|tar.
+
+# Task 2.2 — flux2 + sops.
+# Plan expected "cosign-keyless"; aqua-registry actually verifies SLSA L3
+# provenance and records both a sha256 checksum and a provenance.slsa
+# subsection per platform. Both signals must remain — the compound form
+# asserts the audit will fail if either is silently dropped on a future
+# aqua-registry bump.
+flux2 = "sha256+slsa"   # binary: flux
+sops = "sha256+slsa"
+
+# Task 2.3 / follow-up — helm + terraform.
+# aqua-registry's install path records only sha256 for both tools (no GPG
+# step), so we'd lose the previous inline blocks' trust anchor without
+# intervention. Restored via postinstall hooks that re-run the GPG
+# verification against the pinned fingerprints:
+#   helm:      BF888333D96A1C18E2682AAED79D67C9EC016739
+#   terraform: C874011F0AB405110D02105534365D9472D7468F
+# The audit asserts the hook is wired (mise.toml has postinstall = path,
+# the script exists, and it references gpg) — removing the GPG step
+# silently on a future bump fails the audit.
+helm = "postinstall-gpg"        # script: aqua-registry/helm-postinstall.sh
+terraform = "postinstall-gpg"   # script: aqua-registry/terraform-postinstall.sh
+
+# Task 2.4 — argocd.
+# Plan expected "slsa" alone; aqua-registry records the per-asset sha256
+# (against cli_checksums.txt) AND a SLSA L3 provenance attestation. The
+# compound form keeps both signals — same SLSA-L3 trust anchor as the
+# previous inline slsa-verifier block. The 217MB binary that was the original
+# motivation for slsa-verifier (cosign's 128MB blob-size limit) is handled
+# natively by mise's built-in SLSA verifier.
+argocd = "sha256+slsa"
+
+# Task 3.1 — off-registry tools via mise's http backend.
+# The http backend does not consult any upstream checksum file, so mise
+# generates a blake3 digest on first fetch and pins it in mise.lock (TOFU).
+# This is exactly the same trust floor as the previous inline blocks, which
+# pinned a single sha256 in the Dockerfile and trusted it thereafter.
+"http:virtctl" = "blake3"            # binary: virtctl
+"http:kube-burner" = "blake3"        # binary: kube-burner
+"http:kube-burner-ocp" = "blake3"    # binary: kube-burner-ocp
+
+# Task 3.2 — oc (OpenShift CLI). http: backend pins a blake3 TOFU floor in
+# mise.lock; the postinstall hook (aqua-registry/oc-postinstall.sh) re-runs
+# Red Hat GPG verification on every install. "postinstall-gpg" tells the
+# audit to (a) confirm the tool is in mise.lock, (b) confirm mise.toml lists
+# a postinstall = path-to-script, (c) confirm that script references `gpg`.
+# Trust anchor: Red Hat key 2, fpr 567E347AD0044ADE55BA8A5F199E2F91FD431D51.
+"http:oc" = "postinstall-gpg"   # binary: oc

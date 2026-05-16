@@ -1,0 +1,131 @@
+# Single source of truth for CLI tools across all three Dockerfiles.
+# See docs/superpowers/specs/2026-05-16-mise-tool-management-design.md
+#
+# Renovate manages versions via the native mise manager.
+# After any version bump: `make mise-lock && make test`
+
+[settings]
+# Verification controls — defense in depth (see spec section "Supply-chain mitigations")
+paranoid = true
+github_attestations = true
+slsa = true
+
+# Lockfile — pin per-asset SHA256 across builds
+lockfile = true
+locked = true
+lockfile_platforms = ["linux-x64", "linux-arm64"]
+
+# Block freshly-published versions (xz-style attack window)
+minimum_release_age = "10d"
+
+# Refuse to load any mise.toml outside this allowlist (defense against
+# workspace-mounted malicious mise.toml at container runtime)
+trusted_config_paths = ["/etc/mise/mise.toml"]
+
+[settings.aqua]
+# Aqua-backend verification (defaults are true but pinned here for documentation
+# and audit trail). The audit test in tests/test-mise.sh asserts that each
+# tool resolves to its expected verification method.
+cosign = true
+slsa = true
+minisign = true
+github_attestations = true
+# Pin upstream registry to a specific SHA. Bumped by Renovate; PR review
+# + tests/test-mise.sh audit catch verification downgrades.
+# renovate: datasource=github-releases depName=aquaproj/aqua-registry
+registry_url = "https://github.com/aquaproj/aqua-registry"
+
+[tools]
+# Canary tool — proves the integration shape end-to-end before adding the rest.
+kubectl = "1.36.0"
+
+# Task 2.1 — SHA256-verified tools (aqua-registry per-tool checksums.txt).
+gh = "2.92.0"
+kustomize = "5.8.1"
+kubeseal = "0.36.6"
+kubeconform = "0.7.0"
+kind = "0.31.0"
+act = "0.2.87"
+tekton-cli = "0.44.1"   # binary is `tkn`; mise registry key is tekton-cli
+rclone = "1.73.5"
+direnv = "2.37.1"
+age = "1.3.1"
+# node — `core:node` does not record per-platform checksums in mise.lock, so
+# `locked = true` rejects it. Using aqua-registry's nodejs/node entry instead;
+# upstream provides no SHASUMS in the aqua definition, so mise falls back to
+# blake3 TOFU (strictly better than the prior unverified `curl | tar`).
+"aqua:nodejs/node" = "24.15.0"
+
+# Task 2.2 — cosign-keyless-verified tools.
+flux2 = "2.8.6"
+sops = "3.12.2"
+
+# Task 2.4 — SLSA-verified tools.
+argocd = "3.3.9"
+
+# Task 2.3 / follow-up — GPG-verified tools. aqua-registry's mise install path
+# records only sha256 for helm + terraform (no GPG step), so the previous
+# inline GPG verification would have been a downgrade if left as-is. Restored
+# via postinstall hooks: each script re-runs the same trust-anchor flow the
+# inline Dockerfile blocks did (fetch upstream KEYS, assert pinned fingerprint,
+# verify detached signature on either the tarball itself or the SHA256SUMS
+# file, then confirm sha matches). The audit ("postinstall-gpg" in
+# tests/mise-expected-verification.toml) asserts the hook is wired and
+# references gpg, so the script can't be silently dropped on a future bump.
+
+[tools.helm]
+version = "4.1.4"
+postinstall = "/etc/mise/aqua-registry/helm-postinstall.sh"
+
+[tools.terraform]
+version = "1.15.0"
+postinstall = "/etc/mise/aqua-registry/terraform-postinstall.sh"
+
+# Task 3.1 — off-registry tools via mise's http backend.
+# Not in aqua-registry; we provide per-platform URLs directly and let mise
+# pin a blake3 TOFU checksum in mise.lock (same trust floor as the prior
+# inline `curl | sha256sum -c` blocks, which also captured a single sha
+# upstream once and trusted it thereafter).
+#
+# Note: http-backend tools cannot use the `tool = "version"` shorthand
+# because we need to attach a `[tools."http:<name>".platforms]` table —
+# TOML forbids extending a string value with dotted keys. Use a table
+# form for each instead.
+
+# renovate: datasource=github-releases depName=kubevirt/kubevirt
+[tools."http:virtctl"]
+version = "1.8.2"
+
+[tools."http:virtctl".platforms]
+linux-x64   = { url = "https://github.com/kubevirt/kubevirt/releases/download/v{{ version }}/virtctl-v{{ version }}-linux-amd64" }
+linux-arm64 = { url = "https://github.com/kubevirt/kubevirt/releases/download/v{{ version }}/virtctl-v{{ version }}-linux-arm64" }
+
+# renovate: datasource=github-releases depName=cloud-bulldozer/kube-burner
+[tools."http:kube-burner"]
+version = "2.6.1"
+
+[tools."http:kube-burner".platforms]
+linux-x64   = { url = "https://github.com/cloud-bulldozer/kube-burner/releases/download/v{{ version }}/kube-burner-V{{ version }}-linux-x86_64.tar.gz", strip_components = 0 }
+linux-arm64 = { url = "https://github.com/cloud-bulldozer/kube-burner/releases/download/v{{ version }}/kube-burner-V{{ version }}-linux-arm64.tar.gz", strip_components = 0 }
+
+# renovate: datasource=github-releases depName=kube-burner/kube-burner-ocp
+[tools."http:kube-burner-ocp"]
+version = "1.11.11"
+
+[tools."http:kube-burner-ocp".platforms]
+linux-x64   = { url = "https://github.com/kube-burner/kube-burner-ocp/releases/download/v{{ version }}/kube-burner-ocp-V{{ version }}-linux-x86_64.tar.gz", strip_components = 0 }
+linux-arm64 = { url = "https://github.com/kube-burner/kube-burner-ocp/releases/download/v{{ version }}/kube-burner-ocp-V{{ version }}-linux-arm64.tar.gz", strip_components = 0 }
+
+# Task 3.2 — oc (OpenShift CLI). mise's http backend gives the same blake3
+# TOFU floor as the rest of the http: tools, plus a postinstall hook that
+# independently re-verifies Red Hat's GPG-signed sha256sum.txt.gpg against
+# the pinned trust anchor 567E347AD0044ADE55BA8A5F199E2F91FD431D51. The
+# downgrade we'd otherwise take by abandoning the inline block is avoided.
+# renovate: datasource=custom.openshift-mirror depName=oc
+[tools."http:oc"]
+version = "4.21.16"
+postinstall = "/etc/mise/aqua-registry/oc-postinstall.sh"
+
+[tools."http:oc".platforms]
+linux-x64   = { url = "https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/{{ version }}/openshift-client-linux.tar.gz" }
+linux-arm64 = { url = "https://mirror.openshift.com/pub/openshift-v4/aarch64/clients/ocp/{{ version }}/openshift-client-linux.tar.gz" }

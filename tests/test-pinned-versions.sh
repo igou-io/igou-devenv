@@ -42,11 +42,10 @@ assert_version "claude"       "claude --version"     "$(get_arg CLAUDE_CODE_VERS
 assert_version "cursor-agent" "agent --version"      "$(get_arg CURSOR_AGENT_VERSION)"
 assert_version "opencode"     "opencode --version"   "$(get_arg OPENCODE_VERSION)"
 
-# H3 tier spot-checks — one tool per verification tier to catch drift.
-assert_version "terraform"    "terraform version"        "$(get_arg TERRAFORM_VERSION)"
-assert_version "flux"         "flux --version"           "$(get_arg FLUX_VERSION)"
-assert_version "kubectl"      "kubectl version --client" "$(get_arg KUBECTL_VERSION)"
-assert_version "direnv"       "direnv version"           "$(get_arg DIRENV_VERSION)"
+# Note: terraform, flux, kubectl, direnv (and the other 17 mise-managed tools)
+# are version-pinned in mise.toml, not via Dockerfile ARG. tests/test-mise.sh
+# audits those against mise.lock / mise-expected-verification.toml; duplicating
+# the assertion here would just need a parallel get_arg-equivalent reader.
 
 echo ""
 echo "==> Results: $PASS passed, $FAIL failed"
