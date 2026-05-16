@@ -121,42 +121,80 @@ for tool in "${!EXPECTED_MAP[@]}"; do
         continue
     fi
 
-    # Pull all checksum lines under [tools.<tool>...] sections from the
-    # lockfile and extract the algorithm prefix (text before ':').
+    # Walk the lockfile's [tools.<key>...] sections and harvest two signals:
+    #   - the checksum algorithm prefix (text before the first ':' in the
+    #     quoted checksum string), and
+    #   - the presence of a `[tools.<key>...provenance.<KIND>]` subsection,
+    #     which records that mise additionally verified an upstream
+    #     attestation (e.g. SLSA L3 provenance for flux2/sops, GitHub
+    #     artifact attestations for gh/age).
     # awk state machine: start capture on a section header that begins with
     # either section_open ([[tools.<key>]]) or section_dot ([tools.<key>.X]),
-    # emit checksum lines, stop on next [section] header that doesn't.
-    algs=$(awk -v open="$section_open" -v dot="$section_dot" '
+    # emit signal lines, stop on next [section] header that doesn't.
+    signals=$(awk -v open="$section_open" -v dot="$section_dot" '
         function startswith(s, p) { return substr(s, 1, length(p)) == p }
         /^\[/{
             in_tool = startswith($0, open) || startswith($0, dot)
+            # Also catch `provenance.<KIND>` table headers (e.g.
+            # [tools.flux2."platforms.linux-x64".provenance.slsa])
+            if (in_tool && match($0, /\.provenance\.[a-zA-Z0-9_-]+/)) {
+                kind = substr($0, RSTART+12, RLENGTH-12)
+                gsub(/\]/, "", kind)
+                print "provenance:" kind
+            }
         }
         in_tool && /^checksum *= *"/{
             match($0, /"[^:]+:/)
             if (RLENGTH > 0) {
                 alg = substr($0, RSTART+1, RLENGTH-2)
-                print alg
+                print "checksum:" alg
             }
         }
     ' "$LOCK" | sort -u)
+
+    algs=$(echo "$signals" | awk -F: '/^checksum:/{print $2}' | sort -u)
+    provs=$(echo "$signals" | awk -F: '/^provenance:/{print $2}' | sort -u)
 
     if [ -z "$algs" ]; then
         fail "${tool}: no checksum found in ${LOCK}"
         continue
     fi
 
-    # Every platform's checksum must match expected.
+    # Expected may be a compound form "<alg>+<provenance>", e.g. "sha256+slsa",
+    # which asserts both the checksum prefix AND the presence of a matching
+    # provenance subsection on every covered platform.
+    case "$expected" in
+        *+*)
+            exp_alg="${expected%%+*}"
+            exp_prov="${expected#*+}"
+            ;;
+        *)
+            exp_alg="$expected"
+            exp_prov=""
+            ;;
+    esac
+
+    # Every platform's checksum prefix must equal exp_alg.
     mismatch=""
     for a in $algs; do
-        if [ "$a" != "$expected" ]; then
+        if [ "$a" != "$exp_alg" ]; then
             mismatch="$a"
             break
         fi
     done
     if [ -n "$mismatch" ]; then
-        fail "${tool}: lockfile uses ${mismatch} (expected ${expected})"
+        fail "${tool}: lockfile uses ${mismatch} (expected ${exp_alg})"
+        continue
+    fi
+
+    if [ -n "$exp_prov" ]; then
+        if ! echo "$provs" | grep -qFx "$exp_prov"; then
+            fail "${tool}: lockfile has no provenance.${exp_prov} entry (expected for compound ${expected})"
+            continue
+        fi
+        ok "${tool} verified via ${exp_alg} + ${exp_prov} provenance"
     else
-        ok "${tool} verified via ${expected}"
+        ok "${tool} verified via ${exp_alg}"
     fi
 done
 
