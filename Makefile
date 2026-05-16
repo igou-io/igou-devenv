@@ -6,7 +6,7 @@ SSH_MOUNT = $(shell [ -S "$$SSH_AUTH_SOCK" ] && echo '--mount type=bind,source=$
 
 .DEFAULT_GOAL := help
 
-.PHONY: build up down restart exec shell test test-all test-tools test-podman test-env clean rebuild help renovate-validate renovate-dry-run sbom sbom-devcontainer e2e opencode-build
+.PHONY: build up down restart exec shell test test-all test-tools test-podman test-env test-mise test-mise-lockfile clean rebuild help renovate-validate renovate-dry-run sbom sbom-devcontainer e2e opencode-build mise-lock
 
 
 ## Build the devcontainer image (with cache)
@@ -51,8 +51,8 @@ shell:
 exec:
 	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) $(CMD)
 
-## Run all tests (tools, podman, env)
-test-all: test-tools test-podman test-env
+## Run all tests (tools, podman, env, mise lockfile freshness + audit)
+test-all: test-tools test-podman test-env test-mise-lockfile test-mise
 
 ## Alias for test-all
 test: test-all
@@ -68,6 +68,16 @@ test-podman:
 ## Test environment switching shell functions (use, k8s-unset, prompt)
 test-env:
 	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) bash -i /workspace/igou-devenv/tests/test-env.sh
+
+## Audit mise-managed tools: each tool resolves to its expected verification method.
+## Runs inside the devcontainer (needs mise + installed tools).
+test-mise:
+	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) bash /workspace/igou-devenv/tests/test-mise.sh
+
+## Verify mise.lock is in sync with mise.toml. Runs on the host (uses
+## host mise if available, otherwise a one-shot ghcr.io/jdx/mise container).
+test-mise-lockfile:
+	bash $(CURDIR)/tests/test-mise-lockfile.sh
 
 ## Remove the devcontainer and clean up dangling images
 clean: down
