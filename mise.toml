@@ -1,0 +1,35 @@
+# Single source of truth for CLI tools across all three Dockerfiles.
+# See docs/superpowers/specs/2026-05-16-mise-tool-management-design.md
+#
+# Renovate manages versions via the native mise manager.
+# After any version bump: `make mise-lock && make test`
+
+[settings]
+# Verification controls — defense in depth (see spec section "Supply-chain mitigations")
+paranoid = true
+github_attestations = true
+aqua_cosign = true
+aqua_slsa = true
+aqua_minisign = true
+
+# Lockfile — pin per-asset SHA256 across builds
+lockfile = true
+locked = true
+lockfile_platforms = ["linux-x64", "linux-arm64"]
+
+# Block freshly-published versions (xz-style attack window)
+minimum_release_age = "10d"
+
+# Refuse to load any mise.toml outside this allowlist (defense against
+# workspace-mounted malicious mise.toml at container runtime)
+trusted_config_paths = ["/etc/mise/mise.toml"]
+
+[settings.aqua]
+# Pin upstream registry to a specific SHA. Bumped by Renovate; PR review
+# + tests/test-mise.sh audit catch verification downgrades.
+# renovate: datasource=github-releases depName=aquaproj/aqua-registry
+registry_url = "https://github.com/aquaproj/aqua-registry"
+
+[tools]
+# Canary tool — proves the integration shape end-to-end before adding the rest.
+kubectl = "1.36.0"
