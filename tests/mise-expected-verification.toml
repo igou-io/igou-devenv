@@ -1,0 +1,6 @@
+# What verification method we EXPECT each tool to use.
+# If aqua-registry silently downgrades any of these, tests/test-mise.sh fails.
+# Update intentionally when migrating a tool — this is the audit trail
+# from H3/PR#43.
+
+kubectl = "sha256"   # dl.k8s.io publishes per-binary .sha256
