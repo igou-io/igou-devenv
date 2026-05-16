@@ -2,7 +2,7 @@
     "name": "igou-io Homelab",
     "build": {
         "dockerfile": "Dockerfile",
-        "context": ".",
+        "context": "..",
         "options": ["--network=host"],
         "cacheFrom": "ghcr.io/igou-io/igou-devenv"
     },

@@ -1,0 +1,22 @@
+# Build context now spans the repo root so the Dockerfile can COPY
+# mise.toml/mise.lock. Exclude everything that isn't needed in the
+# image build to keep the context small.
+.git
+.github
+.claude
+.cursor
+.gitignore
+adr/
+bin/
+builds/
+devcontainer_setups/
+doc/
+docs/
+dotfiles/
+envs/
+tests/
+README.md
+CLAUDE.md
+Makefile
+renovate.json
+renovate-base.json

@@ -149,6 +149,28 @@ RUN set -eux; \
     rm -rf "$WORK"; \
     mise --version
 
+# ---------------------------------------------------------------------------
+# Tool installation via mise. mise.toml is the source of truth; mise.lock
+# pins per-platform asset URLs + SHA256s. locked=true (in mise.toml settings)
+# fails the build if anything drifts.
+# ---------------------------------------------------------------------------
+COPY mise.toml mise.lock /etc/mise/
+ENV MISE_DATA_DIR=/opt/mise \
+    MISE_GLOBAL_CONFIG_FILE=/etc/mise/mise.toml \
+    MISE_TRUSTED_CONFIG_PATHS=/etc/mise/mise.toml
+RUN set -eux; \
+    mise install --yes; \
+    # Symlink installed binaries into /usr/local/bin so they're on PATH
+    # for any user without shell activation. mise's per-tool layout is not
+    # uniform (some use a bin/ subdir, most put the binary at the install
+    # root) — `mise bin-paths` reports each tool's actual bin directory.
+    mise bin-paths | while IFS= read -r d; do \
+      find "$d" -maxdepth 1 -type f -executable \
+        -exec ln -sf {} /usr/local/bin/ \;; \
+    done; \
+    # Sanity check: kubectl resolves to the mise-installed copy
+    kubectl version --client
+
 # cosign — sigstore CLI. Bootstrap via TOFU SHA256 because we can't verify
 # cosign with cosign yet. Once installed, used to verify flux/sops/argocd.
 # Manual SHA update on version bump:
@@ -698,13 +720,13 @@ RUN set -eux; \
 # ---------------------------------------------------------------------------
 # Python packages — pinned versions managed by Renovate (requirements.txt)
 # ---------------------------------------------------------------------------
-COPY requirements.txt /tmp/requirements.txt
+COPY .devcontainer/requirements.txt /tmp/requirements.txt
 RUN pip install --break-system-packages --ignore-installed -r /tmp/requirements.txt && \
     rm /tmp/requirements.txt
 
 # Configure podman for rootless operation inside a container
 RUN mkdir -p /home/igou/.config/containers
-COPY containers-storage.conf /home/igou/.config/containers/storage.conf
+COPY .devcontainer/containers-storage.conf /home/igou/.config/containers/storage.conf
 RUN chown -R igou:igou /home/igou/.config
 
 # Claude Code — pinned download, verified via Anthropic-signed SHASUMS256.txt.sig.
