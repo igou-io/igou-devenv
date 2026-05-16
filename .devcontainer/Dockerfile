@@ -226,23 +226,6 @@ RUN set -eux; \
       | tar -xJ --strip-components=1 -C /usr/local && \
     rm -rf /usr/local/include/node
 
-# kubectl — pinned + SHA-verified against dl.k8s.io publisher checksum.
-# renovate: datasource=github-releases depName=kubernetes/kubernetes
-ARG KUBECTL_VERSION="v1.36.0"
-RUN set -eux; \
-    ARCH_RAW=$(uname -m); \
-    case "$ARCH_RAW" in \
-      x86_64)  ARCH="amd64" ;; \
-      aarch64) ARCH="arm64" ;; \
-      *) echo "Unsupported arch: $ARCH_RAW" >&2; exit 1 ;; \
-    esac; \
-    BASE="https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/${ARCH}"; \
-    curl -fsSL -o /usr/local/bin/kubectl "${BASE}/kubectl"; \
-    EXPECTED_SHA=$(curl -fsSL "${BASE}/kubectl.sha256"); \
-    echo "${EXPECTED_SHA}  /usr/local/bin/kubectl" | sha256sum -c -; \
-    chmod +x /usr/local/bin/kubectl; \
-    kubectl version --client
-
 # helm — pinned + GPG-verified against Helm's release signing key.
 # Trust anchor: BF888333D96A1C18E2682AAED79D67C9EC016739
 # renovate: datasource=github-releases depName=helm/helm
