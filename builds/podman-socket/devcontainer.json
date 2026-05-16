@@ -1,8 +1,8 @@
 {
     "name": "igou-io Homelab",
     "build": {
-        "dockerfile": "Dockerfile",
-        "context": "."
+        "dockerfile": "builds/podman-socket/Dockerfile",
+        "context": "../.."
     },
     "features": {},
     "runArgs": [
