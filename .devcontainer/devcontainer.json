@@ -4,6 +4,9 @@
         "dockerfile": "Dockerfile",
         "context": "..",
         "options": ["--network=host"],
+        "args": {
+            "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+        },
         "cacheFrom": "ghcr.io/igou-io/igou-devenv"
     },
     "features": {},

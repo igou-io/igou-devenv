@@ -155,10 +155,18 @@ RUN set -eux; \
 # fails the build if anything drifts.
 # ---------------------------------------------------------------------------
 COPY mise.toml mise.lock /etc/mise/
+COPY aqua-registry/ /etc/mise/aqua-registry/
 ENV MISE_DATA_DIR=/opt/mise \
     MISE_GLOBAL_CONFIG_FILE=/etc/mise/mise.toml \
     MISE_TRUSTED_CONFIG_PATHS=/etc/mise/mise.toml
+# GITHUB_TOKEN is consumed by mise's GitHub-attestations / aqua release-tag
+# lookups during install. The 60/hr unauthenticated quota is too small to
+# survive a full rebuild of 21 aqua-managed tools; the token bumps it to
+# 5000/hr. Declared as ARG (not ENV) so the secret stays out of the final
+# image — it's only available to this single RUN layer.
+ARG GITHUB_TOKEN=""
 RUN set -eux; \
+    export GITHUB_TOKEN="${GITHUB_TOKEN}"; \
     mise install --yes; \
     # Symlink installed binaries into /usr/local/bin so they're on PATH
     # for any user without shell activation. mise's per-tool layout is not
@@ -218,41 +226,9 @@ RUN set -eux; \
     chmod +x /usr/local/bin/slsa-verifier; \
     slsa-verifier version
 
-# oc (OpenShift CLI) — pinned to specific z-release + GPG-verified against
-# Red Hat's release key 2. Removes the previous "latest" rolling pin.
-# Trust anchor: 567E347AD0044ADE55BA8A5F199E2F91FD431D51
-# renovate: datasource=custom.openshift-mirror depName=oc
-ARG OC_VERSION="4.21.16"
-ARG OC_PGP_FPR="567E347AD0044ADE55BA8A5F199E2F91FD431D51"
-ARG OC_PGP_URL="https://www.redhat.com/security/data/fd431d51.txt"
-RUN set -eux; \
-    ARCH_RAW=$(uname -m); \
-    case "$ARCH_RAW" in \
-      x86_64)  ARCH="x86_64" ;; \
-      aarch64) ARCH="aarch64" ;; \
-      *) echo "Unsupported arch: $ARCH_RAW" >&2; exit 1 ;; \
-    esac; \
-    BASE="https://mirror.openshift.com/pub/openshift-v4/${ARCH}/clients/ocp/${OC_VERSION}"; \
-    TARBALL="openshift-client-linux.tar.gz"; \
-    WORK=$(mktemp -d); \
-    export GNUPGHOME="$WORK/gnupg"; \
-    mkdir -p -m 0700 "$GNUPGHOME"; \
-    cd "$WORK"; \
-    curl -fsSL -o key.asc "${OC_PGP_URL}"; \
-    gpg --batch --import key.asc; \
-    gpg --list-keys --with-colons --with-fingerprint \
-      | awk -F: '$1=="fpr"{print $10}' \
-      | grep -qFx "${OC_PGP_FPR}"; \
-    curl -fsSL -o sha256sum.txt.gpg "${BASE}/sha256sum.txt.gpg"; \
-    # sha256sum.txt.gpg is a binary inline-signed OpenPGP message (NOT a detached
-    # signature). --decrypt extracts the plaintext AND verifies the signature in
-    # one step; exit 0 means the signature was good and signed by our anchored key.
-    gpg --batch --output sha256sum.txt --decrypt sha256sum.txt.gpg; \
-    curl -fsSL -o "$TARBALL" "${BASE}/${TARBALL}"; \
-    grep " ${TARBALL}\$" sha256sum.txt | sha256sum -c -; \
-    tar -xz -C /usr/local/bin oc -f "$TARBALL"; \
-    cd / && rm -rf "$WORK"; \
-    oc version --client
+# oc: migrated to mise (see mise.toml / mise.lock / aqua-registry/oc-postinstall.sh).
+# Same GPG trust anchor (Red Hat key 567E347AD0044ADE55BA8A5F199E2F91FD431D51),
+# now invoked via mise's postinstall hook after the http-backend download.
 
 # virtctl, kube-burner, kube-burner-ocp: migrated to mise via the http
 # backend (see mise.toml / mise.lock). Same blake3-TOFU trust floor as the

@@ -33,9 +33,11 @@ run_mise_dryrun() {
         # collide with ours.
         podman run --rm --entrypoint sh \
             -v "${WORK}:/work" \
+            -v "${REPO}/aqua-registry:/etc/mise/aqua-registry:ro" \
             -w /work \
             -e MISE_GLOBAL_CONFIG_FILE=/work/mise.toml \
             -e MISE_TRUSTED_CONFIG_PATHS=/work \
+            -e GITHUB_TOKEN \
             ghcr.io/jdx/mise:latest -c '
                 rm -f /mise/config.toml
                 mise trust --quiet --all >/dev/null 2>&1 || true

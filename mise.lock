@@ -127,6 +127,14 @@ backend = "http:kube-burner-ocp"
 checksum = "blake3:429021e6105e10ce3c3eb23e3d3a5d82be8b5a8553e499dd2e04ac8efe7a3402"
 url = "https://github.com/kube-burner/kube-burner-ocp/releases/download/v1.11.11/kube-burner-ocp-V1.11.11-linux-x86_64.tar.gz"
 
+[[tools."http:oc"]]
+version = "4.21.16"
+backend = "http:oc"
+
+[tools."http:oc"."platforms.linux-x64"]
+checksum = "blake3:0750313e14f2cc7c62404740e39027c9f0a6f8e2633d1f4a0a5a2cce29c5b870"
+url = "https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/4.21.16/openshift-client-linux.tar.gz"
+
 [[tools."http:virtctl"]]
 version = "1.8.2"
 backend = "http:virtctl"

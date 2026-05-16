@@ -13,6 +13,11 @@
 #                        inside the mise binary and is not recorded in mise.lock
 #                        (e.g. core:node, which verifies against nodejs.org's
 #                        GPG-signed SHASUMS256.txt internally).
+#   "postinstall-gpg"  — http: backend baseline (blake3 TOFU) plus a postinstall
+#                        hook that re-verifies an upstream-signed checksum file
+#                        against a pinned GPG key (e.g. oc against Red Hat key 2).
+#                        Audit asserts the lockfile entry exists AND mise.toml
+#                        points to a postinstall script that mentions `gpg`.
 #   "<alg>+<prov>"     — compound: checksum prefix must be <alg> AND lockfile
 #                        must record a `provenance.<prov>` subsection on each
 #                        platform. Used for tools that aqua-registry verifies
@@ -75,3 +80,11 @@ argocd = "sha256+slsa"
 "http:virtctl" = "blake3"            # binary: virtctl
 "http:kube-burner" = "blake3"        # binary: kube-burner
 "http:kube-burner-ocp" = "blake3"    # binary: kube-burner-ocp
+
+# Task 3.2 — oc (OpenShift CLI). http: backend pins a blake3 TOFU floor in
+# mise.lock; the postinstall hook (aqua-registry/oc-postinstall.sh) re-runs
+# Red Hat GPG verification on every install. "postinstall-gpg" tells the
+# audit to (a) confirm the tool is in mise.lock, (b) confirm mise.toml lists
+# a postinstall = path-to-script, (c) confirm that script references `gpg`.
+# Trust anchor: Red Hat key 2, fpr 567E347AD0044ADE55BA8A5F199E2F91FD431D51.
+"http:oc" = "postinstall-gpg"   # binary: oc

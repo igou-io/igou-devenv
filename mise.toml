@@ -101,3 +101,17 @@ version = "1.11.11"
 [tools."http:kube-burner-ocp".platforms]
 linux-x64   = { url = "https://github.com/kube-burner/kube-burner-ocp/releases/download/v{{ version }}/kube-burner-ocp-V{{ version }}-linux-x86_64.tar.gz", strip_components = 0 }
 linux-arm64 = { url = "https://github.com/kube-burner/kube-burner-ocp/releases/download/v{{ version }}/kube-burner-ocp-V{{ version }}-linux-arm64.tar.gz", strip_components = 0 }
+
+# Task 3.2 — oc (OpenShift CLI). mise's http backend gives the same blake3
+# TOFU floor as the rest of the http: tools, plus a postinstall hook that
+# independently re-verifies Red Hat's GPG-signed sha256sum.txt.gpg against
+# the pinned trust anchor 567E347AD0044ADE55BA8A5F199E2F91FD431D51. The
+# downgrade we'd otherwise take by abandoning the inline block is avoided.
+# renovate: datasource=custom.openshift-mirror depName=oc
+[tools."http:oc"]
+version = "4.21.16"
+postinstall = "/etc/mise/aqua-registry/oc-postinstall.sh"
+
+[tools."http:oc".platforms]
+linux-x64   = { url = "https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/{{ version }}/openshift-client-linux.tar.gz" }
+linux-arm64 = { url = "https://mirror.openshift.com/pub/openshift-v4/aarch64/clients/ocp/{{ version }}/openshift-client-linux.tar.gz" }

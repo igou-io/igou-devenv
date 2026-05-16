@@ -84,32 +84,36 @@ test-mise-lockfile:
 ## Renovate handles this automatically via postUpgradeTasks.
 ##
 ## Uses a one-shot ghcr.io/jdx/mise container so this works on any host
-## with podman (the host does not need mise installed). Mise will only
-## populate mise.lock if the file already exists, so we unconditionally
-## rm + touch it before invoking.
+## with podman (the host does not need mise installed). Mise only writes
+## to mise.lock if the file already exists; we touch it before invoking.
+## Stash the previous lockfile so a transient failure (e.g. GitHub API
+## rate limit, network blip) doesn't wipe the committed mise.lock.
 mise-lock:
 	@if ! command -v podman >/dev/null 2>&1; then \
 		echo "podman not on PATH. Install podman or run mise locally."; \
 		exit 1; \
 	fi
-	rm -f $(CURDIR)/mise.lock
-	touch $(CURDIR)/mise.lock
-	podman run --rm --entrypoint sh \
+	@[ -f mise.lock ] && cp mise.lock mise.lock.bak || touch mise.lock
+	@if podman run --rm --entrypoint sh \
 		-v "$(CURDIR):/work" \
+		-v "$(CURDIR)/aqua-registry:/etc/mise/aqua-registry:ro" \
 		-w /work \
 		-e MISE_GLOBAL_CONFIG_FILE=/work/mise.toml \
 		-e MISE_TRUSTED_CONFIG_PATHS=/work \
 		-e MISE_LOCKED=0 \
+		-e GITHUB_TOKEN \
 		ghcr.io/jdx/mise:latest -c '\
 			rm -f /mise/config.toml; \
 			mise trust --quiet --all >/dev/null 2>&1 || true; \
 			mise install --yes \
-		'
-	@if [ ! -s mise.lock ]; then \
-		echo "mise.lock empty after regeneration; check mise.toml for errors"; \
+		' && [ -s mise.lock ]; then \
+		rm -f mise.lock.bak; \
+		echo "mise.lock regenerated. Commit both mise.toml and mise.lock together."; \
+	else \
+		echo "mise install failed or produced empty mise.lock; restoring previous mise.lock"; \
+		[ -f mise.lock.bak ] && mv mise.lock.bak mise.lock; \
 		exit 1; \
 	fi
-	@echo "mise.lock regenerated. Commit both mise.toml and mise.lock together."
 
 ## Remove the devcontainer and clean up dangling images
 clean: down

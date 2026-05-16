@@ -121,6 +121,53 @@ for tool in "${!EXPECTED_MAP[@]}"; do
         continue
     fi
 
+    if [ "$expected" = "postinstall-gpg" ]; then
+        # Three assertions for tools verified by a postinstall GPG hook:
+        #   1. Tool is in the lockfile (mise managed the install)
+        #   2. mise.toml lists `postinstall = "<path>"` for this tool
+        #   3. The postinstall script exists and references `gpg`
+        if ! grep -qF "$section_open" "$LOCK"; then
+            fail "${tool}: no ${section_open}] section found in ${LOCK}"
+            continue
+        fi
+        # Locate the [tools."<key>"] block in mise.toml and grab its
+        # postinstall path. The block is identified by its exact header.
+        case "$tool" in
+            *[!a-zA-Z0-9_-]*) toml_section="[tools.\"${tool}\"]";;
+            *)               toml_section="[tools.${tool}]";;
+        esac
+        post_path=$(awk -v hdr="$toml_section" '
+            $0 == hdr { in_block = 1; next }
+            /^\[/      { in_block = 0 }
+            in_block && /^postinstall *=/ {
+                match($0, /"[^"]+"/)
+                if (RLENGTH > 0) { print substr($0, RSTART+1, RLENGTH-2); exit }
+            }
+        ' "${REPO}/mise.toml")
+        if [ -z "$post_path" ]; then
+            fail "${tool}: mise.toml ${toml_section} has no postinstall = entry"
+            continue
+        fi
+        # Resolve postinstall path against the repo. The Dockerfile copies
+        # aqua-registry/ into /etc/mise/aqua-registry/, so the in-toml path
+        # /etc/mise/aqua-registry/<file>.sh maps to aqua-registry/<file>.sh.
+        case "$post_path" in
+            /etc/mise/*) repo_path="${REPO}/${post_path#/etc/mise/}";;
+            /*)          repo_path="${post_path}";;
+            *)           repo_path="${REPO}/${post_path}";;
+        esac
+        if [ ! -f "$repo_path" ]; then
+            fail "${tool}: postinstall script not found at ${repo_path}"
+            continue
+        fi
+        if ! grep -qE '\bgpg\b' "$repo_path"; then
+            fail "${tool}: postinstall script ${repo_path} does not reference gpg"
+            continue
+        fi
+        ok "${tool} verified via postinstall GPG hook (${post_path##*/})"
+        continue
+    fi
+
     # Walk the lockfile's [tools.<key>...] sections and harvest two signals:
     #   - the checksum algorithm prefix (text before the first ':' in the
     #     quoted checksum string), and
