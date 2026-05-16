@@ -182,50 +182,6 @@ RUN set -eux; \
     # Sanity check: kubectl resolves to the mise-installed copy
     kubectl version --client
 
-# cosign — sigstore CLI. Bootstrap via TOFU SHA256 because we can't verify
-# cosign with cosign yet. Once installed, used to verify flux/sops/argocd.
-# Manual SHA update on version bump:
-#   curl -sL https://github.com/sigstore/cosign/releases/download/<ver>/cosign_checksums.txt | grep -E 'cosign-linux-(amd64|arm64)$'
-# renovate: datasource=github-releases depName=sigstore/cosign
-ARG COSIGN_VERSION="v3.0.6"
-ARG COSIGN_SHA256_AMD64="c956e5dfcac53d52bcf058360d579472f0c1d2d9b69f55209e256fe7783f4c74"
-ARG COSIGN_SHA256_ARM64="bedac92e8c3729864e13d4a17048007cfafa79d5deca993a43a90ffe018ef2b8"
-RUN set -eux; \
-    ARCH_RAW=$(uname -m); \
-    case "$ARCH_RAW" in \
-      x86_64)  ARCH="amd64"; EXPECTED_SHA="${COSIGN_SHA256_AMD64}" ;; \
-      aarch64) ARCH="arm64"; EXPECTED_SHA="${COSIGN_SHA256_ARM64}" ;; \
-      *) echo "Unsupported arch: $ARCH_RAW" >&2; exit 1 ;; \
-    esac; \
-    URL="https://github.com/sigstore/cosign/releases/download/${COSIGN_VERSION}/cosign-linux-${ARCH}"; \
-    curl -fsSL -o /usr/local/bin/cosign "$URL"; \
-    echo "${EXPECTED_SHA}  /usr/local/bin/cosign" | sha256sum -c -; \
-    chmod +x /usr/local/bin/cosign; \
-    cosign version
-
-# slsa-verifier — TOFU SHA bootstrap (same chicken-and-egg as cosign).
-# Used for argocd: cosign verify-blob-attestation has a 128MB blob size
-# limit that argocd's 217MB binary exceeds; slsa-verifier is purpose-built
-# for SLSA provenance and is also what argocd's docs recommend.
-# Manual SHA update on version bump:
-#   for arch in amd64 arm64; do curl -sL "https://github.com/slsa-framework/slsa-verifier/releases/download/<ver>/slsa-verifier-linux-${arch}" | sha256sum; done
-# renovate: datasource=github-releases depName=slsa-framework/slsa-verifier
-ARG SLSA_VERIFIER_VERSION="v2.7.1"
-ARG SLSA_VERIFIER_SHA256_AMD64="946dbec729094195e88ef78e1734324a27869f03e2c6bd2f61cbc06bd5350339"
-ARG SLSA_VERIFIER_SHA256_ARM64="5d3b2349ede7bfec19e7a21569f18b9f7410145ad12e9584b175370669e14061"
-RUN set -eux; \
-    ARCH_RAW=$(uname -m); \
-    case "$ARCH_RAW" in \
-      x86_64)  ARCH="amd64"; EXPECTED_SHA="${SLSA_VERIFIER_SHA256_AMD64}" ;; \
-      aarch64) ARCH="arm64"; EXPECTED_SHA="${SLSA_VERIFIER_SHA256_ARM64}" ;; \
-      *) echo "Unsupported arch: $ARCH_RAW" >&2; exit 1 ;; \
-    esac; \
-    URL="https://github.com/slsa-framework/slsa-verifier/releases/download/${SLSA_VERIFIER_VERSION}/slsa-verifier-linux-${ARCH}"; \
-    curl -fsSL -o /usr/local/bin/slsa-verifier "$URL"; \
-    echo "${EXPECTED_SHA}  /usr/local/bin/slsa-verifier" | sha256sum -c -; \
-    chmod +x /usr/local/bin/slsa-verifier; \
-    slsa-verifier version
-
 # oc: migrated to mise (see mise.toml / mise.lock / aqua-registry/oc-postinstall.sh).
 # Same GPG trust anchor (Red Hat key 567E347AD0044ADE55BA8A5F199E2F91FD431D51),
 # now invoked via mise's postinstall hook after the http-backend download.
