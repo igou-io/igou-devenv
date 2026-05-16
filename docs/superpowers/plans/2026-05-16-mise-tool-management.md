@@ -77,13 +77,41 @@ mise install --dry-run 2>&1 | head -20
 
 Expected: confirm that http-backend tools end up in `mise.lock` with per-platform URLs/checksums. If not, we need to handle this differently. Document.
 
-- [ ] **Step 4: Record decisions**
+- [x] **Step 4: Record decisions**
 
-Append to this plan a short note (in this same Task 0.1) capturing:
-- For `oc`: aqua-registry entry / http+postinstall / custom plugin
-- For `virtctl`, `kube-burner`, `kube-burner-ocp`: aqua-registry / http (SHA256-only is acceptable per spec — same as today's inline install)
+#### Findings (Phase 0 investigation, 2026-05-16)
 
-- [ ] **Step 5: Commit the decisions back into this plan file**
+**Registry coverage** (tested against `ghcr.io/jdx/mise:latest` — mise 2026.5.9):
+
+| Tool | Registry status | Decision |
+|---|---|---|
+| 16 of the 17 "standard" tools | `aqua:<owner>/<repo>` backend | Use plain name in mise.toml (e.g., `kubectl = "1.36.0"`) |
+| `tkn` | NOT a registry shorthand — but `tekton` and `tekton-cli` both resolve to `aqua:tektoncd/cli` | Use `tekton-cli = "..."` key in mise.toml; rename `tkn` references in tests/expected-verification.toml to `tekton-cli` |
+| `node` | `core:node` (mise built-in plugin, not aqua) | Plain name; verification floor is mise core (SHA256 from nodejs.org) |
+| `oc` | Registry shorthand: `http:oc conda:openshift-cli asdf:mise-plugins/mise-oc` | http backend by default — but we override URL ourselves (see below) because the built-in `http:oc` shorthand uses an unknown URL template that may not match Red Hat mirror |
+| `virtctl`, `kube-burner`, `kube-burner-ocp` | NOT in registry | Define as `http:<name>` with explicit per-platform URLs |
+
+**Mise http backend behavior** (tested live):
+
+- **Lockfile**: Generated for both `aqua:` and `http:` backends, **only if `mise.lock` file already exists**. Empty `touch mise.lock` is enough — mise will populate it. This means the Dockerfile must `COPY mise.lock` for the file to be re-used; the Makefile target must `touch mise.lock` before invoking `mise install` when regenerating.
+- **Checksum format**:
+  - `aqua:` tools → `sha256:<hash>` pulled from upstream-signed `kubectl.sha256` files (high trust).
+  - `http:` tools → `blake3:<hash>` computed locally on first install (TOFU). Equivalent security floor to today's inline TOFU-SHA256; just a different hash algorithm. `locked = true` fails the build if it drifts.
+  - The http backend ALSO supports inline `checksum = "sha256:..."` in the URL block if we want to commit specific SHA256s alongside URLs — but mise.lock is the preferred mechanism per docs.
+- **Per-platform lockfile entries**: `lockfile_platforms = ["linux-x64", "linux-arm64"]` populates both even on an x64 build host (mise fetches the arm64 binary just for hashing).
+- **Postinstall failure behavior**:
+  - First install: postinstall runs after extract; non-zero exit produces `Error: Failed to install <tool>` and `mise install` returns non-zero. **Docker build halts.** ✅
+  - BUT the install directory is created (symlinks to `/mise/http-tarballs/<hash>`) BEFORE postinstall runs, so the binary remains on disk.
+  - Subsequent `mise install` calls return exit 0 (mise sees the install dir, skips re-running postinstall). This means dev workflows with `make rebuild` are safe (each Docker layer is a clean install) but interactive `mise install` re-runs do NOT re-verify.
+  - **Conclusion for oc**: postinstall hook is acceptable for the Docker build use case — first install in a fresh layer is the only one that matters. Audit test inspects the postinstall script's existence as proxy for "GPG verification configured".
+
+**Decisions:**
+
+- **oc** → `http:oc` backend with **postinstall hook** (`/etc/mise/aqua-registry/oc-postinstall.sh`) that does Red Hat GPG verification independently. We override the URL ourselves rather than relying on the registry's built-in `http:oc` shorthand because we want the URL template visible and Renovate-friendly in mise.toml.
+- **virtctl, kube-burner, kube-burner-ocp** → `http:` backend, per-platform URLs, blake3 checksum in mise.lock. Same security floor as today's inline TOFU. No postinstall.
+- **tkn** → use `tekton-cli` key in mise.toml (aqua-registry backed). Symlink sweep in Dockerfile creates `/usr/local/bin/tkn` already (since the binary is named `tkn`), so no PATH changes needed. Update the affected sections of Phase 2 (Task 2.1) to use `tekton-cli` not `tkn`.
+
+- [x] **Step 5: Commit the decisions back into this plan file**
 
 ```bash
 git add docs/superpowers/plans/2026-05-16-mise-tool-management.md
@@ -649,7 +677,7 @@ All 16 share the same pattern: add to mise.toml, regenerate mise.lock, add to ex
 
 ### Task 2.1: Migrate the 11 SHA256-verified tools
 
-**Tools:** gh, kustomize, kubeseal, kubeconform, kind, act, tkn, rclone, direnv, age, node
+**Tools:** gh, kustomize, kubeseal, kubeconform, kind, act, tekton-cli (binary name `tkn`), rclone, direnv, age, node
 
 **Files:**
 - Modify: `mise.toml` — append 11 entries
@@ -668,7 +696,7 @@ kubeseal = "0.36.6"
 kubeconform = "0.7.0"
 kind = "0.31.0"
 act = "0.2.87"
-tkn = "0.44.1"
+tekton-cli = "0.44.1"   # binary is named `tkn`; mise registry key is tekton-cli
 rclone = "1.73.5"
 direnv = "2.37.1"
 age = "1.3.1"
@@ -694,7 +722,7 @@ kubeseal = "sha256"
 kubeconform = "sha256"
 kind = "sha256"
 act = "sha256"
-tkn = "sha256"
+tekton-cli = "sha256"   # binary name is `tkn`
 rclone = "sha256"
 direnv = "sha256"
 age = "sha256"
