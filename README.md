@@ -7,35 +7,45 @@ forwarding.
 ## What's Inside
 
 **Kubernetes:** kubectl, helm, kustomize, ArgoCD CLI, kubeseal, flux, virtctl,
-kubeconform, kube-burner, kube-burner-ocp, tkn (Tekton)
+kubeconform, kind, kube-burner, kube-burner-ocp, tkn (Tekton)
 
 **Infrastructure:** Terraform, SOPS, age, rclone
 
 **Ansible:** ansible, ansible-navigator, ansible-builder,
 ansible-runner, ansible-lint
 
-**OpenShift:** oc CLI, crc (OpenShift Local)
+**OpenShift:** oc CLI
 
 **Container Tooling:** podman, buildah, skopeo (native in container, runs
 privileged for nested container support), Docker CLI (via host socket)
 
-**Cloud & Storage:** AWS CLI (via env switching), MinIO client (mc)
-
 **CI/CD:** GitHub CLI, act (local GitHub Actions)
 
 **General:** 1Password CLI, jq, yq, direnv, shellcheck, yamllint, make,
-tree, nmap, tmux, vim, htop
+tree, nmap, tmux, vim, htop, node
 
-**AI:** Claude Code (`claude` CLI — native binary)
+**AI agent CLIs:** Claude Code (`claude`), Cursor agent (`cursor-agent`, alias `agent`),
+opencode (`opencode`) — each pinned + cryptographically verified at build time
 
 ### How Tools Are Installed
 
+CLI tooling is split across four layers, each with its own version-pinning
+mechanism. See [CLAUDE.md](CLAUDE.md) for the per-layer Renovate strategy.
+
 | Layer | What | Where to add |
 |---|---|---|
-| Dockerfile (apt) | podman, buildah, skopeo, jq, direnv, 1Password CLI, etc. | `.devcontainer/Dockerfile` |
-| Dockerfile (binary downloads) | ArgoCD, kustomize, kubeseal, flux, SOPS, oc, virtctl, act, crc, kube-burner, tkn, mc, rclone, claude-code | `.devcontainer/Dockerfile` (ARG + RUN) |
-| Devcontainer Features | kubectl, helm, terraform, python, node, gh, docker CLI | `devcontainer.json` `features` block |
+| Dockerfile (dnf) | podman, buildah, skopeo, jq, direnv, gpg2, 1Password CLI, Docker CLI, base utilities | `.devcontainer/Dockerfile` |
+| Mise (`mise.toml` + `mise.lock`) | kubectl, helm, terraform, gh, argocd, kustomize, kubeseal, flux2, sops, kubeconform, kind, act, tkn, rclone, direnv, age, node, oc, virtctl, kube-burner, kube-burner-ocp | `mise.toml` (versions) + `mise.lock` (per-asset checksums) |
+| Dockerfile (binary downloads) | mise itself (TOFU SHA256 — trust anchor), Claude Code, Cursor agent, opencode | `.devcontainer/Dockerfile` (ARG + RUN) |
 | pip (onCreateCommand) | Ansible ecosystem, yq, mkdocs-material | `.devcontainer/requirements.txt` |
+
+**Verification floor for mise-managed tools** (asserted by
+`tests/test-mise.sh` against `tests/mise-expected-verification.toml`):
+
+- **GPG (pinned fingerprint, via `aqua-registry/<tool>-postinstall.sh`)**: helm, terraform, oc
+- **SLSA L3 attestation + sha256**: flux2, sops, argocd
+- **sha256** (upstream-published checksums): kubectl, gh, kustomize, kubeseal, kubeconform, kind, act, tkn, rclone, direnv, age
+- **blake3 TOFU** (mise lockfile pin, no upstream-signed checksums available): node, virtctl, kube-burner, kube-burner-ocp
 
 ## Quick Start
 
@@ -156,43 +166,39 @@ secrets are stored in the repo.
 |---|---|
 | `make build` | Build the devcontainer image (cached) |
 | `make up` | Build and start the devcontainer |
+| `make restart` | Recreate the devcontainer without rebuilding the image |
 | `make rebuild` | Full rebuild from scratch (no cache) |
 | `make down` | Stop and remove the container |
 | `make shell` | Open a bash shell in the running container |
 | `make exec CMD="..."` | Run a one-off command in the container |
-| `make test` | Run all tests (tools, podman, env) |
+| `make test` | Run all tests (alias for `test-all`) |
 | `make test-tools` | Verify CLI tools, Python packages, and user config |
 | `make test-podman` | Test podman pull, run, and build |
 | `make test-env` | Test environment switching functions |
+| `make test-mise` | Audit mise-managed tools' verification methods against `tests/mise-expected-verification.toml` |
+| `make test-mise-lockfile` | Verify `mise.lock` is in sync with `mise.toml` (runs on host via podman) |
+| `make mise-lock` | Regenerate `mise.lock` against the current `mise.toml` (uses `ghcr.io/jdx/mise` via podman; atomic restore on failure) |
 | `make clean` | Down + prune dangling images |
 | `make renovate-validate` | Validate `renovate.json` config |
 | `make renovate-dry-run` | Dry-run Renovate locally (requires `GITHUB_TOKEN`) |
-| `make claude-build` | Build the Claude container image (UBI10) |
-| `make claude-rebuild` | Rebuild Claude container from scratch |
-| `make claude-test` | Run tool verification in the Claude container |
-| `make claude-test-hardened` | Test under full hardening (cap-drop=ALL, noexec, limits) |
-| `make claude-test-run` | Test claude-run secret resolution and argument assembly |
-| `make claude-test-all` | Run all Claude container tests (tools, hardened, claude-run) |
-| `make opencode-build` | Build the opencode container image from `igou-containers/apps/opencode/` |
-| `make e2e` | Full end-to-end: rebuild devcontainer, run all tests, build + test Claude container |
+| `make sbom` | Generate SBOMs (SPDX + CycloneDX) for the built devcontainer image |
+| `make opencode-build` | Build the opencode container image from `../igou-containers/apps/opencode/` |
+| `make e2e` | Full end-to-end: rebuild devcontainer + run all tests |
 
-## Claude Container
+Agent-container images (Claude, Cursor, opencode) are built and published by
+[`igou-containers`](https://github.com/igou-io/igou-containers), not this repo.
+The `claude-run` / `cursor-run` / `opencode-run` launcher scripts in `bin/`
+pull and run those images.
 
-A separate UBI10-based container for running Claude Code sessions against
-infrastructure repos. Runs rootless via podman from inside the devcontainer,
-with selective credential injection per session.
+## Agent Containers (Claude, Cursor, opencode)
 
-### Build
-
-```bash
-make claude-build       # build the image
-make claude-test        # verify all tools
-make claude-test-all    # run all tests (tools, hardened, claude-run)
-```
+Three hardened UBI10-based images for running coding-agent sessions against
+infrastructure repos, each launched from inside the devcontainer with
+selective per-session credential injection. **Built and published by
+[`igou-containers`](https://github.com/igou-io/igou-containers); this repo
+just ships the launcher scripts and the `bin/` entry points.**
 
 ### Usage
-
-The `claude-run` script (in `bin/`, on PATH) launches the container:
 
 ```bash
 claude-run                          # launch claude with current directory mounted
@@ -200,60 +206,39 @@ claude-run -e ocp-rosa              # resolve ocp-rosa secrets, inject as env va
 claude-run -e ocp-hub -e ansible    # stack multiple environments
 claude-run --shell                  # drop to bash instead of claude
 claude-run -e aws -- --resume       # pass flags through to claude
+
+cursor-run                          # same shape — launches the Cursor agent
+opencode-run                        # same shape — launches opencode
 ```
 
 Credentials are resolved via `op inject` in the devcontainer before being
-passed as plain environment variables to the Claude container. The container
-never has direct access to 1Password.
+passed as plain environment variables to the agent container. The agent
+container never has direct access to 1Password.
 
 ### Differences from the devcontainer
 
-| | Devcontainer | Claude Container |
+| | Devcontainer | Agent containers |
 |---|---|---|
-| Base image | Ubuntu (devcontainers/base) | UBI10 (ubi-micro) |
-| Container engine | podman, buildah, skopeo, Docker CLI | None (no nested containers) |
-| Devcontainer Features | kubectl, helm, terraform, python, node, gh, docker | Installed via binary downloads |
+| Base image | CentOS Stream 10 | UBI10 (`ubi-micro` for Claude, `ubi-minimal` for Cursor/opencode) |
+| Container engine inside | podman, buildah, skopeo, Docker CLI | None (no nested containers) |
 | Privileged mode | Yes (for nested podman) | No (rootless via `--userns=keep-id`) |
-| Hardening | None (general-purpose) | `--cap-drop=ALL`, noexec /tmp, bubblewrap + seccomp sandbox |
-| Launched via | Cursor / `make up` | `claude-run` from inside devcontainer |
+| Hardening | None (general-purpose) | `--cap-drop=ALL`, noexec `/tmp`, bubblewrap + seccomp sandbox |
+| Launched via | Cursor / `make up` | `claude-run` / `cursor-run` / `opencode-run` from inside devcontainer |
 
-## Opencode Container
+### opencode-specific: pointing at the local Qwen endpoint
 
-A hardened UBI10-based container for running [opencode](https://opencode.ai)
-against the Qwen3.6-35B-A3B endpoint hosted by `applications/llmkube/` in
-`igou-openshift` (or any other OpenAI-compatible endpoint configured in
-`~/.config/opencode/opencode.jsonc`). Runs rootless via podman from inside
-the devcontainer, with the same secret-injection plumbing as `claude-run` and
-`cursor-run`.
-
-### Build
-
-```bash
-make opencode-build      # builds ghcr.io/igou-io/opencode:latest from igou-containers
-```
-
-The image is also built and pushed to GHCR by the `igou-containers` workflow on
-every push to `main`. Local `make opencode-build` is for fast iteration before
-pushing to that repo.
-
-### Usage
-
-The `opencode-run` script (in `bin/`, on PATH) launches the container:
-
-```bash
-opencode-run                          # launch opencode against the configured provider
-opencode-run -e ocp-hub               # with cluster credentials (kubectl/oc/argocd in container)
-opencode-run --shell                  # drop to bash instead of opencode
-opencode-run -- run "fix lint errors" # forward args to opencode
-```
-
-The launcher bind-mounts `~/.config/opencode/` (config) and
+`opencode-run` is the same shape as the other two launchers but is
+typically pointed at the Qwen3.6-35B-A3B endpoint hosted by
+`applications/llmkube/` in `igou-openshift` (or any OpenAI-compatible
+endpoint). The launcher bind-mounts `~/.config/opencode/` (config) and
 `~/.local/share/opencode/` (auth tokens, session history) so state persists
 across container runs and is shared with the devcontainer.
 
-### Pointing at the Qwen endpoint
+`make opencode-build` is provided for fast local iteration on the image
+before pushing to `igou-containers` — the GHCR copy is produced by the
+`igou-containers` workflow on every push to its `main`.
 
-`~/.config/opencode/opencode.jsonc`:
+Example `~/.config/opencode/opencode.jsonc`:
 
 ```jsonc
 {
@@ -329,9 +314,14 @@ rootless networking. Docker CLI is also available via the host socket
 All tool versions are pinned and managed by [Renovate](https://docs.renovatebot.com/):
 
 - **Dockerfile base image** — pinned by digest, updated by Renovate's Docker manager
-- **Python packages** — pinned in `.devcontainer/requirements.txt`, updated by `pip_requirements` manager
-- **CLI binaries** — pinned in `Dockerfile` with `# renovate:` comments, updated by a custom regex manager using the `github-releases` datasource
-- **npm build-time deps** — pinned in `containers/claude-code/package.json`, updated by Renovate's native npm manager
+- **Mise-managed CLI tools** (21 binaries) — pinned in `mise.toml`, per-asset checksums in `mise.lock`. Renovate's native `mise` manager bumps versions; `make mise-lock` (run by Renovate's `postUpgradeTasks`) refreshes the lockfile.
+- **aqua-registry pin** — the upstream registry that mise consumes is pinned to a specific git SHA in `mise.toml`. Renovate bumps it; `tests/test-mise.sh` gates the bump by asserting no per-tool verification method silently downgraded.
+- **Mise itself** + Claude Code + Cursor agent + opencode — pinned in `.devcontainer/Dockerfile` ARG blocks with `# renovate:` comments and the `github-releases` datasource (custom regex manager). SHA256 (and PGP for Claude) verified at build time.
+- **Python packages** — pinned in `.devcontainer/requirements.txt`, updated by `pip_requirements` manager.
+
+Trust anchors (mise itself, aqua-registry pin) are routed into their own
+Renovate groups in `renovate.json` so they get reviewed separately from
+routine tool bumps.
 
 To test Renovate config locally:
 ```bash
@@ -350,11 +340,10 @@ test suite (`tests/run-all.sh`) inside the container.
 
 ### Adding Tools
 
-- **apt packages** → add to `Dockerfile`
-- **Devcontainer Features** → add to `devcontainer.json` `features` block
+- **CLI binaries managed by `mise`** (preferred for new tools) → add to `mise.toml`, run `make mise-lock`, commit both. If the tool isn't in aqua-registry, use the `http:` backend with explicit per-platform URLs (see existing entries for `virtctl`, `kube-burner`, etc.). If the tool needs additional GPG verification beyond aqua-registry's defaults, add a postinstall hook in `aqua-registry/<tool>-postinstall.sh` (see `oc-postinstall.sh` for the pattern) and update `tests/mise-expected-verification.toml` to `"postinstall-gpg"`.
+- **dnf packages** → add to `.devcontainer/Dockerfile` (under the existing `dnf install` block)
 - **Python packages** → add to `.devcontainer/requirements.txt` (pinned for Renovate)
-- **CLI binaries from GitHub** → add to `Dockerfile` with a `# renovate:` ARG comment
-- **npm build-time deps** → add to `containers/claude-code/package.json` (Renovate-managed)
+- **Binaries not in aqua-registry that need custom verification logic** (Claude Code, Cursor agent, opencode pattern) → add a dedicated `ARG <NAME>_VERSION` + `RUN` block in `.devcontainer/Dockerfile` with a `# renovate:` comment. Keep these rare — prefer mise's `http:` backend when possible.
 - **Custom scripts** → add to `bin/` (symlinked to `~/bin`, on PATH)
 - **Cursor extensions** → add to `customizations.vscode.extensions` in `devcontainer.json`
 
