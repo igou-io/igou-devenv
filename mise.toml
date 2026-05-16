@@ -59,3 +59,7 @@ age = "1.3.1"
 # Task 2.2 — cosign-keyless-verified tools.
 flux2 = "2.8.6"
 sops = "3.12.2"
+
+# Task 2.3 — GPG-verified tools.
+helm = "4.1.4"
+terraform = "1.15.0"
