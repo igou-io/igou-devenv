@@ -52,16 +52,18 @@ age = "sha256"
 flux2 = "sha256+slsa"   # binary: flux
 sops = "sha256+slsa"
 
-# Task 2.3 — helm + terraform.
-# Plan expected "gpg" verification. Actual aqua-registry behaviour: both
-# tools resolve to plain sha256 against the upstream .sha256sum / SHA256SUMS
-# files (with no .sig or .gpg fetch in the install path). This is a DOWNGRADE
-# from the prior inline blocks, which verified GPG signatures against pinned
-# trust anchors (helm BF888333..., terraform C8740111...). See the migration
-# commit body for rationale; flagged for follow-up to restore GPG via a mise
-# post-install hook or pre-install verification step.
-helm = "sha256"
-terraform = "sha256"
+# Task 2.3 / follow-up — helm + terraform.
+# aqua-registry's install path records only sha256 for both tools (no GPG
+# step), so we'd lose the previous inline blocks' trust anchor without
+# intervention. Restored via postinstall hooks that re-run the GPG
+# verification against the pinned fingerprints:
+#   helm:      BF888333D96A1C18E2682AAED79D67C9EC016739
+#   terraform: C874011F0AB405110D02105534365D9472D7468F
+# The audit asserts the hook is wired (mise.toml has postinstall = path,
+# the script exists, and it references gpg) — removing the GPG step
+# silently on a future bump fails the audit.
+helm = "postinstall-gpg"        # script: aqua-registry/helm-postinstall.sh
+terraform = "postinstall-gpg"   # script: aqua-registry/terraform-postinstall.sh
 
 # Task 2.4 — argocd.
 # Plan expected "slsa" alone; aqua-registry records the per-asset sha256

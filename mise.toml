@@ -60,12 +60,26 @@ age = "1.3.1"
 flux2 = "2.8.6"
 sops = "3.12.2"
 
-# Task 2.3 — GPG-verified tools.
-helm = "4.1.4"
-terraform = "1.15.0"
-
 # Task 2.4 — SLSA-verified tools.
 argocd = "3.3.9"
+
+# Task 2.3 / follow-up — GPG-verified tools. aqua-registry's mise install path
+# records only sha256 for helm + terraform (no GPG step), so the previous
+# inline GPG verification would have been a downgrade if left as-is. Restored
+# via postinstall hooks: each script re-runs the same trust-anchor flow the
+# inline Dockerfile blocks did (fetch upstream KEYS, assert pinned fingerprint,
+# verify detached signature on either the tarball itself or the SHA256SUMS
+# file, then confirm sha matches). The audit ("postinstall-gpg" in
+# tests/mise-expected-verification.toml) asserts the hook is wired and
+# references gpg, so the script can't be silently dropped on a future bump.
+
+[tools.helm]
+version = "4.1.4"
+postinstall = "/etc/mise/aqua-registry/helm-postinstall.sh"
+
+[tools.terraform]
+version = "1.15.0"
+postinstall = "/etc/mise/aqua-registry/terraform-postinstall.sh"
 
 # Task 3.1 — off-registry tools via mise's http backend.
 # Not in aqua-registry; we provide per-platform URLs directly and let mise
