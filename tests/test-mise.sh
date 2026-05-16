@@ -48,32 +48,88 @@ fi
 echo ""
 echo "==> Verification audit (per tool in mise.toml, checked against mise.lock)"
 
-# Parse expected manifest into a bash assoc array.
-# Format: <key> = "<value>"   [# optional comment]
-# We strip the inline comment, quotes, and surrounding whitespace.
+# Parse expected manifest into bash assoc arrays.
+# Format: <key> = "<value>"   [# binary: <name>]   [# optional comment]
+# - <key>   : mise registry key (matches [tools.<key>] in mise.lock)
+# - <value> : expected checksum algorithm prefix in lockfile, OR the literal
+#             "core" for tools that use a mise core backend that does not
+#             record per-platform checksums in the lockfile (e.g. core:node,
+#             which is verified internally by mise against nodejs.org's
+#             GPG-signed SHASUMS256.txt but never written to mise.lock).
+# - `# binary: <name>` : optional override for the launch-check command name
+#                       when the installed binary differs from the mise key
+#                       (e.g. tekton-cli installs a binary named `tkn`).
 declare -A EXPECTED_MAP
-while IFS='=' read -r k v; do
-    k="$(echo "$k" | xargs)"
+declare -A BINARY_MAP
+while IFS= read -r line; do
+    # Skip blank lines and pure-comment lines. Use parameter expansion (not
+    # xargs) to tolerate apostrophes in commentary like "mise's" / "nodejs.org's".
+    trimmed="${line#"${line%%[![:space:]]*}"}"
+    case "$trimmed" in ""|"#"*) continue ;; esac
+    # An `=` is required on a real assignment line; skip anything else.
+    case "$line" in *=*) ;; *) continue ;; esac
+    # Split on the first '=' into key/value-and-trailing-comment.
+    k="${line%%=*}"
+    rest="${line#*=}"
+    # Strip whitespace and surrounding quotes from the key (mise.toml-style
+    # backend-prefixed keys like "aqua:nodejs/node" must be quoted in TOML).
+    k="$(echo "$k" | tr -d '"' | xargs)"
+    # Pull out an optional `# binary: <name>` override from the trailing comment
+    # before stripping the comment for the value.
+    bin=""
+    if echo "$rest" | grep -qE '# *binary: *[^ ]+'; then
+        bin="$(echo "$rest" | sed -nE 's/.*# *binary: *([^ #]+).*/\1/p')"
+    fi
     # Strip an inline `# ...` comment from the value before stripping quotes.
-    v="${v%%#*}"
+    v="${rest%%#*}"
     v="$(echo "$v" | tr -d '"' | xargs)"
-    [ -n "$k" ] && [ "${k:0:1}" != "#" ] && EXPECTED_MAP["$k"]="$v"
+    [ -n "$k" ] || continue
+    EXPECTED_MAP["$k"]="$v"
+    if [ -n "$bin" ]; then
+        BINARY_MAP["$k"]="$bin"
+    fi
 done < "$EXPECTED"
 
 # For each tool we expect a verification method for, inspect mise.lock and
 # pull out the algorithm prefix from the checksum line. We require the
 # tool to have AT LEAST ONE platform-pinned checksum with the expected
 # prefix — both linux-x64 and linux-arm64 entries must agree.
+#
+# Special case: expected = "core" means we explicitly accept that this tool
+# uses a mise core backend (e.g. core:node) whose verification happens
+# inside mise itself and is not recorded in mise.lock. We still require
+# the tool to appear in the lockfile as [[tools.<name>]] to confirm mise
+# managed the install.
 for tool in "${!EXPECTED_MAP[@]}"; do
     expected="${EXPECTED_MAP[$tool]}"
 
+    # Bracket-quoted keys in the lockfile: a backend-prefixed key like
+    # "aqua:nodejs/node" appears as `[[tools."aqua:nodejs/node"]]` rather
+    # than the unquoted `[[tools.kubectl]]`. Pick the section header form
+    # to look for by detecting whether the key contains TOML-special chars.
+    case "$tool" in
+        *[!a-zA-Z0-9_-]*) section_open="[[tools.\"${tool}\"]"; section_dot="[tools.\"${tool}\".";;
+        *)               section_open="[[tools.${tool}]";      section_dot="[tools.${tool}.";;
+    esac
+
+    if [ "$expected" = "core" ]; then
+        if grep -qF "$section_open" "$LOCK"; then
+            ok "${tool} verified via core backend (mise built-in; no lockfile checksum)"
+        else
+            fail "${tool}: no ${section_open}] section found in ${LOCK}"
+        fi
+        continue
+    fi
+
     # Pull all checksum lines under [tools.<tool>...] sections from the
     # lockfile and extract the algorithm prefix (text before ':').
-    # awk state machine: start capture on a section header matching the
-    # tool, emit checksum lines, stop on next [section] header.
-    algs=$(awk -v t="$tool" '
+    # awk state machine: start capture on a section header that begins with
+    # either section_open ([[tools.<key>]]) or section_dot ([tools.<key>.X]),
+    # emit checksum lines, stop on next [section] header that doesn't.
+    algs=$(awk -v open="$section_open" -v dot="$section_dot" '
+        function startswith(s, p) { return substr(s, 1, length(p)) == p }
         /^\[/{
-            in_tool = ($0 ~ "^\\[\\[?tools\\." t "\\b") || ($0 ~ "^\\[tools\\." t "\\.")
+            in_tool = startswith($0, open) || startswith($0, dot)
         }
         in_tool && /^checksum *= *"/{
             match($0, /"[^:]+:/)
@@ -107,13 +163,18 @@ done
 echo ""
 echo "==> Binary launch check (every tool in mise.toml runs --version)"
 for tool in "${!EXPECTED_MAP[@]}"; do
-    if "$tool" --version >/dev/null 2>&1 \
-        || "$tool" version --client >/dev/null 2>&1 \
-        || "$tool" version >/dev/null 2>&1 \
-        || "$tool" -v >/dev/null 2>&1; then
-        ok "$tool launches"
+    bin="${BINARY_MAP[$tool]:-$tool}"
+    if "$bin" --version >/dev/null 2>&1 \
+        || "$bin" version --client >/dev/null 2>&1 \
+        || "$bin" version >/dev/null 2>&1 \
+        || "$bin" -v >/dev/null 2>&1; then
+        if [ "$bin" != "$tool" ]; then
+            ok "$tool launches (binary: $bin)"
+        else
+            ok "$tool launches"
+        fi
     else
-        fail "$tool failed to launch"
+        fail "$tool failed to launch (tried binary: $bin)"
     fi
 done
 

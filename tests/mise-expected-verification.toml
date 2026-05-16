@@ -2,5 +2,33 @@
 # If aqua-registry silently downgrades any of these, tests/test-mise.sh fails.
 # Update intentionally when migrating a tool — this is the audit trail
 # from H3/PR#43.
+#
+# Value semantics:
+#   "sha256"           — aqua-registry SHA256-only (upstream checksums file)
+#   "cosign-keyless"   — cosign keyless (Sigstore Fulcio + OIDC identity)
+#   "gpg"              — aqua-registry GPG-verified against pinned fingerprint
+#   "slsa"             — SLSA L3 provenance verified by mise's built-in SLSA verifier
+#   "blake3"           — TOFU on first install (mise computed the digest itself)
+#   "core"             — uses a mise core backend whose verification happens
+#                        inside the mise binary and is not recorded in mise.lock
+#                        (e.g. core:node, which verifies against nodejs.org's
+#                        GPG-signed SHASUMS256.txt internally).
+#
+# Optional `# binary: <name>` trailing comment overrides the launch-check
+# command when the installed binary differs from the mise registry key
+# (e.g. tekton-cli installs a binary named `tkn`).
 
 kubectl = "sha256"   # dl.k8s.io publishes per-binary .sha256
+
+# Task 2.1 — SHA256-verified tools.
+gh = "sha256"
+kustomize = "sha256"
+kubeseal = "sha256"
+kubeconform = "sha256"
+kind = "sha256"
+act = "sha256"
+tekton-cli = "sha256"   # binary: tkn
+rclone = "sha256"
+direnv = "sha256"
+age = "sha256"
+"aqua:nodejs/node" = "blake3"   # binary: node — aqua-registry has no SHASUMS reference; mise pins blake3 TOFU. Strictly better than the prior unverified curl|tar.

@@ -215,17 +215,6 @@ RUN set -eux; \
     chmod +x /usr/local/bin/slsa-verifier; \
     slsa-verifier version
 
-# Node.js — out of H3 scope (not in audit list). Preserves existing
-# unverified install.
-# renovate: datasource=node-version depName=node
-ARG NODE_VERSION="v24.15.0"
-RUN set -eux; \
-    ARCH_RAW=$(uname -m); \
-    ARCH_NODE=$([ "$ARCH_RAW" = "x86_64" ] && echo "x64" || echo "arm64"); \
-    curl -sSL "https://nodejs.org/dist/${NODE_VERSION}/node-${NODE_VERSION}-linux-${ARCH_NODE}.tar.xz" \
-      | tar -xJ --strip-components=1 -C /usr/local && \
-    rm -rf /usr/local/include/node
-
 # helm — pinned + GPG-verified against Helm's release signing key.
 # Trust anchor: BF888333D96A1C18E2682AAED79D67C9EC016739
 # renovate: datasource=github-releases depName=helm/helm
@@ -292,28 +281,6 @@ RUN set -eux; \
     cd / && rm -rf "$WORK"; \
     terraform version
 
-# gh — pinned + SHA-verified against upstream checksums.txt.
-# renovate: datasource=github-releases depName=cli/cli
-ARG GH_VERSION="v2.92.0"
-RUN set -eux; \
-    ARCH_RAW=$(uname -m); \
-    case "$ARCH_RAW" in \
-      x86_64)  ARCH="amd64" ;; \
-      aarch64) ARCH="arm64" ;; \
-      *) echo "Unsupported arch: $ARCH_RAW" >&2; exit 1 ;; \
-    esac; \
-    GH_BARE="${GH_VERSION#v}"; \
-    TARBALL="gh_${GH_BARE}_linux_${ARCH}.tar.gz"; \
-    BASE="https://github.com/cli/cli/releases/download/${GH_VERSION}"; \
-    WORK=$(mktemp -d); \
-    cd "$WORK"; \
-    curl -fsSL -o "$TARBALL"        "${BASE}/${TARBALL}"; \
-    curl -fsSL -o checksums.txt     "${BASE}/gh_${GH_BARE}_checksums.txt"; \
-    grep " ${TARBALL}\$" checksums.txt | sha256sum -c -; \
-    tar -xz --strip-components=2 -C /usr/local/bin "gh_${GH_BARE}_linux_${ARCH}/bin/gh" -f "$TARBALL"; \
-    cd / && rm -rf "$WORK"; \
-    gh --version
-
 # argocd — pinned + SLSA L3 attestation-verified via slsa-verifier.
 # slsa-verifier is argocd's documented verification tool. Cosign's
 # verify-blob-attestation can't be used here — it has a 128MB blob size
@@ -342,53 +309,6 @@ RUN set -eux; \
     install -m 0755 "$BIN" /usr/local/bin/argocd; \
     cd / && rm -rf "$WORK"; \
     argocd version --client --short
-
-# kustomize — pinned + SHA-verified against upstream checksums.txt.
-# renovate: datasource=github-releases depName=kubernetes-sigs/kustomize extractVersion=^kustomize/(?<version>.*)$
-ARG KUSTOMIZE_VERSION="v5.8.1"
-RUN set -eux; \
-    ARCH_RAW=$(uname -m); \
-    case "$ARCH_RAW" in \
-      x86_64)  ARCH="amd64" ;; \
-      aarch64) ARCH="arm64" ;; \
-      *) echo "Unsupported arch: $ARCH_RAW" >&2; exit 1 ;; \
-    esac; \
-    TARBALL="kustomize_${KUSTOMIZE_VERSION}_linux_${ARCH}.tar.gz"; \
-    BASE="https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2F${KUSTOMIZE_VERSION}"; \
-    WORK=$(mktemp -d); \
-    cd "$WORK"; \
-    curl -fsSL -o "$TARBALL"    "${BASE}/${TARBALL}"; \
-    curl -fsSL -o checksums.txt "${BASE}/checksums.txt"; \
-    grep " ${TARBALL}\$" checksums.txt | sha256sum -c -; \
-    tar -xz -C /usr/local/bin kustomize -f "$TARBALL"; \
-    cd / && rm -rf "$WORK"; \
-    kustomize version
-
-# kubeseal — pinned + SHA-verified against upstream sealed-secrets_*_checksums.txt.
-# NOTE: Upstream publishes .sig files but no companion .pem certificates, so
-# cosign-keyless verification of the checksums file isn't possible from release
-# assets alone. Downgraded to Tier 2 (SHA-only) until upstream clarifies — see
-# follow-up issue in PR description.
-# renovate: datasource=github-releases depName=bitnami-labs/sealed-secrets
-ARG KUBESEAL_VERSION="v0.36.6"
-RUN set -eux; \
-    ARCH_RAW=$(uname -m); \
-    case "$ARCH_RAW" in \
-      x86_64)  ARCH="amd64" ;; \
-      aarch64) ARCH="arm64" ;; \
-      *) echo "Unsupported arch: $ARCH_RAW" >&2; exit 1 ;; \
-    esac; \
-    KS_BARE="${KUBESEAL_VERSION#v}"; \
-    TARBALL="kubeseal-${KS_BARE}-linux-${ARCH}.tar.gz"; \
-    BASE="https://github.com/bitnami-labs/sealed-secrets/releases/download/${KUBESEAL_VERSION}"; \
-    WORK=$(mktemp -d); \
-    cd "$WORK"; \
-    curl -fsSL -o "$TARBALL"    "${BASE}/${TARBALL}"; \
-    curl -fsSL -o checksums.txt "${BASE}/sealed-secrets_${KS_BARE}_checksums.txt"; \
-    grep " ${TARBALL}\$" checksums.txt | sha256sum -c -; \
-    tar -xz -C /usr/local/bin kubeseal -f "$TARBALL"; \
-    cd / && rm -rf "$WORK"; \
-    kubeseal --version
 
 # flux — pinned + cosign-keyless-verified against signed checksums.txt.
 # Trust anchor: cosign cert-identity-regexp + GitHub OIDC issuer.
@@ -511,66 +431,6 @@ RUN set -eux; \
     chmod +x /usr/local/bin/virtctl; \
     virtctl version --client
 
-# kubeconform — pinned + SHA-verified against CHECKSUMS.
-# renovate: datasource=github-releases depName=yannh/kubeconform
-ARG KUBECONFORM_VERSION="v0.7.0"
-RUN set -eux; \
-    ARCH_RAW=$(uname -m); \
-    case "$ARCH_RAW" in \
-      x86_64)  ARCH="amd64" ;; \
-      aarch64) ARCH="arm64" ;; \
-      *) echo "Unsupported arch: $ARCH_RAW" >&2; exit 1 ;; \
-    esac; \
-    TARBALL="kubeconform-linux-${ARCH}.tar.gz"; \
-    BASE="https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}"; \
-    WORK=$(mktemp -d); \
-    cd "$WORK"; \
-    curl -fsSL -o "$TARBALL"   "${BASE}/${TARBALL}"; \
-    curl -fsSL -o CHECKSUMS    "${BASE}/CHECKSUMS"; \
-    grep " ${TARBALL}\$" CHECKSUMS | sha256sum -c -; \
-    tar -xz -C /usr/local/bin kubeconform -f "$TARBALL"; \
-    cd / && rm -rf "$WORK"; \
-    kubeconform -v
-
-# kind — pinned + SHA-verified against per-platform .sha256sum.
-# renovate: datasource=github-releases depName=kubernetes-sigs/kind
-ARG KIND_VERSION="v0.31.0"
-RUN set -eux; \
-    ARCH_RAW=$(uname -m); \
-    case "$ARCH_RAW" in \
-      x86_64)  ARCH="amd64" ;; \
-      aarch64) ARCH="arm64" ;; \
-      *) echo "Unsupported arch: $ARCH_RAW" >&2; exit 1 ;; \
-    esac; \
-    BIN="kind-linux-${ARCH}"; \
-    BASE="https://kind.sigs.k8s.io/dl/${KIND_VERSION}"; \
-    curl -fsSL -o /usr/local/bin/kind "${BASE}/${BIN}"; \
-    EXPECTED_SHA=$(curl -fsSL "${BASE}/${BIN}.sha256sum" | cut -d' ' -f1); \
-    echo "${EXPECTED_SHA}  /usr/local/bin/kind" | sha256sum -c -; \
-    chmod +x /usr/local/bin/kind; \
-    kind version
-
-# act — pinned + SHA-verified against checksums.txt.
-# renovate: datasource=github-releases depName=nektos/act
-ARG ACT_VERSION="v0.2.87"
-RUN set -eux; \
-    ARCH_RAW=$(uname -m); \
-    case "$ARCH_RAW" in \
-      x86_64)  ARCH_X86="x86_64" ;; \
-      aarch64) ARCH_X86="arm64" ;; \
-      *) echo "Unsupported arch: $ARCH_RAW" >&2; exit 1 ;; \
-    esac; \
-    TARBALL="act_Linux_${ARCH_X86}.tar.gz"; \
-    BASE="https://github.com/nektos/act/releases/download/${ACT_VERSION}"; \
-    WORK=$(mktemp -d); \
-    cd "$WORK"; \
-    curl -fsSL -o "$TARBALL"   "${BASE}/${TARBALL}"; \
-    curl -fsSL -o checksums.txt "${BASE}/checksums.txt"; \
-    grep " ${TARBALL}\$" checksums.txt | sha256sum -c -; \
-    tar -xz -C /usr/local/bin act -f "$TARBALL"; \
-    cd / && rm -rf "$WORK"; \
-    act --version
-
 # kube-burner — pinned + SHA-verified against kube-burner-checksums.txt.
 # renovate: datasource=github-releases depName=cloud-bulldozer/kube-burner
 ARG KUBE_BURNER_VERSION="v2.6.1"
@@ -614,91 +474,6 @@ RUN set -eux; \
     tar -xz -C /usr/local/bin kube-burner-ocp -f "$TARBALL"; \
     cd / && rm -rf "$WORK"; \
     kube-burner-ocp version
-
-# tkn (Tekton CLI) — pinned + SHA-verified.
-# renovate: datasource=github-releases depName=tektoncd/cli
-ARG TKN_VERSION="v0.44.1"
-RUN set -eux; \
-    ARCH_RAW=$(uname -m); \
-    case "$ARCH_RAW" in \
-      x86_64)  ARCH_GNU="x86_64" ;; \
-      aarch64) ARCH_GNU="aarch64" ;; \
-      *) echo "Unsupported arch: $ARCH_RAW" >&2; exit 1 ;; \
-    esac; \
-    TKN_BARE="${TKN_VERSION#v}"; \
-    TARBALL="tkn_${TKN_BARE}_Linux_${ARCH_GNU}.tar.gz"; \
-    BASE="https://github.com/tektoncd/cli/releases/download/${TKN_VERSION}"; \
-    WORK=$(mktemp -d); \
-    cd "$WORK"; \
-    curl -fsSL -o "$TARBALL"   "${BASE}/${TARBALL}"; \
-    curl -fsSL -o checksums.txt "${BASE}/checksums.txt"; \
-    grep " ${TARBALL}\$" checksums.txt | sha256sum -c -; \
-    tar -xz -C /usr/local/bin tkn -f "$TARBALL"; \
-    cd / && rm -rf "$WORK"; \
-    tkn version || true
-
-# rclone — pinned + SHA-verified.
-# renovate: datasource=github-releases depName=rclone/rclone
-ARG RCLONE_VERSION="v1.73.5"
-RUN set -eux; \
-    ARCH_RAW=$(uname -m); \
-    case "$ARCH_RAW" in \
-      x86_64)  ARCH="amd64" ;; \
-      aarch64) ARCH="arm64" ;; \
-      *) echo "Unsupported arch: $ARCH_RAW" >&2; exit 1 ;; \
-    esac; \
-    ZIP="rclone-${RCLONE_VERSION}-linux-${ARCH}.zip"; \
-    BASE="https://github.com/rclone/rclone/releases/download/${RCLONE_VERSION}"; \
-    WORK=$(mktemp -d); \
-    cd "$WORK"; \
-    curl -fsSL -o "$ZIP"        "${BASE}/${ZIP}"; \
-    curl -fsSL -o SHA256SUMS    "${BASE}/SHA256SUMS"; \
-    grep " ${ZIP}\$" SHA256SUMS | sha256sum -c -; \
-    unzip -j "$ZIP" "rclone-${RCLONE_VERSION}-linux-${ARCH}/rclone" -d /usr/local/bin; \
-    chmod +x /usr/local/bin/rclone; \
-    cd / && rm -rf "$WORK"; \
-    rclone version || true
-
-# direnv — pinned + TOFU-SHA. No upstream checksums or signatures.
-# renovate: datasource=github-releases depName=direnv/direnv
-ARG DIRENV_VERSION="v2.37.1"
-ARG DIRENV_SHA256_AMD64="1f1b93dd6f38523fde26dfac96151ef9d31a374e3005cd3345fb93555ae0c9b5"
-ARG DIRENV_SHA256_ARM64="2a9cef8d73521d6a3ec3f2871c4b747b8c4cc038628c1b57a7efa42b393a2d82"
-RUN set -eux; \
-    ARCH_RAW=$(uname -m); \
-    case "$ARCH_RAW" in \
-      x86_64)  ARCH="amd64"; EXPECTED_SHA="${DIRENV_SHA256_AMD64}" ;; \
-      aarch64) ARCH="arm64"; EXPECTED_SHA="${DIRENV_SHA256_ARM64}" ;; \
-      *) echo "Unsupported arch: $ARCH_RAW" >&2; exit 1 ;; \
-    esac; \
-    URL="https://github.com/direnv/direnv/releases/download/${DIRENV_VERSION}/direnv.linux-${ARCH}"; \
-    curl -fsSL -o /usr/local/bin/direnv "$URL"; \
-    echo "${EXPECTED_SHA}  /usr/local/bin/direnv" | sha256sum -c -; \
-    chmod +x /usr/local/bin/direnv; \
-    direnv version
-
-# age — pinned + TOFU-SHA. Upstream publishes .proof (sigsum) files but
-# verification requires sigsum-verify tool which isn't installed. Follow-up.
-# renovate: datasource=github-releases depName=FiloSottile/age
-ARG AGE_VERSION="v1.3.1"
-ARG AGE_SHA256_AMD64="bdc69c09cbdd6cf8b1f333d372a1f58247b3a33146406333e30c0f26e8f51377"
-ARG AGE_SHA256_ARM64="c6878a324421b69e3e20b00ba17c04bc5c6dab0030cfe55bf8f68fa8d9e9093a"
-RUN set -eux; \
-    ARCH_RAW=$(uname -m); \
-    case "$ARCH_RAW" in \
-      x86_64)  ARCH="amd64"; EXPECTED_SHA="${AGE_SHA256_AMD64}" ;; \
-      aarch64) ARCH="arm64"; EXPECTED_SHA="${AGE_SHA256_ARM64}" ;; \
-      *) echo "Unsupported arch: $ARCH_RAW" >&2; exit 1 ;; \
-    esac; \
-    TARBALL="age-${AGE_VERSION}-linux-${ARCH}.tar.gz"; \
-    URL="https://github.com/FiloSottile/age/releases/download/${AGE_VERSION}/${TARBALL}"; \
-    WORK=$(mktemp -d); \
-    cd "$WORK"; \
-    curl -fsSL -o "$TARBALL" "$URL"; \
-    echo "${EXPECTED_SHA}  ${TARBALL}" | sha256sum -c -; \
-    tar -xz --strip-components=1 -C /usr/local/bin age/age age/age-keygen -f "$TARBALL"; \
-    cd / && rm -rf "$WORK"; \
-    age --version
 
 # ---------------------------------------------------------------------------
 # Python packages — pinned versions managed by Renovate (requirements.txt)

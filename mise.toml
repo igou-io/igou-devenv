@@ -38,3 +38,20 @@ registry_url = "https://github.com/aquaproj/aqua-registry"
 [tools]
 # Canary tool — proves the integration shape end-to-end before adding the rest.
 kubectl = "1.36.0"
+
+# Task 2.1 — SHA256-verified tools (aqua-registry per-tool checksums.txt).
+gh = "2.92.0"
+kustomize = "5.8.1"
+kubeseal = "0.36.6"
+kubeconform = "0.7.0"
+kind = "0.31.0"
+act = "0.2.87"
+tekton-cli = "0.44.1"   # binary is `tkn`; mise registry key is tekton-cli
+rclone = "1.73.5"
+direnv = "2.37.1"
+age = "1.3.1"
+# node — `core:node` does not record per-platform checksums in mise.lock, so
+# `locked = true` rejects it. Using aqua-registry's nodejs/node entry instead;
+# upstream provides no SHASUMS in the aqua definition, so mise falls back to
+# blake3 TOFU (strictly better than the prior unverified `curl | tar`).
+"aqua:nodejs/node" = "24.15.0"
