@@ -44,9 +44,9 @@ renovate.json            # Renovate config with custom regex manager for Dockerf
 
 | Layer | What | Where to add |
 |---|---|---|
-| Dockerfile (apt) | podman, buildah, skopeo, jq, direnv, 1Password CLI, etc. | `.devcontainer/Dockerfile` |
-| Dockerfile (binary downloads) | ArgoCD, kustomize, kubeseal, flux, SOPS, oc, virtctl, kubeconform, kind, act, kube-burner, tkn, mc, rclone, claude-code | `.devcontainer/Dockerfile` (ARG + RUN) |
-| Devcontainer Features | kubectl, helm, terraform, python, node, gh, docker CLI | `devcontainer.json` `features` block |
+| Dockerfile (apt) | python3, podman, buildah, skopeo, jq, 1Password CLI, etc. | `.devcontainer/Dockerfile` |
+| Mise (mise.toml + mise.lock) | kubectl, helm, terraform, gh, argocd, kustomize, kubeseal, flux2, sops, kubeconform, kind, act, tkn, rclone, direnv, age, node, oc, virtctl, kube-burner, kube-burner-ocp | `mise.toml` (versions), `mise.lock` (per-asset SHA256) |
+| Dockerfile (binary downloads) | mise itself (TOFU SHA256), Cursor agent, opencode, Claude Code | `.devcontainer/Dockerfile` (ARG + RUN) |
 | pip (onCreateCommand) | Ansible ecosystem, yq, mkdocs-material | `.devcontainer/requirements.txt` |
 
 **Lifecycle hooks** (execution order):
@@ -91,6 +91,26 @@ cursor-run -e ocp-rosa  # Launch with resolved cluster credentials
 cursor-run --shell      # Drop to bash inside the container
 ```
 
+### Bumping a CLI tool version
+
+Tools managed by mise (see Architecture table) are pinned in `mise.toml`
+with per-asset checksums in `mise.lock`. Renovate handles bumps
+automatically. To bump manually:
+
+```bash
+# 1. Edit the version in mise.toml
+# 2. Regenerate the lockfile
+make mise-lock
+# 3. Validate the new version still verifies as expected
+make test
+# 4. Commit mise.toml + mise.lock together
+```
+
+If the verification audit (`tests/test-mise.sh`) flags a downgrade
+(e.g., aqua-registry switched argocd from SLSA to SHA-only), update
+`tests/mise-expected-verification.toml` to match — but only after
+confirming the upstream change was deliberate.
+
 ## Pre-push Requirements
 
 **Do not push changes to the remote unless `make rebuild` followed by `make test` passes locally**, unless the user explicitly asks to push anyway. This ensures CLI tools, podman, and environment switching all work before changes reach `main`.
@@ -115,3 +135,5 @@ shellcheck .devcontainer/post-create.sh .devcontainer/post-start.sh .devcontaine
 - **Environment switching via `op inject`**: `use <env>` resolves secrets via `op inject` and exports them in the current shell. `unuse <env>` removes them. Both are idempotent. No subshells. See [ADR-0001](adr/0001-environment-switching-with-1password.md).
 - **Claude Code native binary**: Installed via `curl https://claude.ai/install.sh` instead of the deprecated npm package, removing the Node.js dependency.
 - **No embedded file definitions**: Do not embed large file contents (heredocs, multi-line echo chains, inline Python scripts) inside shell scripts or Dockerfiles. Instead, extract them into standalone files under `dotfiles/` (for runtime config) or alongside the consuming script (for build-time assets like Python merge scripts), then `cp`/`cat`/`COPY` them into place. This keeps generated files lintable, diffable, and editable. Small one-liners and test fixtures are acceptable inline.
+- **Trust anchors**: Mise is bootstrapped via TOFU SHA256 (the only chicken-and-egg trust anchor for tool installs). Mise then verifies all 21 managed tools via aqua-registry's pinned cosign/SLSA/GPG/SHA256 config. The aqua-registry itself is pinned to a specific git SHA, Renovate-bumped, and the bump is gated by `tests/test-mise.sh` which asserts no verification method silently downgraded.
+- **Known follow-up: helm + terraform GPG downgrade**: Both verify via sha256 in the current mise flow rather than GPG (aqua-registry doesn't run GPG for them despite upstream signatures existing). Previous inline blocks pinned helm `BF888333…` and terraform `C8740111…` GPG fingerprints; restoring those via a mise postinstall hook (same pattern as `aqua-registry/oc-postinstall.sh`) would close the regression.
