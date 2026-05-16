@@ -63,3 +63,6 @@ sops = "3.12.2"
 # Task 2.3 — GPG-verified tools.
 helm = "4.1.4"
 terraform = "1.15.0"
+
+# Task 2.4 — SLSA-verified tools.
+argocd = "3.3.9"

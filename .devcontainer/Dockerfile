@@ -215,35 +215,6 @@ RUN set -eux; \
     chmod +x /usr/local/bin/slsa-verifier; \
     slsa-verifier version
 
-# argocd — pinned + SLSA L3 attestation-verified via slsa-verifier.
-# slsa-verifier is argocd's documented verification tool. Cosign's
-# verify-blob-attestation can't be used here — it has a 128MB blob size
-# limit that the 217MB argocd binary exceeds.
-# renovate: datasource=github-releases depName=argoproj/argo-cd
-ARG ARGOCD_VERSION="v3.3.9"
-RUN set -eux; \
-    ARCH_RAW=$(uname -m); \
-    case "$ARCH_RAW" in \
-      x86_64)  ARCH="amd64" ;; \
-      aarch64) ARCH="arm64" ;; \
-      *) echo "Unsupported arch: $ARCH_RAW" >&2; exit 1 ;; \
-    esac; \
-    BIN="argocd-linux-${ARCH}"; \
-    BASE="https://github.com/argoproj/argo-cd/releases/download/${ARGOCD_VERSION}"; \
-    WORK=$(mktemp -d); \
-    cd "$WORK"; \
-    curl -fsSL -o "$BIN"                  "${BASE}/${BIN}"; \
-    curl -fsSL -o cli_checksums.txt       "${BASE}/cli_checksums.txt"; \
-    curl -fsSL -o argocd-cli.intoto.jsonl "${BASE}/argocd-cli.intoto.jsonl"; \
-    slsa-verifier verify-artifact "$BIN" \
-      --provenance-path argocd-cli.intoto.jsonl \
-      --source-uri github.com/argoproj/argo-cd \
-      --source-tag "${ARGOCD_VERSION}"; \
-    grep " ${BIN}\$" cli_checksums.txt | sha256sum -c -; \
-    install -m 0755 "$BIN" /usr/local/bin/argocd; \
-    cd / && rm -rf "$WORK"; \
-    argocd version --client --short
-
 # oc (OpenShift CLI) — pinned to specific z-release + GPG-verified against
 # Red Hat's release key 2. Removes the previous "latest" rolling pin.
 # Trust anchor: 567E347AD0044ADE55BA8A5F199E2F91FD431D51

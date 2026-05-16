@@ -37,6 +37,24 @@ url = "https://nodejs.org/dist/v24.15.0/node-v24.15.0-linux-arm64.tar.gz"
 checksum = "blake3:2b86bd1c04526e242e4491e2d2889f7ef2312169b806d93e39114300d5385bfa"
 url = "https://nodejs.org/dist/v24.15.0/node-v24.15.0-linux-x64.tar.gz"
 
+[[tools.argocd]]
+version = "3.3.9"
+backend = "aqua:argoproj/argo-cd"
+
+[tools.argocd."platforms.linux-arm64"]
+checksum = "sha256:f0947a6b5604bc2a5151f3befe31f4dd18ea19208ab1d221a6ebcf831e62851b"
+url = "https://github.com/argoproj/argo-cd/releases/download/v3.3.9/argocd-linux-arm64"
+
+[tools.argocd."platforms.linux-arm64".provenance.slsa]
+url = "https://github.com/argoproj/argo-cd/releases/download/v3.3.9/argocd-cli.intoto.jsonl"
+
+[tools.argocd."platforms.linux-x64"]
+checksum = "sha256:c17c57a16a79a8a3e6fdf1eadcfaf475ae621bbacf89467f75a3b96a1cd460fd"
+url = "https://github.com/argoproj/argo-cd/releases/download/v3.3.9/argocd-linux-amd64"
+
+[tools.argocd."platforms.linux-x64".provenance.slsa]
+url = "https://github.com/argoproj/argo-cd/releases/download/v3.3.9/argocd-cli.intoto.jsonl"
+
 [[tools.direnv]]
 version = "2.37.1"
 backend = "aqua:direnv/direnv"

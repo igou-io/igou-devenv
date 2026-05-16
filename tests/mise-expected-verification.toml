@@ -57,3 +57,12 @@ sops = "sha256+slsa"
 # post-install hook or pre-install verification step.
 helm = "sha256"
 terraform = "sha256"
+
+# Task 2.4 — argocd.
+# Plan expected "slsa" alone; aqua-registry records the per-asset sha256
+# (against cli_checksums.txt) AND a SLSA L3 provenance attestation. The
+# compound form keeps both signals — same SLSA-L3 trust anchor as the
+# previous inline slsa-verifier block. The 217MB binary that was the original
+# motivation for slsa-verifier (cosign's 128MB blob-size limit) is handled
+# natively by mise's built-in SLSA verifier.
+argocd = "sha256+slsa"
