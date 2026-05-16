@@ -164,8 +164,11 @@ RUN set -eux; \
     # for any user without shell activation. mise's per-tool layout is not
     # uniform (some use a bin/ subdir, most put the binary at the install
     # root) — `mise bin-paths` reports each tool's actual bin directory.
+    # `-L` is required because http:-backend tools' install dirs are
+    # themselves symlinks into /opt/mise/http-tarballs/<hash> — without it
+    # find won't traverse past the symlink and the binaries get skipped.
     mise bin-paths | while IFS= read -r d; do \
-      find "$d" -maxdepth 1 -type f -executable \
+      find -L "$d" -maxdepth 1 -type f -executable \
         -exec ln -sf {} /usr/local/bin/ \;; \
     done; \
     # Sanity check: kubectl resolves to the mise-installed copy
@@ -251,69 +254,9 @@ RUN set -eux; \
     cd / && rm -rf "$WORK"; \
     oc version --client
 
-# virtctl — pinned + TOFU-SHA. No upstream verification for binary assets.
-# Update both per-arch SHAs on version bump.
-# renovate: datasource=github-releases depName=kubevirt/kubevirt
-ARG VIRTCTL_VERSION="v1.8.2"
-ARG VIRTCTL_SHA256_AMD64="745f3c58c6a77be65b828e67b6ad930e9039ab293ed5b2bef6d44c8681af5b75"
-ARG VIRTCTL_SHA256_ARM64="345b29874d3c98801ad022ef3074b21e2b21a386b22a2779997ab7c74c7e6f57"
-RUN set -eux; \
-    ARCH_RAW=$(uname -m); \
-    case "$ARCH_RAW" in \
-      x86_64)  ARCH="amd64"; EXPECTED_SHA="${VIRTCTL_SHA256_AMD64}" ;; \
-      aarch64) ARCH="arm64"; EXPECTED_SHA="${VIRTCTL_SHA256_ARM64}" ;; \
-      *) echo "Unsupported arch: $ARCH_RAW" >&2; exit 1 ;; \
-    esac; \
-    BIN="virtctl-${VIRTCTL_VERSION}-linux-${ARCH}"; \
-    URL="https://github.com/kubevirt/kubevirt/releases/download/${VIRTCTL_VERSION}/${BIN}"; \
-    curl -fsSL -o /usr/local/bin/virtctl "$URL"; \
-    echo "${EXPECTED_SHA}  /usr/local/bin/virtctl" | sha256sum -c -; \
-    chmod +x /usr/local/bin/virtctl; \
-    virtctl version --client
-
-# kube-burner — pinned + SHA-verified against kube-burner-checksums.txt.
-# renovate: datasource=github-releases depName=cloud-bulldozer/kube-burner
-ARG KUBE_BURNER_VERSION="v2.6.1"
-RUN set -eux; \
-    ARCH_RAW=$(uname -m); \
-    case "$ARCH_RAW" in \
-      x86_64)  ARCH_X86="x86_64" ;; \
-      aarch64) ARCH_X86="arm64" ;; \
-      *) echo "Unsupported arch: $ARCH_RAW" >&2; exit 1 ;; \
-    esac; \
-    KB_BARE="${KUBE_BURNER_VERSION#v}"; \
-    TARBALL="kube-burner-V${KB_BARE}-linux-${ARCH_X86}.tar.gz"; \
-    BASE="https://github.com/cloud-bulldozer/kube-burner/releases/download/${KUBE_BURNER_VERSION}"; \
-    WORK=$(mktemp -d); \
-    cd "$WORK"; \
-    curl -fsSL -o "$TARBALL"   "${BASE}/${TARBALL}"; \
-    curl -fsSL -o checksums.txt "${BASE}/kube-burner-checksums.txt"; \
-    grep " ${TARBALL}\$" checksums.txt | sha256sum -c -; \
-    tar -xz -C /usr/local/bin kube-burner -f "$TARBALL"; \
-    cd / && rm -rf "$WORK"; \
-    kube-burner version
-
-# kube-burner-ocp — pinned + SHA-verified.
-# renovate: datasource=github-releases depName=kube-burner/kube-burner-ocp
-ARG KUBE_BURNER_OCP_VERSION="v1.11.11"
-RUN set -eux; \
-    ARCH_RAW=$(uname -m); \
-    case "$ARCH_RAW" in \
-      x86_64)  ARCH_X86="x86_64" ;; \
-      aarch64) ARCH_X86="arm64" ;; \
-      *) echo "Unsupported arch: $ARCH_RAW" >&2; exit 1 ;; \
-    esac; \
-    KBO_BARE="${KUBE_BURNER_OCP_VERSION#v}"; \
-    TARBALL="kube-burner-ocp-V${KBO_BARE}-linux-${ARCH_X86}.tar.gz"; \
-    BASE="https://github.com/kube-burner/kube-burner-ocp/releases/download/${KUBE_BURNER_OCP_VERSION}"; \
-    WORK=$(mktemp -d); \
-    cd "$WORK"; \
-    curl -fsSL -o "$TARBALL"   "${BASE}/${TARBALL}"; \
-    curl -fsSL -o checksums.txt "${BASE}/kube-burner-ocp-checksums.txt"; \
-    grep " ${TARBALL}\$" checksums.txt | sha256sum -c -; \
-    tar -xz -C /usr/local/bin kube-burner-ocp -f "$TARBALL"; \
-    cd / && rm -rf "$WORK"; \
-    kube-burner-ocp version
+# virtctl, kube-burner, kube-burner-ocp: migrated to mise via the http
+# backend (see mise.toml / mise.lock). Same blake3-TOFU trust floor as the
+# previous inline blocks, but managed through the shared lockfile.
 
 # ---------------------------------------------------------------------------
 # Python packages — pinned versions managed by Renovate (requirements.txt)

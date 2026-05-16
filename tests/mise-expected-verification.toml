@@ -66,3 +66,12 @@ terraform = "sha256"
 # motivation for slsa-verifier (cosign's 128MB blob-size limit) is handled
 # natively by mise's built-in SLSA verifier.
 argocd = "sha256+slsa"
+
+# Task 3.1 — off-registry tools via mise's http backend.
+# The http backend does not consult any upstream checksum file, so mise
+# generates a blake3 digest on first fetch and pins it in mise.lock (TOFU).
+# This is exactly the same trust floor as the previous inline blocks, which
+# pinned a single sha256 in the Dockerfile and trusted it thereafter.
+"http:virtctl" = "blake3"            # binary: virtctl
+"http:kube-burner" = "blake3"        # binary: kube-burner
+"http:kube-burner-ocp" = "blake3"    # binary: kube-burner-ocp

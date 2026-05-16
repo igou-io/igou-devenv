@@ -111,6 +111,30 @@ url = "https://get.helm.sh/helm-v4.1.4-linux-arm64.tar.gz"
 checksum = "sha256:70b2c30a19da4db264dfd68c8a3664e05093a361cefd89572ffb36f8abfa3d09"
 url = "https://get.helm.sh/helm-v4.1.4-linux-amd64.tar.gz"
 
+[[tools."http:kube-burner"]]
+version = "2.6.1"
+backend = "http:kube-burner"
+
+[tools."http:kube-burner"."platforms.linux-x64"]
+checksum = "blake3:c515fc3bada5a01a6496ae358bfbeed52cc882409e0b01964caf40e2fe2b2454"
+url = "https://github.com/cloud-bulldozer/kube-burner/releases/download/v2.6.1/kube-burner-V2.6.1-linux-x86_64.tar.gz"
+
+[[tools."http:kube-burner-ocp"]]
+version = "1.11.11"
+backend = "http:kube-burner-ocp"
+
+[tools."http:kube-burner-ocp"."platforms.linux-x64"]
+checksum = "blake3:429021e6105e10ce3c3eb23e3d3a5d82be8b5a8553e499dd2e04ac8efe7a3402"
+url = "https://github.com/kube-burner/kube-burner-ocp/releases/download/v1.11.11/kube-burner-ocp-V1.11.11-linux-x86_64.tar.gz"
+
+[[tools."http:virtctl"]]
+version = "1.8.2"
+backend = "http:virtctl"
+
+[tools."http:virtctl"."platforms.linux-x64"]
+checksum = "blake3:26e61761d98747c8a4d22057116bcdbdf77000561234ae048e2b64d8182a036e"
+url = "https://github.com/kubevirt/kubevirt/releases/download/v1.8.2/virtctl-v1.8.2-linux-amd64"
+
 [[tools.kind]]
 version = "0.31.0"
 backend = "aqua:kubernetes-sigs/kind"
