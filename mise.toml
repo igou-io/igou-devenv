@@ -8,9 +8,7 @@
 # Verification controls — defense in depth (see spec section "Supply-chain mitigations")
 paranoid = true
 github_attestations = true
-aqua_cosign = true
-aqua_slsa = true
-aqua_minisign = true
+slsa = true
 
 # Lockfile — pin per-asset SHA256 across builds
 lockfile = true
@@ -25,6 +23,13 @@ minimum_release_age = "10d"
 trusted_config_paths = ["/etc/mise/mise.toml"]
 
 [settings.aqua]
+# Aqua-backend verification (defaults are true but pinned here for documentation
+# and audit trail). The audit test in tests/test-mise.sh asserts that each
+# tool resolves to its expected verification method.
+cosign = true
+slsa = true
+minisign = true
+github_attestations = true
 # Pin upstream registry to a specific SHA. Bumped by Renovate; PR review
 # + tests/test-mise.sh audit catch verification downgrades.
 # renovate: datasource=github-releases depName=aquaproj/aqua-registry
