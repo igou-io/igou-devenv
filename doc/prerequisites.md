@@ -14,7 +14,7 @@ The devcontainer lifecycle requires **both** a Docker-compatible CLI and Podman:
 |---|---|---|
 | **Docker CE** (or Docker Desktop) | Cursor/VS Code `devcontainer` CLI calls `docker` internally | Required by the editor extension |
 | **podman-docker** (package) | Provides a `docker` CLI shim that delegates to Podman | Satisfies the `docker` calls when Docker CE is not installed |
-| **Podman** | Builds/runs the Claude container (`make claude-build`, `claude-run`) | Used directly by Makefile targets and `bin/claude-run` |
+| **Podman** | Used by `claude-run` / `cursor-run` / `opencode-run` to launch agent containers from inside the devcontainer | Required for the agent-container workflow |
 
 Pick **one** of these setups:
 
@@ -357,11 +357,16 @@ The `gh` CLI is installed inside the container, but for host-side operations lik
 
 ## Claude Code
 
-Required for the Claude container workflow:
+Required for the agent-container workflow (`claude-run`, `cursor-run`, `opencode-run`):
 
-- A valid Claude account with an API key or active session.
-- `~/.claude/` and `~/.claude.json` on the host (created automatically by `init.sh` if missing).
-- The Claude container image built via `make claude-build` before running `claude-run`.
+- A valid Claude account with an API key or active session (for `claude-run`).
+- `~/.claude/`, `~/.claude.json`, and `~/.claude-container/` on the host (created
+  automatically by `init.sh` if missing — `~/.claude-container/` is the per-container
+  state directory so the host's Claude install and the containerized one don't share
+  the same JSON file).
+- The agent-container images live in [`igou-containers`](https://github.com/igou-io/igou-containers)
+  and are pulled from GHCR on first launch. No local `make claude-build` step is needed
+  — the launcher scripts handle pull-and-run.
 
 ### Playbook: Claude Code prerequisites
 
@@ -500,9 +505,11 @@ The devcontainer runs with `--privileged` and mounts `/dev/fuse` and `/dev/net/t
 - **slirp4netns** (or **pasta**) must be installed for rootless networking.
 - Subuid/subgid ranges must be configured for your user.
 
-### Podman and the Claude Container
+### Podman and the agent containers
 
-The Claude container (`make claude-build`, `claude-run`) uses Podman directly — no Docker shim needed. Key flags used by `claude-run`:
+The agent containers (`claude-run`, `cursor-run`, `opencode-run`) are pulled
+from `igou-containers` and launched via Podman directly — no Docker shim
+needed. Key flags used by the launchers:
 
 - `--userns=keep-id` — maps your host UID into the container (rootless).
 - `--cap-drop=ALL` — drops all Linux capabilities for security.
@@ -672,8 +679,7 @@ podman run --rm docker.io/library/alpine echo "podman works"
 docker info
 docker run --rm alpine echo "docker shim works"
 make build
-make claude-build
-make claude-test
+make test
 ```
 
 ---
