@@ -309,6 +309,10 @@ USER root
 ARG OPENCODE_VERSION="v1.14.30"
 ARG OPENCODE_SHA256_X64="13b2dd32c5549f7b031e8bb67fb8d6e8d87aa9e07bd6f0017620836f1fb7cdce"
 ARG OPENCODE_SHA256_ARM64="ca86ae22b1db986650eac4e3017539e15570569689fb6724cb8f33c0e4cdf668"
+# GITHUB_TOKEN authenticates the release-age API call below. Without it the
+# 60/hr unauthenticated quota gets exhausted on busy CI runners and the build
+# fails with HTTP 403. Declared as ARG so the secret stays out of the image.
+ARG GITHUB_TOKEN=""
 USER igou
 RUN set -eux; \
     ARCH_RAW=$(uname -m); \
@@ -318,9 +322,11 @@ RUN set -eux; \
       *) echo "Unsupported arch: $ARCH_RAW" >&2; exit 1 ;; \
     esac; \
     # Release-age gate: fetch the release's published_at from the GitHub API.
-    # No auth needed (public repo); rate limits are 60/hr unauthenticated.
+    # Authenticated when GITHUB_TOKEN is set (5000/hr), else unauthenticated (60/hr).
     META_URL="https://api.github.com/repos/anomalyco/opencode/releases/tags/${OPENCODE_VERSION}"; \
-    PUBLISHED_AT=$(curl -fsSL "$META_URL" | jq -r '.published_at'); \
+    AUTH_HEADER=""; \
+    [ -n "${GITHUB_TOKEN}" ] && AUTH_HEADER="Authorization: Bearer ${GITHUB_TOKEN}"; \
+    PUBLISHED_AT=$(curl -fsSL ${AUTH_HEADER:+-H "$AUTH_HEADER"} "$META_URL" | jq -r '.published_at'); \
     if [ -z "$PUBLISHED_AT" ] || [ "$PUBLISHED_AT" = "null" ]; then \
       echo "Failed to fetch published_at for opencode ${OPENCODE_VERSION} from $META_URL" >&2; \
       exit 1; \
