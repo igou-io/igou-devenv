@@ -38,6 +38,7 @@ kubeconform = "sha256"
 kind = "sha256"
 act = "sha256"
 tekton-cli = "sha256"   # binary: tkn
+"aqua:tektoncd/pipelines-as-code" = "sha256"   # binary: tkn-pac
 rclone = "sha256"
 direnv = "sha256"
 age = "sha256"

@@ -37,6 +37,18 @@ url = "https://nodejs.org/dist/v24.15.0/node-v24.15.0-linux-arm64.tar.gz"
 checksum = "blake3:2b86bd1c04526e242e4491e2d2889f7ef2312169b806d93e39114300d5385bfa"
 url = "https://nodejs.org/dist/v24.15.0/node-v24.15.0-linux-x64.tar.gz"
 
+[[tools."aqua:tektoncd/pipelines-as-code"]]
+version = "0.46.0"
+backend = "aqua:tektoncd/pipelines-as-code"
+
+[tools."aqua:tektoncd/pipelines-as-code"."platforms.linux-arm64"]
+checksum = "sha256:c87c007c98034d11e249a1e780cb195ec3c90ba70e51c0fc92d8743b17d35f31"
+url = "https://github.com/tektoncd/pipelines-as-code/releases/download/v0.46.0/tkn-pac_0.46.0_linux_arm64.tar.gz"
+
+[tools."aqua:tektoncd/pipelines-as-code"."platforms.linux-x64"]
+checksum = "sha256:c5ed9e7ef329a33946f10c9c2692049d2dcbd8298edc2a02ece4de1e11a78b1b"
+url = "https://github.com/tektoncd/pipelines-as-code/releases/download/v0.46.0/tkn-pac_0.46.0_linux_x86_64.tar.gz"
+
 [[tools.argocd]]
 version = "3.3.9"
 backend = "aqua:argoproj/argo-cd"
