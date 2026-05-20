@@ -44,6 +44,7 @@ RUN dnf install -y \
     p7zip-plugins \
     openssh-clients \
     iputils \
+    libatomic \
     nfs-utils \
     bind-utils \
     file \
