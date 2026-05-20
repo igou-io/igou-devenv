@@ -13,6 +13,11 @@
       "groupName": "container base images"
     },
     {
+      "matchManagers": ["dockerfile"],
+      "matchPackageNames": ["quay.io/centos/centos"],
+      "pinDigests": false
+    },
+    {
       "matchManagers": ["custom.regex"],
       "groupName": "cli tools"
     },
