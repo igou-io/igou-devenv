@@ -203,6 +203,12 @@ RUN mkdir -p /home/igou/.config/containers
 COPY .devcontainer/containers-storage.conf /home/igou/.config/containers/storage.conf
 RUN chown -R igou:igou /home/igou/.config
 
+# Baked CLAUDE.md at the managed enterprise path Claude Code reads automatically.
+# This describes the devcontainer to in-container Claude sessions without writing
+# to ~/.claude/CLAUDE.md (which is bind-mounted from the host).
+RUN mkdir -p /etc/claude-code
+COPY .devcontainer/CLAUDE.md /etc/claude-code/CLAUDE.md
+
 # Claude Code — pinned download, verified via Anthropic-signed SHASUMS256.txt.sig.
 # Trust anchor is the pinned key fingerprint below: the key is fetched from
 # Anthropic's HTTPS endpoint at build time but rejected if its fingerprint
