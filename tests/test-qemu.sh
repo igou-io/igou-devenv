@@ -37,16 +37,18 @@ fi
 # `-kernel /dev/null` makes QEMU exit immediately with a controlled error.
 echo ""
 echo "==> Smoke-booting QEMU under TCG..."
+SMOKE_LOG=$(mktemp /tmp/qemu-smoke.XXXXXX.log)
+trap 'rm -f "$SMOKE_LOG"' EXIT
 if timeout 10 qemu-system-x86_64 -accel tcg -nographic -no-reboot \
-       -kernel /dev/null -display none </dev/null >/tmp/qemu-smoke.log 2>&1; then
+       -kernel /dev/null -display none </dev/null >"$SMOKE_LOG" 2>&1; then
     ok "qemu-system-x86_64 launched and exited cleanly"
 else
     rc=$?
     # rc=1 with "kernel too short" or "no bootable device" is the success signal.
-    if grep -qE "kernel.*too short|No bootable device|Could not load" /tmp/qemu-smoke.log; then
+    if grep -qE "kernel.*too short|No bootable device|Could not load" "$SMOKE_LOG"; then
         ok "qemu-system-x86_64 launched (got expected boot failure)"
     else
-        fail "qemu-system-x86_64 smoke boot failed (rc=$rc): $(head -3 /tmp/qemu-smoke.log)"
+        fail "qemu-system-x86_64 smoke boot failed (rc=$rc): $(head -3 "$SMOKE_LOG")"
     fi
 fi
 
