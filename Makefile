@@ -6,7 +6,7 @@ SSH_MOUNT = $(shell [ -S "$$SSH_AUTH_SOCK" ] && echo '--mount type=bind,source=$
 
 .DEFAULT_GOAL := help
 
-.PHONY: build up down restart exec shell test test-all test-tools test-podman test-env test-mise test-mise-lockfile clean rebuild help renovate-validate renovate-dry-run sbom sbom-devcontainer e2e opencode-build mise-lock
+.PHONY: build up down restart exec shell test test-all test-tools test-podman test-env test-mise test-mise-lockfile test-qemu clean rebuild help renovate-validate renovate-dry-run sbom sbom-devcontainer e2e opencode-build mise-lock
 
 
 ## Build the devcontainer image (with cache)
@@ -52,7 +52,7 @@ exec:
 	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) $(CMD)
 
 ## Run all tests (tools, podman, env, mise lockfile freshness + audit)
-test-all: test-tools test-podman test-env test-mise-lockfile test-mise
+test-all: test-tools test-podman test-env test-mise-lockfile test-mise test-qemu
 
 ## Alias for test-all
 test: test-all
@@ -73,6 +73,10 @@ test-env:
 ## Runs inside the devcontainer (needs mise + installed tools).
 test-mise:
 	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) bash /workspace/igou-devenv/tests/test-mise.sh
+
+## Verify QEMU userspace (and libvirt stack once Phase 2 lands)
+test-qemu:
+	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) /workspace/igou-devenv/tests/test-qemu.sh
 
 ## Verify mise.lock is in sync with mise.toml. Runs on the host (uses
 ## host mise if available, otherwise a one-shot ghcr.io/jdx/mise container).
