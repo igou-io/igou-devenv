@@ -92,7 +92,7 @@ Edit this plan inline (this section) with the resolved package names and the bin
 - `python3-libvirt`: AVAILABLE (appstream)
 - `cloud-utils` (provides `cloud-localds`): MISSING on CS10 (not in base, EPEL, or appstream) — substitute: `xorriso -as mkisofs` or `genisoimage` (see below); `cloud-init` package is available but does not provide `cloud-localds`
   - `cloud-utils-growpart`: AVAILABLE (appstream) — useful for disk resizing (growpart) but does not provide `cloud-localds`; separate package from `cloud-utils`
-- `genisoimage`: AVAILABLE but EPEL-only — prefer `xorriso` (appstream) as the ISO builder to avoid EPEL dependency; use `xorriso -as mkisofs` or install `genisoimage` from EPEL if the role hard-requires it by name
+- `genisoimage`: AVAILABLE but EPEL-only — **decision: install from EPEL** (EPEL is already enabled in the Dockerfile, so no new dependency). The role's `_seed_iso.yml` calls `genisoimage` by name; `xorriso` is also in the image as a backstop.
 - QEMU binary path: `/usr/libexec/qemu-kvm` (confirmed — `qemu-kvm` package installs `(contains no files)` to the RPM file list for `/usr/bin`, the binary is at `/usr/libexec/qemu-kvm` only)
 - Symlink needed: **yes** — Phase 1 Task 1.2 must add `RUN ln -sf /usr/libexec/qemu-kvm /usr/local/bin/qemu-system-x86_64`
 
@@ -210,22 +210,21 @@ Insert these lines into the alphabetically-grouped `dnf install -y` list in `.de
     qemu-img \
     edk2-ovmf \
     genisoimage \
-    cloud-utils \
 ```
 
-Place them in the existing alphabetical order (e.g., `qemu-*` after `python3-netaddr`, `cloud-utils` after `bind-utils`, `edk2-ovmf` after `dnf`-adjacent block, `genisoimage` after `gnupg2`).
+Place them in the existing alphabetical order (e.g., `qemu-*` after `python3-netaddr`, `edk2-ovmf` after the `dnf`-adjacent block, `genisoimage` after `gnupg2`).
 
-- [ ] **Step 2: Add the QEMU binary symlink if Task 0.1 found `/usr/libexec/qemu-kvm` only**
+> **Per Phase 0 findings**: `cloud-utils` is MISSING on CS10 (no base / EPEL / appstream package) and is therefore dropped from this snippet. `cloud-localds` will not be available; the upstream qemu role's `_seed_iso.yml` falls back to `genisoimage`, which is reachable because EPEL is already enabled at the top of the Dockerfile.
 
-If the resolved binary path is `/usr/libexec/qemu-kvm` (not `/usr/bin/qemu-system-x86_64`), append this RUN line right after the dnf block:
+- [ ] **Step 2: Add the QEMU binary symlink (required per Phase 0 findings)**
+
+Task 0.1 confirmed the `qemu-kvm` package on CS10 ships the binary only at `/usr/libexec/qemu-kvm`, so append this RUN line right after the dnf block:
 
 ```dockerfile
 # CS10 ships qemu-kvm at /usr/libexec/qemu-kvm. The molecule_provisioners
 # qemu role launches `qemu-system-x86_64` directly; expose it on PATH.
 RUN ln -sf /usr/libexec/qemu-kvm /usr/local/bin/qemu-system-x86_64
 ```
-
-If `/usr/bin/qemu-system-x86_64` already exists from the `qemu-kvm` package, skip this step.
 
 - [ ] **Step 3: Rebuild the devcontainer**
 
@@ -318,11 +317,11 @@ git commit -m "test: wire test-qemu into run-all and test-tools"
 
 - [ ] **Step 1: Update CLAUDE.md's tool-layer table**
 
-In the "Tool installation layers" table, the existing `Dockerfile (apt)` row already covers dnf packages. Add a row note or extend the existing row to mention `qemu-kvm, qemu-img, genisoimage, edk2-ovmf, cloud-utils` as part of the dnf-installed virtualization stack. Single-line edit; don't add a new row.
+In the "Tool installation layers" table, the existing `Dockerfile (apt)` row already covers dnf packages. Add a row note or extend the existing row to mention `qemu-kvm, qemu-img, genisoimage, edk2-ovmf` as part of the dnf-installed virtualization stack. Single-line edit; don't add a new row.
 
 Then in "Key Design Decisions" add a bullet:
 ```markdown
-- **QEMU available in-container**: `qemu-kvm`, `qemu-img`, `genisoimage`, and `edk2-ovmf` are installed so the `qemu` provisioner from [`ansible-collection-molecule_provisioners`](https://github.com/david-igou/ansible-collection-molecule_provisioners) can launch process-driver guests. `/dev/kvm` is accessible via the existing `/dev` bind-mount + `--privileged` runArgs; no extra runtime config is needed. Host-side prep (kernel module load, `/dev/kvm` permissions) is tracked in [`ansible-collection-devhost#33`](https://github.com/david-igou/ansible-collection-devhost/issues/33).
+- **QEMU available in-container**: `qemu-kvm`, `qemu-img`, `genisoimage`, and `edk2-ovmf` are installed so the `qemu` provisioner from [`ansible-collection-molecule_provisioners`](https://github.com/david-igou/ansible-collection-molecule_provisioners) can launch process-driver guests. `qemu-system-x86_64` is exposed via a symlink to `/usr/libexec/qemu-kvm` (CS10 doesn't ship the canonical binary name). `cloud-utils`/`cloud-localds` are unavailable on CS10, so seed-ISO building uses `genisoimage` (EPEL) directly. `/dev/kvm` is accessible via the existing `/dev` bind-mount + `--privileged` runArgs; no extra runtime config is needed. Host-side prep (kernel module load, `/dev/kvm` permissions) is tracked in [`ansible-collection-devhost#33`](https://github.com/david-igou/ansible-collection-devhost/issues/33).
 ```
 
 - [ ] **Step 2: Update .devcontainer/CLAUDE.md**
@@ -804,9 +803,9 @@ make exec CMD="cd /workspace/ansible-collection-molecule_provisioners/extensions
 ```
 
 Triage common issues:
-- `qemu-system-x86_64: command not found` → Task 0.1/1.2 binary path wrong
+- `qemu-system-x86_64: command not found` → symlink missing or wrong path (Task 1.2 Step 2)
 - `Permission denied: /dev/kvm` → host-side issue, devhost#33
-- `cloud-localds: command not found` → `cloud-utils` package not installed (Task 1.2)
+- `cloud-localds: command not found` → expected on CS10 (`cloud-utils` is MISSING per Phase 0); the role should fall through to its `genisoimage` path. If it doesn't, check that the role's `_seed_iso.yml` selects the fallback when `cloud-localds` is absent.
 
 ### Task 3.3: Run the libvirt-driver scenarios
 
