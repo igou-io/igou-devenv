@@ -45,7 +45,7 @@ if timeout 10 qemu-system-x86_64 -accel tcg -nographic -no-reboot \
 else
     rc=$?
     # rc=1 with "kernel too short" or "no bootable device" is the success signal.
-    if grep -qE "kernel.*too short|No bootable device|Could not load" "$SMOKE_LOG"; then
+    if grep -qiE "kernel.*too short|No bootable device|could not load" "$SMOKE_LOG"; then
         ok "qemu-system-x86_64 launched (got expected boot failure)"
     else
         fail "qemu-system-x86_64 smoke boot failed (rc=$rc): $(head -3 "$SMOKE_LOG")"

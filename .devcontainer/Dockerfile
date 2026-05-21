@@ -39,6 +39,7 @@ RUN dnf install -y \
     make \
     sshpass \
     gnupg2 \
+    genisoimage \
     tree \
     p7zip \
     p7zip-plugins \
@@ -47,6 +48,7 @@ RUN dnf install -y \
     libatomic \
     nfs-utils \
     bind-utils \
+    edk2-ovmf \
     file \
     htop \
     iperf3 \
@@ -68,6 +70,8 @@ RUN dnf install -y \
     nmap-ncat \
     parted \
     python3-netaddr \
+    qemu-img \
+    qemu-kvm \
     smartmontools \
     net-snmp-utils \
     socat \
@@ -81,6 +85,10 @@ RUN dnf install -y \
     && rm -rf /var/cache/dnf \
     && rm -rf /usr/share/doc /usr/share/man /usr/share/i18n/locales /usr/share/locale \
     && chmod u+s /usr/bin/newuidmap /usr/bin/newgidmap
+
+# CS10 ships qemu-kvm at /usr/libexec/qemu-kvm. The molecule_provisioners
+# qemu role launches `qemu-system-x86_64` directly; expose it on PATH.
+RUN ln -sf /usr/libexec/qemu-kvm /usr/local/bin/qemu-system-x86_64
 
 # ---------------------------------------------------------------------------
 # 1Password CLI (installed via rpm repo)
