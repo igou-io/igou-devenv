@@ -71,6 +71,43 @@ if [ -S /var/run/docker.sock ]; then
 fi
 
 # ---------------------------------------------------------------------------
+# Start virtqemud (modular libvirt daemon) so community.libvirt modules and
+# `virsh -c qemu:///system` work inside the container. systemd is not running
+# here, so we start virtqemud directly as a background process if it isn't
+# already running. Idempotent: skips if already up.
+#
+# polkit/D-Bus is absent in this container, so set auth_unix_rw/ro = "none"
+# in virtqemud.conf before starting the daemon; the sed is idempotent.
+# ---------------------------------------------------------------------------
+if command -v virtqemud >/dev/null 2>&1; then
+    # Disable polkit auth (requires D-Bus) so non-root users can connect.
+    VQEMUD_CONF=/etc/libvirt/virtqemud.conf
+    if sudo grep -q '^#auth_unix_rw' "$VQEMUD_CONF" 2>/dev/null; then
+        sudo sed -i \
+            's|^#auth_unix_ro = "polkit"|auth_unix_ro = "none"|;
+             s|^#auth_unix_rw = "polkit"|auth_unix_rw = "none"|' \
+            "$VQEMUD_CONF"
+    fi
+    if ! pgrep -x virtqemud >/dev/null 2>&1; then
+        echo "==> Starting virtqemud..."
+        sudo mkdir -p /var/run/libvirt /var/log/libvirt
+        sudo virtqemud --daemon
+        # Wait up to 3s for the socket to appear
+        for _ in 1 2 3; do
+            [ -S /var/run/libvirt/virtqemud-sock ] && break
+            sleep 1
+        done
+        if [ -S /var/run/libvirt/virtqemud-sock ]; then
+            echo "    virtqemud socket ready at /var/run/libvirt/virtqemud-sock"
+        else
+            echo "    WARNING: virtqemud socket did not appear within 3s"
+        fi
+    else
+        echo "==> virtqemud already running"
+    fi
+fi
+
+# ---------------------------------------------------------------------------
 # Restore Claude Code config if missing (backup lives in mounted ~/.claude/)
 # ---------------------------------------------------------------------------
 if [ ! -f "$HOME/.claude.json" ] && [ -d "$HOME/.claude/backups" ]; then
