@@ -71,6 +71,34 @@ if [ -S /var/run/docker.sock ]; then
 fi
 
 # ---------------------------------------------------------------------------
+# Start the D-Bus system bus. libvirt's URI resolver (`qemu:///system`)
+# uses D-Bus to discover the modular daemon sockets, so we need a system
+# bus running before the libvirt daemons are useful via the standard URI.
+# Idempotent: skips if dbus-daemon is already running. Checks via
+# /proc/*/comm rather than the socket file because /run is the host tmpfs
+# and a stale socket from a previous container start can fool a -S check.
+# ---------------------------------------------------------------------------
+if command -v dbus-daemon >/dev/null 2>&1; then
+    if grep -q dbus-daemon /proc/[0-9]*/comm 2>/dev/null; then
+        echo "==> dbus-daemon already running"
+    else
+        echo "==> Starting dbus-daemon (system bus)..."
+        sudo rm -f /run/dbus/system_bus_socket
+        sudo mkdir -p /run/dbus
+        sudo dbus-daemon --system --fork --nopidfile
+        for _ in 1 2 3; do
+            [ -S /run/dbus/system_bus_socket ] && break
+            sleep 1
+        done
+        if [ -S /run/dbus/system_bus_socket ]; then
+            echo "    system bus socket ready at /run/dbus/system_bus_socket"
+        else
+            echo "    WARNING: dbus system bus socket did not appear within 3s"
+        fi
+    fi
+fi
+
+# ---------------------------------------------------------------------------
 # Start the modular libvirt daemons (virtqemud, virtnetworkd, virtstoraged) so
 # the community.libvirt Ansible modules and `virsh -c qemu:///system` all work.
 # systemd is not running here, so we start each daemon directly. The default

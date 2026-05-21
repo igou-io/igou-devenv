@@ -25,6 +25,7 @@ RUN dnf install -y \
     git \
     wget \
     curl \
+    dbus-daemon \
     tar \
     xz \
     python3 \
