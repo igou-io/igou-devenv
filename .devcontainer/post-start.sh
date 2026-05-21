@@ -74,9 +74,9 @@ fi
 # Start the D-Bus system bus. libvirt's URI resolver (`qemu:///system`)
 # uses D-Bus to discover the modular daemon sockets, so we need a system
 # bus running before the libvirt daemons are useful via the standard URI.
-# Idempotent: skips if dbus-daemon is already running. Checks via
-# /proc/*/comm rather than the socket file because /run is the host tmpfs
-# and a stale socket from a previous container start can fool a -S check.
+# Idempotent: skips if dbus-daemon is already running. Checks /proc/*/comm
+# directly because `pgrep` is not in this container image, and the socket
+# file under /run can be a stale tmpfs leftover from a prior container.
 # ---------------------------------------------------------------------------
 if command -v dbus-daemon >/dev/null 2>&1; then
     if grep -q dbus-daemon /proc/[0-9]*/comm 2>/dev/null; then
@@ -101,10 +101,10 @@ fi
 # ---------------------------------------------------------------------------
 # Start the modular libvirt daemons (virtqemud, virtnetworkd, virtstoraged) so
 # the community.libvirt Ansible modules and `virsh -c qemu:///system` all work.
-# systemd is not running here, so we start each daemon directly. The default
-# polkit auth in each daemon's config breaks because there's no D-Bus, so we
-# fall back to socket-permission-only auth (auth_unix = "none"). Idempotent:
-# skips daemons that already have a socket.
+# systemd is not running here, so we start each daemon directly. polkitd is not
+# present in this container, so we disable polkit auth and fall back to
+# socket-permission-only auth (auth_unix = "none"). Idempotent: skips daemons
+# that already have a socket.
 # ---------------------------------------------------------------------------
 for d in virtqemud virtnetworkd virtstoraged; do
     if ! command -v "$d" >/dev/null 2>&1; then

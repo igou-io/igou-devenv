@@ -74,7 +74,7 @@ test-env:
 test-mise:
 	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) bash /workspace/igou-devenv/tests/test-mise.sh
 
-## Verify QEMU userspace (and libvirt stack once Phase 2 lands)
+## Verify QEMU userspace and libvirt stack
 test-qemu:
 	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) /workspace/igou-devenv/tests/test-qemu.sh
 

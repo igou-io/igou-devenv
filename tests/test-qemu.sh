@@ -9,7 +9,6 @@ fail() { echo "  [FAIL] $1"; FAIL=$((FAIL + 1)); }
 
 echo "==> Verifying QEMU userspace..."
 
-# Phase 1 binaries
 declare -A QEMU_TOOLS=(
     [qemu-system-x86_64]="qemu-system-x86_64 --version"
     [qemu-img]="qemu-img --version"
