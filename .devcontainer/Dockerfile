@@ -91,6 +91,13 @@ RUN dnf install -y \
     && rm -rf /usr/share/doc /usr/share/man /usr/share/i18n/locales /usr/share/locale \
     && chmod u+s /usr/bin/newuidmap /usr/bin/newgidmap
 
+# Libvirt packages create libvirt + kvm groups at install time. Add igou
+# so it can talk to /var/run/libvirt/virtqemud-sock and open /dev/kvm
+# without sudo. (Privileged mode + /dev bind-mount makes /dev/kvm
+# world-accessible in practice; this is belt-and-suspenders for the
+# socket-permission case and for any future tightening of host permissions.)
+RUN usermod -aG libvirt,kvm igou
+
 # CS10 ships qemu-kvm at /usr/libexec/qemu-kvm. The molecule_provisioners
 # qemu role launches `qemu-system-x86_64` directly; expose it on PATH.
 RUN ln -sf /usr/libexec/qemu-kvm /usr/local/bin/qemu-system-x86_64
