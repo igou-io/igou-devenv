@@ -211,6 +211,18 @@ COPY .devcontainer/requirements.txt /tmp/requirements.txt
 RUN pip install --break-system-packages --ignore-installed -r /tmp/requirements.txt && \
     rm /tmp/requirements.txt
 
+# ---------------------------------------------------------------------------
+# Ansible Galaxy collections — pinned via galaxy-requirements.yml
+# Installed system-wide so all users (and CI) get the same collections without
+# per-shell ansible-galaxy invocations. Renovate's ansible-galaxy manager
+# handles version bumps.
+# ---------------------------------------------------------------------------
+COPY .devcontainer/galaxy-requirements.yml /tmp/galaxy-requirements.yml
+RUN ansible-galaxy collection install \
+        -r /tmp/galaxy-requirements.yml \
+        --collections-path /usr/share/ansible/collections && \
+    rm /tmp/galaxy-requirements.yml
+
 # Configure podman for rootless operation inside a container
 RUN mkdir -p /home/igou/.config/containers
 COPY .devcontainer/containers-storage.conf /home/igou/.config/containers/storage.conf
