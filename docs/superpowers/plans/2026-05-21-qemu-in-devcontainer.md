@@ -642,6 +642,8 @@ git add .devcontainer/post-start.sh
 git commit -m "feat(devcontainer): start virtqemud in post-start.sh for libvirt-driver scenarios"
 ```
 
+> **Phase 2 amendment** (applied during execution): the original Task 2.5 started only `virtqemud`. The libvirt-driver scenarios in PR #21 also use `community.libvirt.virt_net` and `community.libvirt.virt_pool`/`virt_volume`, which require `virtnetworkd` and `virtstoraged` respectively. The implementation refactored the post-start block into a small loop that starts all three modular daemons with the same polkit-disabling sed applied to each daemon's config file.
+
 ### Task 2.6: Update test-tools.sh and docs for Phase 2
 
 **Files:**
