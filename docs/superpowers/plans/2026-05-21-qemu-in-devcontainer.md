@@ -866,6 +866,49 @@ git commit -m "docs(plan): record qemu-in-devcontainer phase 3 smoke-test result
 
 ---
 
+## Phase 3 Results
+
+Tested against PR #21 at commit `9641aba` (the head of `feat/qemu-backend`) checked out into `~/workspace/ansible-collection-molecule_provisioners/.claude/worktrees/feat-qemu-backend/`.
+
+### Devcontainer outcomes
+
+| Path | Outcome | Notes |
+|---|---|---|
+| `ubuntu-process-slirp` (process driver, slirp) | Process-driver overlay task **passed** in isolation; full scenario blocked by upstream bugs that affect the create play before convergence. | Devcontainer side: 17/17 on `test-qemu.sh`, qemu binaries reachable, /dev/kvm passthrough working, lxml importable. |
+| `ubuntu-libvirt-slirp` (libvirt driver, `qemu:///session`) | Blocked by PR #21 bug 4 (`virt_volume.create()` missing `xml` arg). | Reached as far as the volume-create task, which is a role-level bug, not a devcontainer-side gap. |
+| `ubuntu-libvirt-nat` (libvirt driver, `qemu:///system`) | Blocked downstream of the libvirt-slirp failure (storage pool dependency). | Will become testable once bug 4 is fixed. |
+
+### Devcontainer-side gaps discovered and closed
+
+1. **`/dev/kvm` passthrough** — already worked via `/dev` bind-mount + `--privileged`. No change needed.
+2. **`qemu-system-x86_64` binary path** — CS10 ships `/usr/libexec/qemu-kvm`; added a symlink to `/usr/local/bin/qemu-system-x86_64`. (Task 1.2)
+3. **`cloud-utils` / `cloud-localds`** — MISSING on CS10; the role's `_seed_iso.yml` falls through to `genisoimage` (installed from EPEL). (Phase 0 + Task 1.2)
+4. **D-Bus system bus** — non-systemd container had no `dbus-daemon`; `virsh -c qemu:///system` failed to discover modular libvirt daemons. Added the `dbus-daemon` package (CS10 distinguishes `dbus` metapackage which pulls dbus-broker from the actual `dbus-daemon` binary package) and start it in `post-start.sh` before the libvirt daemons. (Phase 2 amendment commit `fd2f60f`)
+5. **Modular libvirt daemons** — `virtqemud` alone wasn't enough; `community.libvirt` uses `virt_net` (needs `virtnetworkd`) and `virt_pool`/`virt_volume` (needs `virtstoraged`). Added `libvirt-daemon-driver-storage-core` to the Dockerfile and refactored `post-start.sh` into a loop starting all three modular daemons with `auth_unix = "none"` (polkit unavailable without D-Bus initially; now D-Bus is up but the simpler socket auth still applies). (Phase 2 amendment commit `2c8f9b2`)
+6. **`lxml`** — `community.libvirt`'s storage modules import `lxml.etree`. Added `lxml==6.1.1` to `.devcontainer/requirements.txt`. (Phase 3 commit `c10ca3d`)
+
+### Host-side state
+
+- `/etc/docker/daemon.json` was set to `{"exec-opts": ["native.cgroupdriver=cgroupfs"]}` during the build to work around a broken systemd cgroup delegation on the dev host. This is a one-time host fix orthogonal to the QEMU work — tracked as a comment on [`ansible-collection-devhost#33`](https://github.com/david-igou/ansible-collection-devhost/issues/33#issuecomment-4512312635) for future automation.
+- `/dev/kvm` permissions on the dev host: `crw-rw-rw-` (effectively world-accessible); appropriate for the privileged dev container case. The proper `kvm` role in devhost#33 will reproduce this state cleanly on a fresh host.
+
+### Upstream bugs filed on PR #21
+
+Reported via PR comments (see https://github.com/david-igou/ansible-collection-molecule_provisioners/pull/21):
+
+1. `ansible_env.HOME` in `roles/qemu/defaults/main.yml` with `gather_facts: false` in `playbooks/create.yml` — undefined-fact failure. Suggested fix: use `lookup('env', 'HOME')` or set `gather_facts: true`.
+2. `community.crypto` declared in `galaxy.yml` but not auto-installed by `ansible-galaxy collection install david_igou.molecule_provisioners`. Suggested fix: document the explicit prerequisite, or have CI use a `requirements.yml`-with-deps install.
+3. `ansible_date_time.epoch` in `roles/qemu/templates/meta-data.j2` — same undefined-fact issue. Suggested fix: use `now(fmt='%s')`.
+4. `community.libvirt.virt_volume` invoked without required `xml` argument in `roles/qemu/tasks/_overlay.yml`. Module signature mismatch.
+
+Bonus observation: `MOLECULE_LIMIT` does not scope the create/destroy plays — the role loops over all `_mp_specs` regardless of inventory limit, making isolated single-driver testing impossible until restructured.
+
+### Devcontainer is ready
+
+When PR #21's role-side bugs are fixed, the devcontainer is positioned to run the full three-VM scenario without further changes. The Phase 1 + Phase 2 work and the small Phase 3 `lxml` addition are sufficient.
+
+---
+
 ## Out-of-Scope (Tracked Elsewhere)
 
 - **Host-side `kvm` role**: kernel module load, `/dev/kvm` permissions, nested-virt option. Filed as [devhost#33](https://github.com/david-igou/ansible-collection-devhost/issues/33).
