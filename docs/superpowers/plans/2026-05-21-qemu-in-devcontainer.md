@@ -82,9 +82,16 @@ Edit this plan inline (this section) with the resolved package names and the bin
 **Findings (fill in during execution):**
 - `qemu-kvm`: AVAILABLE (appstream, v10.1.0) — binary ships at `/usr/libexec/qemu-kvm`, not `/usr/bin/qemu-system-x86_64`
 - `qemu-img`: AVAILABLE (appstream, v10.1.0, separate package from `qemu-kvm`) — ships at `/usr/bin/qemu-img`
+- `qemu-system-x86`: MISSING on CS10 (not in base, appstream, or EPEL) — use `qemu-kvm` instead; the x86 emulation packages were reorganized upstream
+- `qemu-system-x86-core`: MISSING on CS10 (not in base, appstream, or EPEL) — same upstream reorganization; `qemu-kvm` is the correct CS10 equivalent
+- `libvirt`: AVAILABLE (appstream) — meta-package that pulls in the full libvirt stack; use this to avoid tracking sub-packages individually if libvirt is needed
 - `libvirt-daemon`: AVAILABLE (appstream)
+- `libvirt-daemon-driver-qemu`: AVAILABLE (appstream) — QEMU driver for libvirt; required when libvirt manages QEMU/KVM guests
+- `libvirt-daemon-config-network`: AVAILABLE (appstream) — default NAT network config for libvirt; needed if the role uses libvirt networking
+- `libvirt-client`: AVAILABLE (appstream) — provides `virsh` and client libs; install if the role uses `virsh` commands
 - `python3-libvirt`: AVAILABLE (appstream)
 - `cloud-utils` (provides `cloud-localds`): MISSING on CS10 (not in base, EPEL, or appstream) — substitute: `xorriso -as mkisofs` or `genisoimage` (see below); `cloud-init` package is available but does not provide `cloud-localds`
+  - `cloud-utils-growpart`: AVAILABLE (appstream) — useful for disk resizing (growpart) but does not provide `cloud-localds`; separate package from `cloud-utils`
 - `genisoimage`: AVAILABLE but EPEL-only — prefer `xorriso` (appstream) as the ISO builder to avoid EPEL dependency; use `xorriso -as mkisofs` or install `genisoimage` from EPEL if the role hard-requires it by name
 - QEMU binary path: `/usr/libexec/qemu-kvm` (confirmed — `qemu-kvm` package installs `(contains no files)` to the RPM file list for `/usr/bin`, the binary is at `/usr/libexec/qemu-kvm` only)
 - Symlink needed: **yes** — Phase 1 Task 1.2 must add `RUN ln -sf /usr/libexec/qemu-kvm /usr/local/bin/qemu-system-x86_64`
