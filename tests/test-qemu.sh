@@ -53,5 +53,53 @@ else
 fi
 
 echo ""
+echo "==> Verifying libvirt stack..."
+
+declare -A LIBVIRT_TOOLS=(
+    [virsh]="virsh --version"
+    [virtqemud]="virtqemud --version"
+)
+
+for tool in $(echo "${!LIBVIRT_TOOLS[@]}" | tr ' ' '\n' | sort); do
+    if version=$(${LIBVIRT_TOOLS[$tool]} 2>&1 | head -1) && [ -n "$version" ]; then
+        ok "$tool — $version"
+    else
+        fail "$tool"
+    fi
+done
+
+# Python libvirt binding — community.libvirt requires this
+if python3 -c 'import libvirt' 2>/dev/null; then
+    ok "python3-libvirt bindings importable"
+else
+    fail "python3-libvirt bindings importable"
+fi
+
+# Galaxy collection
+if ansible-galaxy collection list community.libvirt 2>/dev/null | grep -q community.libvirt; then
+    ok "community.libvirt collection installed"
+else
+    fail "community.libvirt collection installed"
+fi
+
+# Group membership
+for g in libvirt kvm; do
+    if id -nG | grep -qw "$g"; then
+        ok "igou is a member of $g group"
+    else
+        fail "igou is a member of $g group"
+    fi
+done
+
+# virtqemud socket reachable (daemon started by post-start.sh)
+echo ""
+echo "==> Verifying virtqemud socket..."
+if virsh -c qemu:///system list >/dev/null 2>&1; then
+    ok "virsh can talk to qemu:///system"
+else
+    fail "virsh can talk to qemu:///system"
+fi
+
+echo ""
 echo "==> Results: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]
