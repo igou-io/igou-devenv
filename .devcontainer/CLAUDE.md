@@ -11,7 +11,7 @@ You are running inside the **igou-devenv devcontainer** — a CentOS Stream 10 b
 - SSH agent forwarded from host via `$SSH_AUTH_SOCK=/tmp/ssh-agent.sock`. `~/.ssh`, `~/.gitconfig`, and `~/.config/op` are bind-mounted read-only.
 - 1Password CLI (`op`) available — secrets resolved via `op inject`, never stored.
 - `~/.claude` is bind-mounted from the host's `~/.claude-container/` (separate from the host's own `~/.claude/`).
-- QEMU userspace available (`qemu-system-x86_64`, `qemu-img`) — for running molecule scenarios that use the `qemu` provisioner. `/dev/kvm` passes through under `--privileged`.
+- QEMU + libvirt available (`qemu-system-x86_64`, `qemu-img`, `virsh`, `virtqemud`, `community.libvirt` collection) — for running molecule scenarios that use the `qemu` provisioner. `virtqemud` is started on container start; `/dev/kvm` passes through under `--privileged`.
 
 ## Conventions
 

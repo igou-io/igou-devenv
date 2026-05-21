@@ -35,6 +35,8 @@ declare -A TOOLS=(
     [make]="make --version"
     [qemu-system-x86_64]="qemu-system-x86_64 --version"
     [qemu-img]="qemu-img --version"
+    [virsh]="virsh --version"
+    [virtqemud]="virtqemud --version"
 )
 
 for tool in $(echo "${!TOOLS[@]}" | tr ' ' '\n' | sort); do
