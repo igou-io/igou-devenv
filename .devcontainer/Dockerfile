@@ -50,6 +50,7 @@ RUN dnf install -y \
     libvirt-daemon \
     libvirt-daemon-config-network \
     libvirt-daemon-driver-qemu \
+    libvirt-daemon-driver-storage-core \
     nfs-utils \
     bind-utils \
     edk2-ovmf \

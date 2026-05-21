@@ -91,13 +91,32 @@ for g in libvirt kvm; do
     fi
 done
 
-# virtqemud socket reachable (daemon started by post-start.sh)
+# Modular libvirt daemons (qemu domains, networks, storage)
 echo ""
-echo "==> Verifying virtqemud socket..."
-if virsh -c qemu:///system list >/dev/null 2>&1; then
-    ok "virsh can talk to qemu:///system"
+echo "==> Verifying libvirt subsystems..."
+for d in virtqemud virtnetworkd virtstoraged; do
+    if [ -S "/var/run/libvirt/${d}-sock" ]; then
+        ok "${d} socket reachable"
+    else
+        fail "${d} socket reachable"
+    fi
+done
+
+# Functional checks via virsh
+if virsh -c qemu:///system list --all >/dev/null 2>&1; then
+    ok "virsh list (domains, via virtqemud)"
 else
-    fail "virsh can talk to qemu:///system"
+    fail "virsh list (domains, via virtqemud)"
+fi
+if virsh -c qemu:///system net-list --all >/dev/null 2>&1; then
+    ok "virsh net-list (networks, via virtnetworkd)"
+else
+    fail "virsh net-list (networks, via virtnetworkd)"
+fi
+if virsh -c qemu:///system pool-list --all >/dev/null 2>&1; then
+    ok "virsh pool-list (storage, via virtstoraged)"
+else
+    fail "virsh pool-list (storage, via virtstoraged)"
 fi
 
 echo ""

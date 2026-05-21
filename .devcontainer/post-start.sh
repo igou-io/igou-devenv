@@ -71,41 +71,42 @@ if [ -S /var/run/docker.sock ]; then
 fi
 
 # ---------------------------------------------------------------------------
-# Start virtqemud (modular libvirt daemon) so community.libvirt modules and
-# `virsh -c qemu:///system` work inside the container. systemd is not running
-# here, so we start virtqemud directly as a background process if it isn't
-# already running. Idempotent: skips if already up.
-#
-# polkit/D-Bus is absent in this container, so set auth_unix_rw/ro = "none"
-# in virtqemud.conf before starting the daemon; the sed is idempotent.
+# Start the modular libvirt daemons (virtqemud, virtnetworkd, virtstoraged) so
+# the community.libvirt Ansible modules and `virsh -c qemu:///system` all work.
+# systemd is not running here, so we start each daemon directly. The default
+# polkit auth in each daemon's config breaks because there's no D-Bus, so we
+# fall back to socket-permission-only auth (auth_unix = "none"). Idempotent:
+# skips daemons that already have a socket.
 # ---------------------------------------------------------------------------
-if command -v virtqemud >/dev/null 2>&1; then
-    # Disable polkit auth (requires D-Bus) so non-root users can connect.
-    VQEMUD_CONF=/etc/libvirt/virtqemud.conf
-    if sudo grep -q '^#auth_unix_rw' "$VQEMUD_CONF" 2>/dev/null; then
+for d in virtqemud virtnetworkd virtstoraged; do
+    if ! command -v "$d" >/dev/null 2>&1; then
+        continue
+    fi
+    sock="/var/run/libvirt/${d}-sock"
+    conf="/etc/libvirt/${d}.conf"
+    if [ -S "$sock" ]; then
+        echo "==> $d already running"
+        continue
+    fi
+    echo "==> Starting $d..."
+    if [ -f "$conf" ] && sudo grep -q '^#auth_unix_rw' "$conf" 2>/dev/null; then
         sudo sed -i \
-            's|^#auth_unix_ro = "polkit"|auth_unix_ro = "none"|;
-             s|^#auth_unix_rw = "polkit"|auth_unix_rw = "none"|' \
-            "$VQEMUD_CONF"
+            -e 's/^#auth_unix_ro = "polkit"/auth_unix_ro = "none"/' \
+            -e 's/^#auth_unix_rw = "polkit"/auth_unix_rw = "none"/' \
+            "$conf"
     fi
-    if [ ! -S /var/run/libvirt/virtqemud-sock ]; then
-        echo "==> Starting virtqemud..."
-        sudo mkdir -p /var/run/libvirt /var/log/libvirt
-        sudo virtqemud --daemon
-        # Wait up to 3s for the socket to appear
-        for _ in 1 2 3; do
-            [ -S /var/run/libvirt/virtqemud-sock ] && break
-            sleep 1
-        done
-        if [ -S /var/run/libvirt/virtqemud-sock ]; then
-            echo "    virtqemud socket ready at /var/run/libvirt/virtqemud-sock"
-        else
-            echo "    WARNING: virtqemud socket did not appear within 3s"
-        fi
+    sudo mkdir -p /var/run/libvirt /var/log/libvirt
+    sudo "$d" --daemon
+    for _ in 1 2 3; do
+        [ -S "$sock" ] && break
+        sleep 1
+    done
+    if [ -S "$sock" ]; then
+        echo "    $d socket ready at $sock"
     else
-        echo "==> virtqemud already running"
+        echo "    WARNING: $d socket did not appear within 3s"
     fi
-fi
+done
 
 # ---------------------------------------------------------------------------
 # Restore Claude Code config if missing (backup lives in mounted ~/.claude/)
