@@ -46,6 +46,10 @@ RUN dnf install -y \
     openssh-clients \
     iputils \
     libatomic \
+    libvirt-client \
+    libvirt-daemon \
+    libvirt-daemon-config-network \
+    libvirt-daemon-driver-qemu \
     nfs-utils \
     bind-utils \
     edk2-ovmf \
@@ -69,6 +73,7 @@ RUN dnf install -y \
     nmap \
     nmap-ncat \
     parted \
+    python3-libvirt \
     python3-netaddr \
     qemu-img \
     qemu-kvm \
