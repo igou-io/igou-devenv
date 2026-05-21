@@ -80,14 +80,14 @@ Expected: identify whether the role's expected `qemu-system-x86_64` ships at `/u
 Edit this plan inline (this section) with the resolved package names and the binary path. Subsequent tasks reference these names.
 
 **Findings (fill in during execution):**
-- `qemu-kvm`: ____
-- `qemu-img`: ____
-- `libvirt-daemon`: ____
-- `python3-libvirt`: ____
-- `cloud-utils` (provides `cloud-localds`): ____
-- `genisoimage`: ____
-- QEMU binary path: ____
-- Symlink needed: yes/no
+- `qemu-kvm`: AVAILABLE (appstream, v10.1.0) — binary ships at `/usr/libexec/qemu-kvm`, not `/usr/bin/qemu-system-x86_64`
+- `qemu-img`: AVAILABLE (appstream, v10.1.0, separate package from `qemu-kvm`) — ships at `/usr/bin/qemu-img`
+- `libvirt-daemon`: AVAILABLE (appstream)
+- `python3-libvirt`: AVAILABLE (appstream)
+- `cloud-utils` (provides `cloud-localds`): MISSING on CS10 (not in base, EPEL, or appstream) — substitute: `xorriso -as mkisofs` or `genisoimage` (see below); `cloud-init` package is available but does not provide `cloud-localds`
+- `genisoimage`: AVAILABLE but EPEL-only — prefer `xorriso` (appstream) as the ISO builder to avoid EPEL dependency; use `xorriso -as mkisofs` or install `genisoimage` from EPEL if the role hard-requires it by name
+- QEMU binary path: `/usr/libexec/qemu-kvm` (confirmed — `qemu-kvm` package installs `(contains no files)` to the RPM file list for `/usr/bin`, the binary is at `/usr/libexec/qemu-kvm` only)
+- Symlink needed: **yes** — Phase 1 Task 1.2 must add `RUN ln -sf /usr/libexec/qemu-kvm /usr/local/bin/qemu-system-x86_64`
 
 - [ ] **Step 4: Commit findings**
 
