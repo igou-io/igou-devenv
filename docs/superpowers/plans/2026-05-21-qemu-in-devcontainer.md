@@ -644,6 +644,8 @@ git commit -m "feat(devcontainer): start virtqemud in post-start.sh for libvirt-
 
 > **Phase 2 amendment** (applied during execution): the original Task 2.5 started only `virtqemud`. The libvirt-driver scenarios in PR #21 also use `community.libvirt.virt_net` and `community.libvirt.virt_pool`/`virt_volume`, which require `virtnetworkd` and `virtstoraged` respectively. The implementation refactored the post-start block into a small loop that starts all three modular daemons with the same polkit-disabling sed applied to each daemon's config file.
 
+> **Phase 2 amendment — D-Bus required** (discovered at Task 2.8 acceptance gate): `virsh -c qemu:///system` failed even with all three modular daemons running, with the error "Unable to get system bus connection: Could not connect: No such file or directory". Diagnosis: libvirt's URI resolver uses D-Bus to discover modular daemon sockets; without a running system bus it cannot connect even when the daemon sockets exist. The `dbus` package was already present as a transitive libvirt dependency (CS10's `dbus-broker` pulls it in), so no new package was needed at runtime, but `dbus` was added explicitly to the Dockerfile dnf list for clarity. A `dbus-daemon --system --fork --nopidfile` startup block was inserted in `post-start.sh` immediately before the modular daemon loop — idempotent (skips if `/run/dbus/system_bus_socket` already exists). After this fix `virsh -c qemu:///system list --all`, `net-list --all`, and `pool-list --all` all exit 0.
+
 ### Task 2.6: Update test-tools.sh and docs for Phase 2
 
 **Files:**
