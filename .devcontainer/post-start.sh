@@ -88,7 +88,7 @@ if command -v virtqemud >/dev/null 2>&1; then
              s|^#auth_unix_rw = "polkit"|auth_unix_rw = "none"|' \
             "$VQEMUD_CONF"
     fi
-    if ! pgrep -x virtqemud >/dev/null 2>&1; then
+    if [ ! -S /var/run/libvirt/virtqemud-sock ]; then
         echo "==> Starting virtqemud..."
         sudo mkdir -p /var/run/libvirt /var/log/libvirt
         sudo virtqemud --daemon
