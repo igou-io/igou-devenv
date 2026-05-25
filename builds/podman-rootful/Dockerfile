@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/devcontainers/base:ubuntu@sha256:f5a2cf592fd194be54fff4fc8e24388bd7d6b496f4653de7a4e985f41e8dc188
+FROM mcr.microsoft.com/devcontainers/base:ubuntu@sha256:3397b3751886e669eb873b4dfbebecc9c9e4bc413451d1f2540c62d5b615d6da
 
 # Create igou user. UID 1000 is a conventional default; the devcontainer runtime's
 # updateRemoteUserUID remaps it to match the host user at startup.
