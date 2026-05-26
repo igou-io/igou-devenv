@@ -250,7 +250,7 @@ COPY .devcontainer/CLAUDE.md /etc/claude-code/CLAUDE.md
 # AND produce a colliding SHA-1 fingerprint (computationally infeasible).
 # Key UID (out-of-band-verified): "Anthropic Claude Code Release Signing <security@anthropic.com>"
 # renovate: datasource=github-releases depName=anthropics/claude-code
-ARG CLAUDE_CODE_VERSION="v2.1.142"
+ARG CLAUDE_CODE_VERSION="v2.1.143"
 ARG CLAUDE_CODE_PGP_FPR="31DDDE24DDFAB679F42D7BD2BAA929FF1A7ECACE"
 ARG CLAUDE_CODE_PGP_URL="https://downloads.claude.ai/keys/claude-code.asc"
 USER igou
@@ -347,7 +347,7 @@ USER root
 #   (repeat for arm64)
 # MINIMUM_RELEASE_AGE_DAYS is inherited from the ARG declared above the Cursor block.
 # renovate: datasource=github-releases depName=anomalyco/opencode
-ARG OPENCODE_VERSION="v1.14.46"
+ARG OPENCODE_VERSION="v1.15.1"
 ARG OPENCODE_SHA256_X64="19d80c40396930e96afe3f63000bc28d9094760daa16c7b1d7e76dc999cfebcb"
 ARG OPENCODE_SHA256_ARM64="eb35ea4a7c777882bcf9d911ee9c8f25e6a4227bbdeda910aa2471deacf3291a"
 # GITHUB_TOKEN authenticates the release-age API call below. Without it the
