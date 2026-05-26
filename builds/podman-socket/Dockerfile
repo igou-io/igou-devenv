@@ -181,7 +181,7 @@ RUN chown -R igou:igou /home/igou/.config
 # Claude Code — pinned download, PGP-verified against Anthropic's published key.
 # See .devcontainer/Dockerfile for the full trust-anchor rationale.
 # renovate: datasource=github-releases depName=anthropics/claude-code
-ARG CLAUDE_CODE_VERSION="v2.1.142"
+ARG CLAUDE_CODE_VERSION="v2.1.143"
 ARG CLAUDE_CODE_PGP_FPR="31DDDE24DDFAB679F42D7BD2BAA929FF1A7ECACE"
 ARG CLAUDE_CODE_PGP_URL="https://downloads.claude.ai/keys/claude-code.asc"
 USER igou
