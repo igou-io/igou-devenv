@@ -3,11 +3,6 @@
   "extends": [
     "github>igou-io/igou-devenv//renovate-base.json"
   ],
-  "ansible-galaxy": {
-    "managerFilePatterns": [
-      "/(^|/)(galaxy|requirements|galaxy-requirements)(\\.ansible)?\\.ya?ml$/"
-    ]
-  },
   "packageRules": [
     {
       "matchManagers": ["pip_requirements"],

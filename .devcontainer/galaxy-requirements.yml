@@ -1,6 +1,0 @@
----
-# Ansible Galaxy collections baked into the devcontainer image.
-# Renovate manages version bumps via the ansible-galaxy manager.
-collections:
-  - name: community.libvirt
-    version: "2.2.0"

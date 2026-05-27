@@ -67,18 +67,11 @@ for tool in $(echo "${!LIBVIRT_TOOLS[@]}" | tr ' ' '\n' | sort); do
     fi
 done
 
-# Python libvirt binding — community.libvirt requires this
+# Python libvirt binding
 if python3 -c 'import libvirt' 2>/dev/null; then
     ok "python3-libvirt bindings importable"
 else
     fail "python3-libvirt bindings importable"
-fi
-
-# Galaxy collection
-if ansible-galaxy collection list community.libvirt 2>/dev/null | grep -q community.libvirt; then
-    ok "community.libvirt collection installed"
-else
-    fail "community.libvirt collection installed"
 fi
 
 # Group membership
