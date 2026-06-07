@@ -9,7 +9,7 @@ ansible-creator==26.4.3
 molecule==26.4.0
 awxkit==24.6.1
 yq==3.4.3
-kubernetes==36.0.0
+kubernetes==36.0.1
 jmespath==1.1.0
 lxml==6.1.1
 paramiko==5.0.0
