@@ -6,7 +6,7 @@ SSH_MOUNT = $(shell [ -S "$$SSH_AUTH_SOCK" ] && echo '--mount type=bind,source=$
 
 .DEFAULT_GOAL := help
 
-.PHONY: build up down restart exec shell test test-all test-tools test-podman test-env test-mise test-mise-lockfile test-qemu clean rebuild help renovate-validate renovate-dry-run sbom sbom-devcontainer e2e opencode-build mise-lock
+.PHONY: build up down restart exec shell test test-all test-tools test-podman test-env test-mise test-mise-lockfile test-qemu clean rebuild help renovate-validate renovate-dry-run sbom sbom-devcontainer e2e opencode-build mise-lock mise-bootstrap-sha
 
 
 ## Build the devcontainer image (with cache)
@@ -118,6 +118,22 @@ mise-lock:
 		[ -f mise.lock.bak ] && mv mise.lock.bak mise.lock; \
 		exit 1; \
 	fi
+
+## Print verified mise bootstrap SHA-256 digests for the pinned MISE_VERSION.
+## Renovate bumps MISE_VERSION only (version-only, like cursor-agent/opencode);
+## run this after a bump and paste the output into the MISE_SHA256_* ARGs in all
+## three Dockerfiles. Values come from mise's published SHASUMS256.txt. See #67.
+mise-bootstrap-sha:
+	@ver=$$(grep -oP 'ARG MISE_VERSION="\K[^"]+' .devcontainer/Dockerfile); \
+	[ -n "$$ver" ] || { echo "could not read MISE_VERSION from .devcontainer/Dockerfile" >&2; exit 1; }; \
+	sums=$$(curl -fsSL "https://github.com/jdx/mise/releases/download/$$ver/SHASUMS256.txt") \
+		|| { echo "failed to fetch SHASUMS256.txt for $$ver" >&2; exit 1; }; \
+	x64=$$(printf '%s\n' "$$sums"   | awk -v n="mise-$$ver-linux-x64.tar.gz"   '$$2 ~ n"$$" {print $$1}'); \
+	arm64=$$(printf '%s\n' "$$sums" | awk -v n="mise-$$ver-linux-arm64.tar.gz" '$$2 ~ n"$$" {print $$1}'); \
+	[ -n "$$x64" ] && [ -n "$$arm64" ] || { echo "could not extract both SHAs from SHASUMS256.txt" >&2; exit 1; }; \
+	echo "# mise $$ver — verified against published SHASUMS256.txt"; \
+	echo "ARG MISE_SHA256_X64=\"$$x64\""; \
+	echo "ARG MISE_SHA256_ARM64=\"$$arm64\""
 
 ## Remove the devcontainer and clean up dangling images
 clean: down

@@ -150,16 +150,18 @@ RUN rm -f /etc/pam.d/system-auth && \
 # Mise — declarative tool manager. Bootstrap via TOFU SHA256; once installed,
 # mise verifies all subsequent tools via aqua-registry's per-tool config
 # (cosign/SLSA/GPG/SHA256). See docs/superpowers/specs/2026-05-16-mise-tool-management-design.md
-# Manual SHA update on version bump:
-#   for a in x64 arm64; do curl -sL "https://github.com/jdx/mise/releases/download/<ver>/mise-<ver>-linux-${a}.tar.gz" | sha256sum; done
+# Renovate bumps MISE_VERSION only (version-only, like cursor-agent/opencode);
+# the SHAs must be re-captured on each bump. mise publishes a SHASUMS256.txt, so:
+#   make mise-bootstrap-sha   # prints verified MISE_SHA256_X64 + _ARM64 for the pinned version
+# (or by hand: curl -sL https://github.com/jdx/mise/releases/download/<ver>/SHASUMS256.txt)
 # renovate: datasource=github-releases depName=jdx/mise
 ARG MISE_VERSION="v2026.5.16"
-ARG MISE_SHA256_AMD64="43c37041c8d5ba3fd1353c3244f2f346866b76f1bafb6c57f059678e1c7a4046"
+ARG MISE_SHA256_X64="43c37041c8d5ba3fd1353c3244f2f346866b76f1bafb6c57f059678e1c7a4046"
 ARG MISE_SHA256_ARM64="00f94d934a957c67f083669003bc0fd9e6009aec5aa8c6f1649c376f115b3818"
 RUN set -eux; \
     ARCH_RAW=$(uname -m); \
     case "$ARCH_RAW" in \
-      x86_64)  ARCH="x64";   EXPECTED_SHA="${MISE_SHA256_AMD64}" ;; \
+      x86_64)  ARCH="x64";   EXPECTED_SHA="${MISE_SHA256_X64}" ;; \
       aarch64) ARCH="arm64"; EXPECTED_SHA="${MISE_SHA256_ARM64}" ;; \
       *) echo "Unsupported arch: $ARCH_RAW" >&2; exit 1 ;; \
     esac; \
