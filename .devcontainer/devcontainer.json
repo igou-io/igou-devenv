@@ -14,7 +14,8 @@
         "--privileged",
         "--device=/dev/fuse",
         "--device=/dev/net/tun",
-        "--network=host"
+        "--network=host",
+        "--group-add=994"
     ],
     "remoteUser": "igou",
     "containerUser": "igou",
