@@ -167,7 +167,14 @@ Vault: Homelab
 
 ### Authentication
 
-The `op` CLI authenticates via `OP_SERVICE_ACCOUNT_TOKEN`, which is stored at `~/.config/op/service-account-token` on the host and sourced into the container shell automatically (see devcontainer `.bashrc` config).
+The `op` CLI authenticates via **1Password Connect by default**
+(`OP_CONNECT_HOST` + `OP_CONNECT_TOKEN`), falling back to
+`OP_SERVICE_ACCOUNT_TOKEN` when the Connect credentials are absent. The
+credentials are stored on the host under `~/.config/op/` and sourced into the
+container shell automatically (see devcontainer `.bashrc` config). The
+environment-switching mechanism is agnostic to how `op` authenticates. See
+[ADR-0003](0003-default-to-1password-connect.md) for the Connect decision and
+rationale.
 
 ## Consequences
 
@@ -183,10 +190,10 @@ The `op` CLI authenticates via `OP_SERVICE_ACCOUNT_TOKEN`, which is stored at `~
 
 ### Tradeoffs
 
-- Requires 1Password service account with access to all referenced vaults
+- Requires 1Password Connect (or, as fallback, a service account) with access to all referenced vaults
 - Kubeconfig-as-file requires either `op read` + `base64 -d` (full kubeconfig) or dynamic construction from token + host (service accounts), both written to a temp file since `kubectl` expects a file path and 1Password doesn't support multi-line secrets
 - Dynamically constructed kubeconfigs use `insecure-skip-tls-verify: true` — appropriate for homelab but not for production clusters requiring CA verification
-- Service account token must be present on the host at `~/.config/op/service-account-token`
+- 1Password Connect credentials (`~/.config/op/connect-host` + `~/.config/op/connect-token`) must be present on the host; the service-account token (`~/.config/op/service-account-token`) is the fallback (see [ADR-0003](0003-default-to-1password-connect.md))
 - Resolved secrets are visible in the process environment (acceptable in a local devcontainer)
 - If two environments set the same variable, the last `use` wins — `unuse` of either clears it (no save/restore)
 
@@ -194,10 +201,11 @@ The `op` CLI authenticates via `OP_SERVICE_ACCOUNT_TOKEN`, which is stored at `~
 
 - `.env` files contain no secrets and are checked into the repo (`envs/` directory)
 - Temp kubeconfig files are created with `mktemp` (mode 600) and deleted by `unuse` or shell exit trap
-- `OP_SERVICE_ACCOUNT_TOKEN` is the single credential to protect — it is mounted read-only from the host
+- The 1Password credential (`OP_CONNECT_TOKEN`, or `OP_SERVICE_ACCOUNT_TOKEN` as fallback) is the single credential to protect — it is mounted read-only from the host
 
 ### History
 
 - **2026-03-22**: Initial implementation using `env VAR=val bash` subshells. Each `use` spawned a child shell; `exit` removed secrets. Worked but caused UX friction (shell depth, unintuitive `exit`, prompt resets).
 - **2026-03-30**: Refactored to export variables in the current shell with `unuse` for cleanup (issue #11). Removed subshell spawning entirely.
 - **2026-04-15**: Documented `KUBECONFIG_TOKEN` + `KUBECONFIG_HOST` strategy for dynamically constructing kubeconfigs from service account tokens.
+- **2026-06-08**: Default `op` auth switched to 1Password Connect, with the service-account token kept as fallback (see [ADR-0003](0003-default-to-1password-connect.md)).

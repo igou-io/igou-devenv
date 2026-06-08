@@ -89,7 +89,10 @@ mechanism. See [CLAUDE.md](CLAUDE.md) for the per-layer Renovate strategy.
    - `~/.kube/` — Kubernetes configs
    - `~/.gitconfig` — Git identity (mounted read-only)
    - `~/.config/argocd/` — ArgoCD CLI config
+   - `~/.config/op/connect-host` + `~/.config/op/connect-token` — 1Password
+     Connect host URL and token (preferred auth)
    - `~/.config/op/service-account-token` — 1Password service account token
+     (fallback when Connect creds are absent)
    - `~/.config/opencode/` — opencode config (bind-mounted into devcontainer + opencode container)
    - `~/.terraform.d/` — Terraform plugin cache/credentials
    - `~/.claude/` and `~/.claude.json` — Claude Code config
@@ -349,12 +352,17 @@ test suite (`tests/run-all.sh`) inside the container.
 
 ### 1Password Integration
 
-The 1Password CLI authenticates via `OP_SERVICE_ACCOUNT_TOKEN`, sourced
-automatically from `~/.config/op/service-account-token` (bind-mounted
-read-only from the host).
+The 1Password CLI authenticates via **1Password Connect**
+(`OP_CONNECT_HOST` + `OP_CONNECT_TOKEN`), sourced from
+`~/.config/op/connect-host` and `~/.config/op/connect-token`
+(bind-mounted read-only from the host). It falls back to
+`OP_SERVICE_ACCOUNT_TOKEN` (`~/.config/op/service-account-token`) when the
+Connect creds are absent. Connect reads hit the self-hosted server, so
+they aren't subject to the 1password.com service-account API rate limit.
 
 Use the `use` function for environment switching — see
-[ADR-0001](adr/0001-environment-switching-with-1password.md).
+[ADR-0001](adr/0001-environment-switching-with-1password.md) and
+[ADR-0003](adr/0003-default-to-1password-connect.md).
 
 ### Secrets Management
 

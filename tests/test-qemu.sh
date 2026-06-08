@@ -74,9 +74,14 @@ else
     fail "python3-libvirt bindings importable"
 fi
 
-# Group membership
+# Group membership.
+# `id -nG` exits non-zero when a supplementary GID has no name entry in the
+# container (e.g. the host's kvm GID added via `--group-add=994` so /dev/kvm is
+# accessible). Capture its output and swallow that exit so `pipefail` doesn't
+# fail the check when membership is actually correct.
+member_groups=$(id -nG 2>/dev/null || true)
 for g in libvirt kvm; do
-    if id -nG | grep -qw "$g"; then
+    if grep -qw "$g" <<<"$member_groups"; then
         ok "igou is a member of $g group"
     else
         fail "igou is a member of $g group"

@@ -1,6 +1,6 @@
 # Devcontainer context
 
-You are running inside the **igou-devenv devcontainer** — a CentOS Stream 10 based development environment used to work on homelab repos. This is NOT the hardened `claude-run` agent container; constraints differ.
+You are running inside a CentOS Stream 10 devcontainer based development environment used to work on homelab repos. This is NOT the hardened `claude-run` agent container; constraints differ.
 
 ## What this container is
 
@@ -12,10 +12,3 @@ You are running inside the **igou-devenv devcontainer** — a CentOS Stream 10 b
 - 1Password CLI (`op`) available — secrets resolved via `op inject`, never stored.
 - `~/.claude` is bind-mounted from the host's `~/.claude-container/` (separate from the host's own `~/.claude/`).
 - QEMU + libvirt available (`qemu-system-x86_64`, `qemu-img`, `virsh`, `virtqemud`) — for running molecule scenarios that use the `qemu` provisioner. `virtqemud` is started on container start; `/dev/kvm` passes through under `--privileged`. Ansible Galaxy collections (e.g. `community.libvirt`) are not baked into the image — install per-project at runtime if needed.
-
-## Conventions
-
-- The devcontainer is rebuilt from `.devcontainer/Dockerfile` + `devcontainer.json`. Persistent tool installs belong in the Dockerfile or `requirements.txt`, not at runtime.
-- Bumping CLI tool versions: edit `mise.toml`, run `make mise-lock`, run `make test`. Renovate handles bumps automatically — only intervene if a verification audit flags a regression.
-- Before pushing changes to `main`, run `make rebuild && make test` unless the user explicitly waives it.
-- See `/workspace/igou-devenv/CLAUDE.md` for full repo guidance.

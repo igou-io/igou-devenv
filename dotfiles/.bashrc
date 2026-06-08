@@ -7,6 +7,7 @@
 # I'm not sure if this actually works
 if [ -n "${CURSOR_AGENT:-}" ]; then
     unset OP_SERVICE_ACCOUNT_TOKEN
+    unset OP_CONNECT_TOKEN
     unset SSH_AUTH_SOCK
 fi
 
@@ -18,7 +19,13 @@ case $- in
       *) return;;
 esac
 
-if [ -f ~/.config/op/service-account-token ]; then
+# 1Password auth. Prefer Connect (self-hosted, no service-account API rate
+# limit); fall back to the service-account token when Connect creds are absent.
+# All files are bind-mounted read-only from the host's ~/.config/op.
+if [ -f ~/.config/op/connect-host ] && [ -f ~/.config/op/connect-token ]; then
+    export OP_CONNECT_HOST=$(cat ~/.config/op/connect-host)
+    export OP_CONNECT_TOKEN=$(cat ~/.config/op/connect-token)
+elif [ -f ~/.config/op/service-account-token ]; then
     export OP_SERVICE_ACCOUNT_TOKEN=$(cat ~/.config/op/service-account-token)
 fi
 
