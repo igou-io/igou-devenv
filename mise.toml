@@ -40,31 +40,31 @@ registry_url = "https://github.com/aquaproj/aqua-registry"
 kubectl = "1.36.1"
 
 # Task 2.1 — SHA256-verified tools (aqua-registry per-tool checksums.txt).
-gh = "2.92.0"
+gh = "2.93.0"
 kustomize = "5.8.1"
-kubeseal = "0.36.6"
+kubeseal = "0.37.0"
 kubeconform = "0.7.0"
 kind = "0.31.0"
 act = "0.2.88"
 tekton-cli = "0.45.0"   # binary is `tkn`; mise registry key is tekton-cli
 # Pipelines-as-Code CLI (binary: tkn-pac). No short alias in mise's registry,
 # so use the explicit aqua: key form (same shape as aqua:nodejs/node below).
-"aqua:tektoncd/pipelines-as-code" = "0.46.0"
-rclone = "1.74.1"
+"aqua:tektoncd/pipelines-as-code" = "0.47.0"
+rclone = "1.74.2"
 direnv = "2.37.1"
 age = "1.3.1"
 # node — `core:node` does not record per-platform checksums in mise.lock, so
 # `locked = true` rejects it. Using aqua-registry's nodejs/node entry instead;
 # upstream provides no SHASUMS in the aqua definition, so mise falls back to
 # blake3 TOFU (strictly better than the prior unverified `curl | tar`).
-"aqua:nodejs/node" = "26.1.0"
+"aqua:nodejs/node" = "26.2.0"
 
 # Task 2.2 — cosign-keyless-verified tools.
-flux2 = "2.8.7"
-sops = "3.13.0"
+flux2 = "2.8.8"
+sops = "3.13.1"
 
 # Task 2.4 — SLSA-verified tools.
-argocd = "3.4.2"
+argocd = "3.4.3"
 
 # Task 2.3 / follow-up — GPG-verified tools. aqua-registry's mise install path
 # records only sha256 for helm + terraform (no GPG step), so the previous
@@ -81,7 +81,7 @@ version = "4.2.0"
 postinstall = "/etc/mise/aqua-registry/helm-postinstall.sh"
 
 [tools.terraform]
-version = "1.15.3"
+version = "1.15.5"
 postinstall = "/etc/mise/aqua-registry/terraform-postinstall.sh"
 
 # Task 3.1 — off-registry tools via mise's http backend.
