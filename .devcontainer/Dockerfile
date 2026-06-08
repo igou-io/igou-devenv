@@ -154,8 +154,8 @@ RUN rm -f /etc/pam.d/system-auth && \
 #   for a in x64 arm64; do curl -sL "https://github.com/jdx/mise/releases/download/<ver>/mise-<ver>-linux-${a}.tar.gz" | sha256sum; done
 # renovate: datasource=github-releases depName=jdx/mise
 ARG MISE_VERSION="v2026.5.16"
-ARG MISE_SHA256_AMD64="f1d8bb19615e87e292cea9ab5f16df386f25da45"
-ARG MISE_SHA256_ARM64="7c855f8c7c8f0d8bb5934aaf924c12a122a016184bb9b23f50e5c1e6997b37c9"
+ARG MISE_SHA256_AMD64="43c37041c8d5ba3fd1353c3244f2f346866b76f1bafb6c57f059678e1c7a4046"
+ARG MISE_SHA256_ARM64="00f94d934a957c67f083669003bc0fd9e6009aec5aa8c6f1649c376f115b3818"
 RUN set -eux; \
     ARCH_RAW=$(uname -m); \
     case "$ARCH_RAW" in \
