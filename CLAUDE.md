@@ -38,7 +38,7 @@ tests/
 └── mock-op.sh           # Mock 1Password CLI for test-env
 renovate.json            # Renovate config with custom regex manager for Dockerfile ARGs
 .github/workflows/build.yaml         # CI: builds full devcontainer on push/PR via devcontainers/ci
-.github/workflows/mise-autofix.yaml  # CI: regenerates mise.lock + mise digests on Renovate PRs
+.github/workflows/mise-lockfile-check.yaml  # CI: fails PRs whose mise.lock is stale vs mise.toml
 ```
 
 **Tool installation layers:**
@@ -97,11 +97,12 @@ cursor-run --shell      # Drop to bash inside the container
 Tools managed by mise (see Architecture table) are pinned in `mise.toml`
 with per-asset checksums in `mise.lock`. Renovate bumps the *version* in
 `mise.toml` but cannot regenerate `mise.lock` — the hosted Mend app cannot run
-postUpgradeTasks — so its raw PRs fail the locked `mise install`. The
-`.github/workflows/mise-autofix.yaml` workflow closes that gap: on Renovate PRs
-that touch `mise.toml` it runs `make mise-lock` and commits the result back.
-(The mise binary itself is verified against mise's GPG-signed checksums, so a
-version-only `MISE_VERSION` bump needs no follow-up.) To bump manually:
+postUpgradeTasks — so its raw PRs are stale and fail the `mise-lockfile-check`
+CI guard. There is no auto-commit: on a flagged Renovate PR, regenerate the lock
+on its branch (`make mise-lock`), commit and push the updated `mise.lock`, and
+it then passes and automerges. (The mise binary itself is verified against
+mise's GPG-signed checksums, so a version-only `MISE_VERSION` bump needs no
+follow-up.) To bump a tool manually:
 
 ```bash
 # 1. Edit the version in mise.toml

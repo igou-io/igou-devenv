@@ -1,0 +1,35 @@
+name: mise lockfile freshness
+
+# Renovate (hosted Mend app) bumps tool versions in mise.toml but cannot
+# regenerate mise.lock — it can't run postUpgradeTasks — so its raw PRs are
+# stale and would otherwise only fail deep inside the devcontainer build. This
+# fast check surfaces a stale lock in seconds.
+#
+# By design this does NOT auto-commit the fix: no privileged CI token, no bot
+# writes to PR branches. To clear a flagged PR, regenerate locally with
+# `make mise-lock` and push the updated mise.lock to the branch.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - mise.toml
+      - mise.lock
+      - .github/workflows/mise-lockfile-check.yaml
+
+permissions:
+  contents: read
+
+jobs:
+  lockfile-fresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - name: Assert mise.lock is in sync with mise.toml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          bash tests/test-mise-lockfile.sh || {
+            echo "::error::mise.lock is stale vs mise.toml — run 'make mise-lock' and push the updated mise.lock to this branch."
+            exit 1
+          }
