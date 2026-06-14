@@ -6,7 +6,7 @@ SSH_MOUNT = $(shell [ -S "$$SSH_AUTH_SOCK" ] && echo '--mount type=bind,source=$
 
 .DEFAULT_GOAL := help
 
-.PHONY: build up down restart exec shell test test-all test-tools test-podman test-env test-mise test-mise-lockfile test-qemu clean rebuild help renovate-validate renovate-dry-run sbom sbom-devcontainer e2e opencode-build mise-lock mise-bootstrap-sha
+.PHONY: build up down restart exec shell test test-all test-tools test-podman test-env test-mise test-mise-lockfile test-qemu clean rebuild help renovate-validate renovate-dry-run sbom sbom-devcontainer e2e opencode-build mise-lock mise-bootstrap-sha mise-bootstrap-sha-apply
 
 
 ## Build the devcontainer image (with cache)
@@ -85,7 +85,9 @@ test-mise-lockfile:
 
 ## Regenerate mise.lock against the current mise.toml.
 ## Run this after manually editing mise.toml; commit both files together.
-## Renovate handles this automatically via postUpgradeTasks.
+## On Renovate PRs the mise-autofix workflow runs this automatically — hosted
+## Renovate (the Mend app) cannot run postUpgradeTasks, so it never regenerates
+## the lockfile itself.
 ##
 ## Uses a one-shot ghcr.io/jdx/mise container so this works on any host
 ## with podman (the host does not need mise installed). Mise only writes
@@ -134,6 +136,24 @@ mise-bootstrap-sha:
 	echo "# mise $$ver — verified against published SHASUMS256.txt"; \
 	echo "ARG MISE_SHA256_X64=\"$$x64\""; \
 	echo "ARG MISE_SHA256_ARM64=\"$$arm64\""
+
+## Re-capture and apply the verified mise digests for the pinned MISE_VERSION
+## in place across all three Dockerfiles. Same source and extraction as
+## mise-bootstrap-sha, but rewrites the ARG lines instead of printing them.
+## Used by the mise-autofix CI workflow (hosted Renovate cannot run
+## postUpgradeTasks); safe to run by hand too.
+mise-bootstrap-sha-apply:
+	@ver=$$(grep -oP 'ARG MISE_VERSION="\K[^"]+' .devcontainer/Dockerfile); \
+	[ -n "$$ver" ] || { echo "could not read MISE_VERSION from .devcontainer/Dockerfile" >&2; exit 1; }; \
+	sums=$$(curl -fsSL "https://github.com/jdx/mise/releases/download/$$ver/SHASUMS256.txt") \
+		|| { echo "failed to fetch SHASUMS256.txt for $$ver" >&2; exit 1; }; \
+	x64=$$(printf '%s\n' "$$sums"   | awk -v n="mise-$$ver-linux-x64.tar.gz"   '$$2 ~ n"$$" {print $$1}'); \
+	arm64=$$(printf '%s\n' "$$sums" | awk -v n="mise-$$ver-linux-arm64.tar.gz" '$$2 ~ n"$$" {print $$1}'); \
+	[ -n "$$x64" ] && [ -n "$$arm64" ] || { echo "could not extract both SHAs from SHASUMS256.txt" >&2; exit 1; }; \
+	for f in .devcontainer/Dockerfile builds/podman-rootful/Dockerfile builds/podman-socket/Dockerfile; do \
+		sed -i -E "s|^(ARG MISE_SHA256_X64=).*|\1\"$$x64\"|; s|^(ARG MISE_SHA256_ARM64=).*|\1\"$$arm64\"|" "$$f"; \
+	done; \
+	echo "Applied mise $$ver digests (x64+arm64) to all three Dockerfiles."
 
 ## Remove the devcontainer and clean up dangling images
 clean: down
