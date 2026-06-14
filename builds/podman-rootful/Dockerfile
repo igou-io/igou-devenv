@@ -111,8 +111,8 @@ RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
 # (or by hand: curl -sL https://github.com/jdx/mise/releases/download/<ver>/SHASUMS256.txt)
 # renovate: datasource=github-releases depName=jdx/mise
 ARG MISE_VERSION="v2026.6.0"
-ARG MISE_SHA256_X64="43c37041c8d5ba3fd1353c3244f2f346866b76f1bafb6c57f059678e1c7a4046"
-ARG MISE_SHA256_ARM64="00f94d934a957c67f083669003bc0fd9e6009aec5aa8c6f1649c376f115b3818"
+ARG MISE_SHA256_X64="a167298194e6d3f8eb52eccb9107cea36e9786b2b15a7d24b1386eb9f1bcd31c"
+ARG MISE_SHA256_ARM64="2dcf4aa7b02deeba2d042f2d4eda21b445b0dcc3005446db6700c2160ce0cf46"
 RUN set -eux; \
     ARCH_RAW=$(uname -m); \
     case "$ARCH_RAW" in \
