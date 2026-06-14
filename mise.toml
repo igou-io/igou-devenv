@@ -49,7 +49,7 @@ act = "0.2.89"
 tekton-cli = "0.45.0"   # binary is `tkn`; mise registry key is tekton-cli
 # Pipelines-as-Code CLI (binary: tkn-pac). No short alias in mise's registry,
 # so use the explicit aqua: key form (same shape as aqua:nodejs/node below).
-"aqua:tektoncd/pipelines-as-code" = "0.47.0"
+"aqua:tektoncd/pipelines-as-code" = "0.48.0"
 rclone = "1.74.2"
 direnv = "2.37.1"
 age = "1.3.1"
