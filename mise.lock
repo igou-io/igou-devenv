@@ -38,16 +38,16 @@ checksum = "blake3:7ebef06114fe2a209d51bb7057bcc6d3532adcee478742d4fd58d3cd23fbc
 url = "https://nodejs.org/dist/v26.3.0/node-v26.3.0-linux-x64.tar.gz"
 
 [[tools."aqua:tektoncd/pipelines-as-code"]]
-version = "0.47.0"
+version = "0.48.0"
 backend = "aqua:tektoncd/pipelines-as-code"
 
 [tools."aqua:tektoncd/pipelines-as-code"."platforms.linux-arm64"]
-checksum = "sha256:0aa4b3ff2cf594faba84b7c1f3e80beb736ec5c0773b4d3ddc228cef32ecf9a7"
-url = "https://github.com/tektoncd/pipelines-as-code/releases/download/v0.47.0/tkn-pac_0.47.0_linux_arm64.tar.gz"
+checksum = "sha256:b8b816bda8cffe4fe6dae83a6b645052c749c72a4601ad3a9091feea1fe0e341"
+url = "https://github.com/tektoncd/pipelines-as-code/releases/download/v0.48.0/tkn-pac_0.48.0_linux_arm64.tar.gz"
 
 [tools."aqua:tektoncd/pipelines-as-code"."platforms.linux-x64"]
-checksum = "sha256:84f39153e1e03a96be2b72fae5ce521dd2663651f15a1318556beb5a95a1d389"
-url = "https://github.com/tektoncd/pipelines-as-code/releases/download/v0.47.0/tkn-pac_0.47.0_linux_x86_64.tar.gz"
+checksum = "sha256:5fb9a3bf80d44cb2b1c36ba1609ab3a7b7a2e37ac0285573166a1bf11e605a96"
+url = "https://github.com/tektoncd/pipelines-as-code/releases/download/v0.48.0/tkn-pac_0.48.0_linux_x86_64.tar.gz"
 
 [[tools.argocd]]
 version = "3.4.3"
