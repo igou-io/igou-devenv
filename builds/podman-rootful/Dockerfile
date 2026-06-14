@@ -102,31 +102,52 @@ RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
 # ---------------------------------------------------------------------------
 
 # ---------------------------------------------------------------------------
-# Mise — declarative tool manager. Bootstrap via TOFU SHA256; once installed,
-# mise verifies all subsequent tools via aqua-registry's per-tool config
-# (cosign/SLSA/GPG/SHA256). See docs/superpowers/specs/2026-05-16-mise-tool-management-design.md
-# Renovate bumps MISE_VERSION only (version-only, like cursor-agent/opencode);
-# the SHAs must be re-captured on each bump. mise publishes a SHASUMS256.txt, so:
-#   make mise-bootstrap-sha   # prints verified MISE_SHA256_X64 + _ARM64 for the pinned version
-# (or by hand: curl -sL https://github.com/jdx/mise/releases/download/<ver>/SHASUMS256.txt)
+# Mise — declarative tool manager. The bootstrap binary is verified against
+# mise's GPG-signed release checksums; once installed, mise verifies all
+# subsequent tools via aqua-registry's per-tool config (cosign/SLSA/GPG/SHA256).
+# See docs/superpowers/specs/2026-05-16-mise-tool-management-design.md
+#
+# Trust anchor is the pinned key fingerprint below (rsa4096, expires 2028-01-02):
+# the key is fetched from mise's HTTPS endpoint at build time but rejected unless
+# its fingerprint matches AND the checksums carry a VALIDSIG from it. Renovate
+# bumps MISE_VERSION only — there is no per-version SHA to maintain.
+# Key UID (cross-checked at keys.openpgp.org and https://mise.jdx.dev/gpg-key.pub):
+# "mise releases <release@mise.jdx.dev>"
 # renovate: datasource=github-releases depName=jdx/mise
 ARG MISE_VERSION="v2026.6.0"
-ARG MISE_SHA256_X64="a167298194e6d3f8eb52eccb9107cea36e9786b2b15a7d24b1386eb9f1bcd31c"
-ARG MISE_SHA256_ARM64="2dcf4aa7b02deeba2d042f2d4eda21b445b0dcc3005446db6700c2160ce0cf46"
+ARG MISE_GPG_FPR="24853EC9F655CE80B48E6C3A8B81C9D17413A06D"
+ARG MISE_GPG_URL="https://mise.jdx.dev/gpg-key.pub"
 RUN set -eux; \
     ARCH_RAW=$(uname -m); \
     case "$ARCH_RAW" in \
-      x86_64)  ARCH="x64";   EXPECTED_SHA="${MISE_SHA256_X64}" ;; \
-      aarch64) ARCH="arm64"; EXPECTED_SHA="${MISE_SHA256_ARM64}" ;; \
+      x86_64)  ARCH="x64" ;; \
+      aarch64) ARCH="arm64" ;; \
       *) echo "Unsupported arch: $ARCH_RAW" >&2; exit 1 ;; \
     esac; \
-    URL="https://github.com/jdx/mise/releases/download/${MISE_VERSION}/mise-${MISE_VERSION}-linux-${ARCH}.tar.gz"; \
+    TARBALL="mise-${MISE_VERSION}-linux-${ARCH}.tar.gz"; \
+    BASE="https://github.com/jdx/mise/releases/download/${MISE_VERSION}"; \
     WORK=$(mktemp -d); \
-    curl -fsSL -o "${WORK}/mise.tar.gz" "$URL"; \
-    echo "${EXPECTED_SHA}  ${WORK}/mise.tar.gz" | sha256sum -c -; \
-    tar -xz --strip-components=2 -C /usr/local/bin -f "${WORK}/mise.tar.gz" mise/bin/mise; \
+    export GNUPGHOME="$WORK/gnupg"; \
+    mkdir -p -m 0700 "$GNUPGHOME"; \
+    cd "$WORK"; \
+    curl -fsSL -o key.asc "${MISE_GPG_URL}"; \
+    gpg --batch --import key.asc; \
+    # Reject any key whose fingerprint doesn't match the pinned anchor.
+    gpg --list-keys --with-colons --with-fingerprint \
+      | awk -F: '$1=="fpr"{print $10}' \
+      | grep -qFx "${MISE_GPG_FPR}"; \
+    curl -fsSL -o "$TARBALL" "${BASE}/${TARBALL}"; \
+    curl -fsSL -o SHASUMS256.asc "${BASE}/SHASUMS256.asc"; \
+    # Require a good clearsigned-checksums signature from our pinned key.
+    gpg --batch --status-fd 1 --verify SHASUMS256.asc 2>/dev/null \
+      | grep -qF "VALIDSIG ${MISE_GPG_FPR}"; \
+    # Verify the tarball against its checksum from the signed list.
+    gpg --batch --decrypt SHASUMS256.asc 2>/dev/null \
+      | awk -v f="./${TARBALL}" '$2==f{print $1"  "f}' \
+      | sha256sum -c -; \
+    tar -xz --strip-components=2 -C /usr/local/bin -f "$TARBALL" mise/bin/mise; \
     chmod +x /usr/local/bin/mise; \
-    rm -rf "$WORK"; \
+    cd / && rm -rf "$WORK"; \
     mise --version
 
 # ---------------------------------------------------------------------------

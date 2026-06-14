@@ -47,7 +47,7 @@ renovate.json            # Renovate config with custom regex manager for Dockerf
 |---|---|---|
 | Dockerfile (apt) | python3, podman, buildah, skopeo, jq, 1Password CLI, qemu-kvm, qemu-img, genisoimage, edk2-ovmf (virtualization), etc. | `.devcontainer/Dockerfile` |
 | Mise (mise.toml + mise.lock) | kubectl, helm, terraform, gh, argocd, kustomize, kubeseal, flux2, sops, kubeconform, kind, act, tkn, rclone, direnv, age, node, oc, virtctl, kube-burner, kube-burner-ocp | `mise.toml` (versions), `mise.lock` (per-asset SHA256) |
-| Dockerfile (binary downloads) | mise itself (TOFU SHA256), Cursor agent, opencode, Claude Code | `.devcontainer/Dockerfile` (ARG + RUN) |
+| Dockerfile (binary downloads) | mise itself (GPG-signed checksums), Cursor agent, opencode, Claude Code | `.devcontainer/Dockerfile` (ARG + RUN) |
 | pip (onCreateCommand) | Ansible ecosystem, yq, mkdocs-material | `.devcontainer/requirements.txt` |
 
 **Lifecycle hooks** (execution order):
@@ -98,10 +98,10 @@ Tools managed by mise (see Architecture table) are pinned in `mise.toml`
 with per-asset checksums in `mise.lock`. Renovate bumps the *version* in
 `mise.toml` but cannot regenerate `mise.lock` — the hosted Mend app cannot run
 postUpgradeTasks — so its raw PRs fail the locked `mise install`. The
-`.github/workflows/mise-autofix.yaml` workflow closes that gap: on Renovate
-PRs it runs `make mise-lock` (and re-captures the mise digests for
-`MISE_VERSION` bumps via `make mise-bootstrap-sha-apply`) and commits the
-result back. To bump manually:
+`.github/workflows/mise-autofix.yaml` workflow closes that gap: on Renovate PRs
+that touch `mise.toml` it runs `make mise-lock` and commits the result back.
+(The mise binary itself is verified against mise's GPG-signed checksums, so a
+version-only `MISE_VERSION` bump needs no follow-up.) To bump manually:
 
 ```bash
 # 1. Edit the version in mise.toml
@@ -141,5 +141,5 @@ shellcheck .devcontainer/post-create.sh .devcontainer/post-start.sh .devcontaine
 - **Environment switching via `op inject`**: `use <env>` resolves secrets via `op inject` and exports them in the current shell. `unuse <env>` removes them. Both are idempotent. No subshells. See [ADR-0001](adr/0001-environment-switching-with-1password.md).
 - **Claude Code native binary**: Installed via `curl https://claude.ai/install.sh` instead of the deprecated npm package, removing the Node.js dependency.
 - **No embedded file definitions**: Do not embed large file contents (heredocs, multi-line echo chains, inline Python scripts) inside shell scripts or Dockerfiles. Instead, extract them into standalone files under `dotfiles/` (for runtime config) or alongside the consuming script (for build-time assets like Python merge scripts), then `cp`/`cat`/`COPY` them into place. This keeps generated files lintable, diffable, and editable. Small one-liners and test fixtures are acceptable inline.
-- **Trust anchors**: Mise is bootstrapped via TOFU SHA256 (the only chicken-and-egg trust anchor for tool installs). Mise then verifies the 21 managed tools via aqua-registry's pinned cosign/SLSA/GPG/SHA256 config. Where aqua-registry's mise install path doesn't run the upstream signature step (helm, terraform, oc), `aqua-registry/<tool>-postinstall.sh` re-runs the GPG verification against a pinned-fingerprint key. The aqua-registry itself is pinned to a specific git SHA, Renovate-bumped, and the bump is gated by `tests/test-mise.sh` which asserts no verification method silently downgraded.
+- **Trust anchors**: The mise binary is bootstrapped by verifying its release tarball against mise's GPG-signed checksums (`SHASUMS256.asc`), anchored on the pinned release-key fingerprint `24853EC9F655CE80B48E6C3A8B81C9D17413A06D` (uid "mise releases <release@mise.jdx.dev>", fetched from `https://mise.jdx.dev/gpg-key.pub` but rejected unless fingerprint + VALIDSIG match) — that pinned fingerprint is the chicken-and-egg trust anchor for tool installs, and Renovate bumps `MISE_VERSION` only (no per-version SHA to maintain). Mise then verifies the 21 managed tools via aqua-registry's pinned cosign/SLSA/GPG/SHA256 config. Where aqua-registry's mise install path doesn't run the upstream signature step (helm, terraform, oc), `aqua-registry/<tool>-postinstall.sh` re-runs the GPG verification against a pinned-fingerprint key. The aqua-registry itself is pinned to a specific git SHA, Renovate-bumped, and the bump is gated by `tests/test-mise.sh` which asserts no verification method silently downgraded.
 - **QEMU available in-container**: `qemu-kvm`, `qemu-img`, `genisoimage`, `edk2-ovmf`, `libvirt-daemon`, `libvirt-client`, and `python3-libvirt` are baked into the image so the `qemu` provisioner from [`ansible-collection-molecule_provisioners`](https://github.com/david-igou/ansible-collection-molecule_provisioners) can launch both process-driver and libvirt-driver guests. Ansible Galaxy collections (e.g. `community.libvirt`) are not baked into the image — install per-project via `ansible-galaxy collection install` at runtime if needed. `/dev/kvm` is accessible via the existing `/dev` bind-mount + `--privileged` runArgs. `virtqemud` is started by `post-start.sh` on every container start (`auth_unix = "none"` because the container has no systemd/D-Bus/polkit; access control falls back to socket file permissions). Host-side prep (kernel module load, `/dev/kvm` permissions) is tracked in [`ansible-collection-devhost#33`](https://github.com/david-igou/ansible-collection-devhost/issues/33).
