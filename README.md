@@ -36,7 +36,7 @@ mechanism. See [CLAUDE.md](CLAUDE.md) for the per-layer Renovate strategy.
 |---|---|---|
 | Dockerfile (dnf) | podman, buildah, skopeo, jq, direnv, gpg2, 1Password CLI, Docker CLI, base utilities | `.devcontainer/Dockerfile` |
 | Mise (`mise.toml` + `mise.lock`) | kubectl, helm, terraform, gh, argocd, kustomize, kubeseal, flux2, sops, kubeconform, kind, act, tkn, rclone, direnv, age, node, oc, virtctl, kube-burner, kube-burner-ocp | `mise.toml` (versions) + `mise.lock` (per-asset checksums) |
-| Dockerfile (binary downloads) | mise itself (TOFU SHA256 — trust anchor), Claude Code, Cursor agent, opencode | `.devcontainer/Dockerfile` (ARG + RUN) |
+| Dockerfile (binary downloads) | mise itself (GPG-signed checksums — trust anchor), Claude Code, Cursor agent, opencode | `.devcontainer/Dockerfile` (ARG + RUN) |
 | pip (onCreateCommand) | Ansible ecosystem, yq, mkdocs-material | `.devcontainer/requirements.txt` |
 
 **Verification floor for mise-managed tools** (asserted by
@@ -317,9 +317,9 @@ rootless networking. Docker CLI is also available via the host socket
 All tool versions are pinned and managed by [Renovate](https://docs.renovatebot.com/):
 
 - **Dockerfile base image** — pinned by digest, updated by Renovate's Docker manager
-- **Mise-managed CLI tools** (21 binaries) — pinned in `mise.toml`, per-asset checksums in `mise.lock`. Renovate's native `mise` manager bumps versions; `make mise-lock` (run by Renovate's `postUpgradeTasks`) refreshes the lockfile.
+- **Mise-managed CLI tools** (21 binaries) — pinned in `mise.toml`, per-asset checksums in `mise.lock`. Renovate's native `mise` manager bumps versions; the `mise-autofix` workflow runs `make mise-lock` to refresh the lockfile on those PRs (the hosted Mend app cannot run `postUpgradeTasks`).
 - **aqua-registry pin** — the upstream registry that mise consumes is pinned to a specific git SHA in `mise.toml`. Renovate bumps it; `tests/test-mise.sh` gates the bump by asserting no per-tool verification method silently downgraded.
-- **Mise itself** + Claude Code + Cursor agent + opencode — pinned in `.devcontainer/Dockerfile` ARG blocks with `# renovate:` comments and the `github-releases` datasource (custom regex manager). SHA256 (and PGP for Claude) verified at build time.
+- **Mise itself** + Claude Code + Cursor agent + opencode — pinned in `.devcontainer/Dockerfile` ARG blocks with `# renovate:` comments and the `github-releases` datasource (custom regex manager). Verified at build time: mise and Claude Code via pinned-fingerprint GPG signatures, Cursor agent and opencode via SHA256.
 - **Python packages** — pinned in `.devcontainer/requirements.txt`, updated by `pip_requirements` manager.
 
 Trust anchors (mise itself, aqua-registry pin) are routed into their own
