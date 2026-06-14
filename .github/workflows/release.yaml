@@ -60,6 +60,8 @@ jobs:
       - name: Tag and push the CalVer image
         if: steps.plan.outputs.proceed == 'true' && inputs.dry_run != true
         run: |
+          # devcontainers/ci (push: always) also --loads :latest into the local
+          # docker daemon; we retag that exact image so the CalVer tag == what was tested.
           docker tag  ghcr.io/igou-io/igou-devenv:latest ghcr.io/igou-io/igou-devenv:${{ steps.plan.outputs.version }}
           docker push ghcr.io/igou-io/igou-devenv:${{ steps.plan.outputs.version }}
 
@@ -77,7 +79,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git tag "v${{ steps.plan.outputs.version }}"
+          git tag -a "v${{ steps.plan.outputs.version }}" -m "v${{ steps.plan.outputs.version }}"
           git push origin "v${{ steps.plan.outputs.version }}"
           gh release create "v${{ steps.plan.outputs.version }}" \
             --repo igou-io/igou-devenv \

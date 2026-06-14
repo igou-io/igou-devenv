@@ -30,10 +30,11 @@ else
   git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
   git commit -am "chore(mise): regenerate mise.lock"
   git push
-  # Give GitHub a moment to register the new checks before watching.
-  sleep 30
 fi
 
+# Let any freshly-pushed (or freshly-opened-PR) checks register before watching,
+# so `gh pr checks --watch` doesn't exit early on a transient "no checks yet".
+sleep 30
 echo "Waiting for checks on PR #$pr to complete..."
 gh pr checks "$pr" --repo "$REPO" --watch --interval 30
 

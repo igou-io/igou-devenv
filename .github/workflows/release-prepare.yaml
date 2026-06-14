@@ -13,6 +13,7 @@ on:
 
 permissions:
   contents: read
+  issues: write
 
 jobs:
   prepare:
@@ -32,9 +33,9 @@ jobs:
       - name: File an issue on failure
         if: failure()
         env:
-          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh issue create --repo igou-io/igou-devenv \
-            --title "Weekly mise lock prepare failed ($(date -u +%Y-%m-%d))" \
+            --title "Weekly mise lock prepare failed ($(date -u +%Y.%m.%d))" \
             --body "release-prepare could not regenerate/merge the mise PR. Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}. Fix manually: \`make mise-lock\` on the renovate/mise-managed-cli-tools branch and push." \
-            || true
+            || echo "::warning::failed to file tracking issue"
