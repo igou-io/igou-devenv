@@ -137,6 +137,14 @@ Manual fallback: if `release-prepare` files an issue, regenerate the lock by
 hand — `make mise-lock` on the `renovate/mise-managed-cli-tools` branch, then
 push; it merges and rides the next weekly release.
 
+Manual / test release: `release.yaml` is also `workflow_dispatch`-able (Actions
+tab or `gh workflow run release.yaml`):
+- `-f dry_run=true` — build + test only, no publish (safe, repeatable).
+- `-f version=0.0.0-test -f force=true` — cut a throwaway release on demand
+  (unique `version` avoids clashing with the real weekly CalVer tags; `force`
+  bypasses the "tag exists / main not advanced" skip guards). Delete the test
+  tag/release/image afterward.
+
 Requires the `RELEASE_PAT` repo secret (Contents + Pull-requests: read/write).
 
 ## Pre-push Requirements

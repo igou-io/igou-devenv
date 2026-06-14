@@ -4,6 +4,9 @@ name: release (weekly CalVer)
 # updates + the mise PR merged by release-prepare) into a dated release:
 # image :YYYY.MM.DD + :latest, git tag vYYYY.MM.DD, and a GitHub Release with
 # auto-generated notes + the SBOM. Idempotent; skips weeks with no changes.
+#
+# Also manually runnable from the Actions tab / `gh workflow run release.yaml`
+# with inputs below — handy for testing the pipeline on demand.
 
 on:
   schedule:
@@ -12,6 +15,14 @@ on:
     inputs:
       dry_run:
         description: "Build + test only; do not tag/publish/release"
+        type: boolean
+        default: false
+      version:
+        description: "Version/tag override (default: today UTC YYYY.MM.DD). Use a unique value for repeat test releases, e.g. 0.0.0-test."
+        type: string
+        default: ""
+      force:
+        description: "Release even if the tag exists or main hasn't advanced (for manual test runs)"
         type: boolean
         default: false
 
@@ -30,10 +41,15 @@ jobs:
       - name: Decide version and whether to release
         id: plan
         run: |
-          VERSION="$(date -u +%Y.%m.%d)"
+          VERSION="${{ inputs.version }}"
+          if [ -z "$VERSION" ]; then VERSION="$(date -u +%Y.%m.%d)"; fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if [ "${{ inputs.force }}" = "true" ]; then
+            echo "force=true — releasing v$VERSION regardless of guards."
+            echo "proceed=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
           if git rev-parse "v$VERSION" >/dev/null 2>&1; then
-            echo "Tag v$VERSION already exists — skipping."
+            echo "Tag v$VERSION already exists — skipping (use force + a unique version to re-release)."
             echo "proceed=false" >> "$GITHUB_OUTPUT"; exit 0
           fi
           last="$(git tag --list 'v*' --sort=-creatordate | head -1)"

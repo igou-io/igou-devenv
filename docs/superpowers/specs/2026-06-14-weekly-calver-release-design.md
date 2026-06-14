@@ -139,9 +139,12 @@ to `main`; `release.yml` adds the immutable `:YYYY.MM.DD` tag + Release.
 
 ## Testing
 
-- Both workflows are `workflow_dispatch`-able. `release.yml` has a `dry_run`
-  input (build + test only; no tag/publish/release) for safe manual validation
-  without waiting for Monday.
+- Both workflows are `workflow_dispatch`-able. `release.yaml` has `dry_run`
+  (build + test only; no tag/publish/release), `version` (tag override), and
+  `force` (bypass the skip guards) inputs — for safe manual validation and
+  on-demand test releases without waiting for Monday. Note: `workflow_dispatch`
+  is only registered once the workflow is on the default branch, so these run
+  post-merge.
 - `release-prepare.yml` validated against a real (or hand-created) mise PR:
   confirm lock regenerated, pushed, build watched, PR merged.
 - `make mise-lock` + `tests/test-mise-lockfile.sh` mechanics already verified in

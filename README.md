@@ -345,6 +345,10 @@ A Monday pipeline cuts a dated release of the devcontainer:
 `:latest` always tracks `main`; the `:YYYY.MM.DD` tags are immutable weekly
 snapshots to pin or roll back to. Needs the `RELEASE_PAT` secret.
 
+`release.yaml` can also be run on demand (`gh workflow run release.yaml`):
+`-f dry_run=true` for build+test only, or `-f version=0.0.0-test -f force=true`
+to cut a throwaway test release.
+
 ## CI
 
 GitHub Actions builds the devcontainer on every push and PR to `main` using
