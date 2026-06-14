@@ -1,0 +1,62 @@
+name: mise autofix (Renovate)
+
+# Hosted Renovate (the Mend GitHub App) cannot run postUpgradeTasks, so it
+# opens mise bumps that are structurally incomplete:
+#   - mise.toml version bumps without a regenerated mise.lock -> the locked
+#     `mise install` fails in the build ("<tool>@<ver> is not in the lockfile")
+#   - MISE_VERSION bumps without re-captured MISE_SHA256_* ARGs -> the
+#     Dockerfile's `sha256sum -c` fails on the new mise tarball
+#
+# This workflow runs on Renovate PRs that touch those files, regenerates the
+# lockfile and re-captures the mise digests using the same `make` targets used
+# locally, then commits the result back to the PR branch.
+#
+# NOTE: a commit pushed with the default GITHUB_TOKEN does NOT trigger further
+# workflow runs, so the build check would never re-run on the fixed commit and
+# automerge would stall. To enable full automerge, set a fine-grained PAT
+# (contents: write on this repo) as the MISE_AUTOFIX_TOKEN secret; the push
+# below then re-triggers CI on the corrected commit. Without the secret the
+# branch is still corrected — CI just needs one manual re-run before merge.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - mise.toml
+      - .devcontainer/Dockerfile
+      - builds/**/Dockerfile
+
+permissions:
+  contents: write
+
+jobs:
+  autofix:
+    # Only act on Renovate's own PRs; humans regenerate locally (see CLAUDE.md).
+    if: github.actor == 'renovate[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ github.head_ref }}
+          token: ${{ secrets.MISE_AUTOFIX_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Regenerate mise.lock and re-capture mise digests
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          make mise-lock
+          make mise-bootstrap-sha-apply
+
+      - name: Commit and push fixes (if any)
+        run: |
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "mise.lock and mise digests already in sync — nothing to fix."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit \
+            -m "fix(mise): regenerate lockfile / re-capture mise digests" \
+            -m "Auto-generated: hosted Renovate cannot run postUpgradeTasks."
+          git push
