@@ -83,11 +83,10 @@ test-qemu:
 test-mise-lockfile:
 	bash $(CURDIR)/tests/test-mise-lockfile.sh
 
-## Regenerate mise.lock against the current mise.toml.
-## Run this after manually editing mise.toml; commit both files together.
-## On Renovate PRs the mise-autofix workflow runs this automatically — hosted
-## Renovate (the Mend app) cannot run postUpgradeTasks, so it never regenerates
-## the lockfile itself.
+## Regenerate mise.lock against the current mise.toml; commit both together.
+## Run this after editing mise.toml — including on a Renovate mise PR, whose
+## stale lock the mise-lockfile-check CI guard flags. Hosted Renovate (the Mend
+## app) cannot run postUpgradeTasks, so it never regenerates the lockfile itself.
 ##
 ## Uses a one-shot ghcr.io/jdx/mise container so this works on any host
 ## with podman (the host does not need mise installed). Mise only writes

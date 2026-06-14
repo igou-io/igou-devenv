@@ -317,7 +317,7 @@ rootless networking. Docker CLI is also available via the host socket
 All tool versions are pinned and managed by [Renovate](https://docs.renovatebot.com/):
 
 - **Dockerfile base image** — pinned by digest, updated by Renovate's Docker manager
-- **Mise-managed CLI tools** (21 binaries) — pinned in `mise.toml`, per-asset checksums in `mise.lock`. Renovate's native `mise` manager bumps versions; the `mise-autofix` workflow runs `make mise-lock` to refresh the lockfile on those PRs (the hosted Mend app cannot run `postUpgradeTasks`).
+- **Mise-managed CLI tools** (21 binaries) — pinned in `mise.toml`, per-asset checksums in `mise.lock`. Renovate's native `mise` manager bumps versions; because the hosted Mend app cannot run `postUpgradeTasks`, its PRs are stale and fail the `mise-lockfile-check` guard until you regenerate the lock with `make mise-lock` and push.
 - **aqua-registry pin** — the upstream registry that mise consumes is pinned to a specific git SHA in `mise.toml`. Renovate bumps it; `tests/test-mise.sh` gates the bump by asserting no per-tool verification method silently downgraded.
 - **Mise itself** + Claude Code + Cursor agent + opencode — pinned in `.devcontainer/Dockerfile` ARG blocks with `# renovate:` comments and the `github-releases` datasource (custom regex manager). Verified at build time: mise and Claude Code via pinned-fingerprint GPG signatures, Cursor agent and opencode via SHA256.
 - **Python packages** — pinned in `.devcontainer/requirements.txt`, updated by `pip_requirements` manager.
