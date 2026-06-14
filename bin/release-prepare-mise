@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Finish the open Renovate mise-tools PR so it can merge: regenerate mise.lock,
+# push it (a PAT push re-triggers CI), wait for the build to pass, then
+# squash-merge. Hosted Renovate cannot regenerate the lock itself.
+#
+# Requires (set by the workflow):
+#   GH_TOKEN      a token that re-triggers workflows (RELEASE_PAT) — used by gh + git
+#   GITHUB_TOKEN  default token — used by `make mise-lock` for GitHub API rate limits
+# Also requires: podman, make, gh, git.
+set -euo pipefail
+
+REPO="igou-io/igou-devenv"
+BRANCH="renovate/mise-managed-cli-tools"
+
+pr="$(gh pr list --repo "$REPO" --state open --head "$BRANCH" --json number --jq '.[0].number // empty')"
+if [ -z "$pr" ]; then
+  echo "No open mise PR ($BRANCH) — nothing to prepare."
+  exit 0
+fi
+echo "Preparing mise PR #$pr"
+
+gh pr checkout "$pr" --repo "$REPO"
+
+make mise-lock
+
+if git diff --quiet -- mise.lock; then
+  echo "mise.lock already in sync; no commit needed."
+else
+  git config user.name "github-actions[bot]"
+  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+  git commit -am "chore(mise): regenerate mise.lock"
+  git push
+fi
+
+# Let any freshly-pushed (or freshly-opened-PR) checks register before watching,
+# so `gh pr checks --watch` doesn't exit early on a transient "no checks yet".
+sleep 30
+echo "Waiting for checks on PR #$pr to complete..."
+gh pr checks "$pr" --repo "$REPO" --watch --interval 30
+
+gh pr merge "$pr" --repo "$REPO" --squash --delete-branch
+echo "Merged mise PR #$pr"

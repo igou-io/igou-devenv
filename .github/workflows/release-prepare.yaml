@@ -1,0 +1,41 @@
+name: release-prepare (weekly mise lock)
+
+# Monday 06:30 UTC (after Renovate's Sunday run). Renovate cannot regenerate
+# mise.lock (hosted Mend app, no postUpgradeTasks), so its mise-tools PR is
+# stale. This job regenerates the lock, pushes it (which re-triggers CI), waits
+# for green, and merges — using RELEASE_PAT so the push actually re-triggers
+# workflows (a GITHUB_TOKEN push would not). The 08:00 release.yaml then ships.
+
+on:
+  schedule:
+    - cron: '30 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          token: ${{ secrets.RELEASE_PAT }}
+          fetch-depth: 0
+
+      - name: Lock and merge the open mise PR
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash bin/release-prepare-mise
+
+      - name: File an issue on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue create --repo igou-io/igou-devenv \
+            --title "Weekly mise lock prepare failed ($(date -u +%Y.%m.%d))" \
+            --body "release-prepare could not regenerate/merge the mise PR. Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}. Fix manually: \`make mise-lock\` on the renovate/mise-managed-cli-tools branch and push." \
+            || echo "::warning::failed to file tracking issue"
