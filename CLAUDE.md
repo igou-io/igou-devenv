@@ -39,6 +39,8 @@ tests/
 renovate.json            # Renovate config with custom regex manager for Dockerfile ARGs
 .github/workflows/build.yaml         # CI: builds full devcontainer on push/PR via devcontainers/ci
 .github/workflows/mise-lockfile-check.yaml  # CI: fails PRs whose mise.lock is stale vs mise.toml
+.github/workflows/release-prepare.yaml  # CI: Mon 06:30 — regenerate mise.lock + merge the mise PR
+.github/workflows/release.yaml          # CI: Mon 08:00 — weekly CalVer image + git tag + GitHub Release
 ```
 
 **Tool installation layers:**
@@ -117,6 +119,25 @@ If the verification audit (`tests/test-mise.sh`) flags a downgrade
 (e.g., aqua-registry switched argocd from SLSA to SHA-only), update
 `tests/mise-expected-verification.toml` to match — but only after
 confirming the upstream change was deliberate.
+
+### Weekly release (CalVer)
+
+Every Monday two scheduled workflows run:
+
+1. `release-prepare.yaml` (06:30 UTC) regenerates `mise.lock` on the open
+   Renovate mise PR (`bin/release-prepare-mise`), waits for green, and merges
+   it — using `RELEASE_PAT`. If the bump breaks the build it files an issue and
+   leaves the PR open; the release still ships the rest.
+2. `release.yaml` (08:00 UTC) builds + tests `main`, publishes
+   `ghcr.io/igou-io/igou-devenv:YYYY.MM.DD` + `:latest`, pushes tag
+   `vYYYY.MM.DD`, and creates a GitHub Release (auto notes + SBOM). Skips weeks
+   with no changes; idempotent.
+
+Manual fallback: if `release-prepare` files an issue, regenerate the lock by
+hand — `make mise-lock` on the `renovate/mise-managed-cli-tools` branch, then
+push; it merges and rides the next weekly release.
+
+Requires the `RELEASE_PAT` repo secret (Contents + Pull-requests: read/write).
 
 ## Pre-push Requirements
 

@@ -332,6 +332,19 @@ make renovate-validate                     # validate config syntax
 GITHUB_TOKEN=ghp_... make renovate-dry-run # see what would be updated
 ```
 
+### Weekly release
+
+A Monday pipeline cuts a dated release of the devcontainer:
+
+- `release-prepare.yaml` (06:30 UTC) regenerates `mise.lock` to merge the week's
+  Renovate mise PR (it can't merge itself — the hosted app can't regenerate the
+  lock).
+- `release.yaml` (08:00 UTC) publishes `ghcr.io/igou-io/igou-devenv:YYYY.MM.DD` +
+  `:latest`, tags `vYYYY.MM.DD`, and creates a GitHub Release with notes + SBOM.
+
+`:latest` always tracks `main`; the `:YYYY.MM.DD` tags are immutable weekly
+snapshots to pin or roll back to. Needs the `RELEASE_PAT` secret.
+
 ## CI
 
 GitHub Actions builds the devcontainer on every push and PR to `main` using
