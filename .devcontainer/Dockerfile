@@ -155,7 +155,7 @@ RUN rm -f /etc/pam.d/system-auth && \
 #   make mise-bootstrap-sha   # prints verified MISE_SHA256_X64 + _ARM64 for the pinned version
 # (or by hand: curl -sL https://github.com/jdx/mise/releases/download/<ver>/SHASUMS256.txt)
 # renovate: datasource=github-releases depName=jdx/mise
-ARG MISE_VERSION="v2026.5.16"
+ARG MISE_VERSION="v2026.6.0"
 ARG MISE_SHA256_X64="43c37041c8d5ba3fd1353c3244f2f346866b76f1bafb6c57f059678e1c7a4046"
 ARG MISE_SHA256_ARM64="00f94d934a957c67f083669003bc0fd9e6009aec5aa8c6f1649c376f115b3818"
 RUN set -eux; \
