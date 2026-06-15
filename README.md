@@ -134,7 +134,7 @@ the published image directly. The package is public, so this needs **no login**:
 ```bash
 make run                 # opens the current dir in code-server at http://localhost:8080
 make run DIR=~/code      # open a different folder
-make run TAG=2026.06.15-2 PORT=8443 PASSWORD=hunter2   # pin a release, port, password
+make run TAG=2026.06.15-3 PORT=8443 PASSWORD=hunter2   # pin a release, port, password
 ```
 
 `make run` prints a generated password and starts code-server in the foreground
@@ -144,7 +144,7 @@ make run TAG=2026.06.15-2 PORT=8443 PASSWORD=hunter2   # pin a release, port, pa
 podman run --rm -it --userns=keep-id:uid=1000,gid=1000 \
   -e HOME=/home/igou -e PASSWORD=hunter2 \
   -p 8080:8080 -v "$PWD:/workspace:Z" \
-  ghcr.io/igou-io/igou-devenv:2026.06.15-2 \
+  ghcr.io/igou-io/igou-devenv:2026.06.15-3 \
   code-server --bind-addr 0.0.0.0:8080 /workspace
 ```
 
