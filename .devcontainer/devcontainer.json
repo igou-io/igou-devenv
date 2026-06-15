@@ -10,6 +10,13 @@
         "cacheFrom": "ghcr.io/igou-io/igou-devenv"
     },
     "features": {},
+    "forwardPorts": [8080],
+    "portsAttributes": {
+        "8080": {
+            "label": "code-server",
+            "onAutoForward": "silent"
+        }
+    },
     "runArgs": [
         "--privileged",
         "--device=/dev/fuse",
