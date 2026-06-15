@@ -53,12 +53,12 @@ exec:
 
 # ---------------------------------------------------------------------------
 # Run via the published image — pull-and-run code-server, no build, no login.
-# The GHCR image is public, so `podman` pulls it anonymously. Opens DIR (default
+# The GHCR image is public, so `docker` pulls it anonymously. Opens DIR (default
 # the current directory) in a browser IDE on PORT. Ctrl-C stops it (--rm).
 #   make run                                  # current dir, :latest, port 8080
-#   make run DIR=~/code TAG=2026.06.15-2 PORT=8443 PASSWORD=hunter2
-# `--userns=keep-id:uid=1000,gid=1000` maps your host user to the image's `igou`
-# (uid 1000) so the mounted directory is writable. Ephemeral: code-server config
+#   make run DIR=~/code TAG=2026.06.15-3 PORT=8443 PASSWORD=hunter2
+# Runs as the image's `igou` user (uid 1000); on a single-user host (your uid is
+# 1000) the mounted directory is writable. Ephemeral: code-server config
 # and extensions are not persisted (use `make up` for the full, persistent
 # devcontainer). PASSWORD is generated and printed if not supplied.
 # ---------------------------------------------------------------------------
@@ -68,13 +68,12 @@ PORT     ?= 8080
 DIR      ?= $(CURDIR)
 PASSWORD ?=
 
-## Pull and run code-server from the published image (no build; usage: make run [DIR=~/code] [TAG=2026.06.15-2] [PORT=8443])
+## Pull and run code-server from the published image (no build; usage: make run [DIR=~/code] [TAG=2026.06.15-3] [PORT=8443])
 run:
 	@pw='$(PASSWORD)'; [ -n "$$pw" ] || pw="$$(head -c 18 /dev/urandom | base64)"; \
 	echo ">>> code-server → http://localhost:$(PORT)   (password: $$pw)"; \
-	podman run --rm -it --name igou-devenv-run \
-		--userns=keep-id:uid=1000,gid=1000 \
-		-e HOME=/home/igou -e PASSWORD="$$pw" \
+	docker run --rm -it --name igou-devenv-run \
+		--user igou -e HOME=/home/igou -e PASSWORD="$$pw" \
 		-p $(PORT):8080 \
 		-v "$(DIR):/workspace:Z" \
 		$(IMAGE):$(TAG) \
@@ -117,14 +116,14 @@ test-mise-lockfile:
 ## stale lock the mise-lockfile-check CI guard flags. Hosted Renovate (the Mend
 ## app) cannot run postUpgradeTasks, so it never regenerates the lockfile itself.
 ##
-## Uses a one-shot ghcr.io/jdx/mise container so this works on any host
-## with podman (the host does not need mise installed). Mise only writes
+## Uses a one-shot ghcr.io/jdx/mise container (nested podman) — run this inside
+## the devcontainer or in CI; mise need not be installed. Mise only writes
 ## to mise.lock if the file already exists; we touch it before invoking.
 ## Stash the previous lockfile so a transient failure (e.g. GitHub API
 ## rate limit, network blip) doesn't wipe the committed mise.lock.
 mise-lock:
 	@if ! command -v podman >/dev/null 2>&1; then \
-		echo "podman not on PATH. Install podman or run mise locally."; \
+		echo "podman not on PATH. Run this inside the devcontainer (make shell) or in CI."; \
 		exit 1; \
 	fi
 	@[ -f mise.lock ] && cp mise.lock mise.lock.bak || touch mise.lock

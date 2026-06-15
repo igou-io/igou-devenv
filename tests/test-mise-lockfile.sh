@@ -4,9 +4,9 @@
 # mise.toml. Catches "hand-edited mise.toml without regenerating lockfile"
 # at PR time, before the build step.
 #
-# Runs on the host (not in the container). Uses mise on PATH if available,
-# otherwise falls back to a one-shot mise container (same mechanism as
-# `make mise-lock`) so this works on hosts that only have podman.
+# Uses mise on PATH if available (it's installed in the devcontainer and on CI
+# runners); otherwise falls back to a one-shot podman/mise container (same
+# mechanism as `make mise-lock`, run inside the devcontainer or in CI).
 set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"

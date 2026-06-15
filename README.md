@@ -55,40 +55,30 @@ mechanism. See [CLAUDE.md](CLAUDE.md) for the per-layer Renovate strategy.
 
 ### Prerequisites (on the host)
 
-1. **Podman** installed and running rootless
-2. **Podman socket** enabled:
+1. **Docker** installed with the daemon running — the devcontainer is always
+   launched privileged via Docker:
    ```bash
-   systemctl --user enable --now podman.socket
-   ls $XDG_RUNTIME_DIR/podman/podman.sock
+   sudo systemctl enable --now docker
+   sudo usermod -aG docker "$USER"   # then re-login so `docker` works without sudo
    ```
-3. **Docker CLI symlink** — Cursor's devcontainer extension calls `docker`
-   under the hood even when configured for podman:
-   ```bash
-   # Fedora/RHEL:
-   sudo dnf install -y podman-docker
-   # Ubuntu/Debian:
-   sudo apt install -y podman-docker
-   ```
-4. **SSH agent running with your key loaded** (for operations that need SSH
+2. **SSH agent running with your key loaded** (for operations that need SSH
    access inside the container):
    ```bash
    eval "$(ssh-agent -s)"
    ssh-add ~/.ssh/id_ed25519   # or whichever key has GitHub access
    ```
-5. **Repos pre-cloned on the host** at `~/workspace/`:
+3. **Repos pre-cloned on the host** at `~/workspace/`:
    ```bash
    mkdir -p ~/workspace
    for repo in igou-kubernetes igou-ansible igou-infrastructure igou-openshift igou-containers igou-inventory igou-kubernetes-private; do
        git clone "git@github.com:igou-io/${repo}.git" ~/workspace/${repo}
    done
    ```
-6. **Cursor** with the **Dev Containers** extension, or **devcontainer CLI**:
+4. **Cursor** with the **Dev Containers** extension, or the **devcontainer CLI**:
    ```bash
    npm install -g @devcontainers/cli
    ```
-7. **Cursor setting** to use podman — in Settings, set `dev.containers.dockerPath`
-   to `podman`.
-8. Your credentials in the standard locations:
+5. Your credentials in the standard locations:
    - `~/.ssh/` — SSH keys and config
    - `~/.kube/` — Kubernetes configs
    - `~/.gitconfig` — Git identity (mounted read-only)
@@ -141,7 +131,7 @@ make run TAG=2026.06.15-3 PORT=8443 PASSWORD=hunter2   # pin a release, port, pa
 (Ctrl-C to stop; the container is removed on exit). It's the raw equivalent of:
 
 ```bash
-podman run --rm -it --userns=keep-id:uid=1000,gid=1000 \
+docker run --rm -it --user igou \
   -e HOME=/home/igou -e PASSWORD=hunter2 \
   -p 8080:8080 -v "$PWD:/workspace:Z" \
   ghcr.io/igou-io/igou-devenv:2026.06.15-3 \
@@ -150,7 +140,7 @@ podman run --rm -it --userns=keep-id:uid=1000,gid=1000 \
 
 This is a lightweight, **ephemeral** path — code-server settings/extensions and
 the password are not persisted. For the full, persistent environment (always-on
-code-server, SSH agent, 1Password, kubeconfig, podman-in-podman, libvirt) use the
+code-server, SSH agent, 1Password, kubeconfig, nested containers (podman), libvirt) use the
 devcontainer via `make up` or Cursor. Pin a `:YYYY.MM.DD` tag for reproducibility;
 `:latest` tracks the most recent green build on `main`.
 
@@ -215,8 +205,8 @@ secrets are stored in the repo.
 | `make test-podman` | Test podman pull, run, and build |
 | `make test-env` | Test environment switching functions |
 | `make test-mise` | Audit mise-managed tools' verification methods against `tests/mise-expected-verification.toml` |
-| `make test-mise-lockfile` | Verify `mise.lock` is in sync with `mise.toml` (runs on host via podman) |
-| `make mise-lock` | Regenerate `mise.lock` against the current `mise.toml` (uses `ghcr.io/jdx/mise` via podman; atomic restore on failure) |
+| `make test-mise-lockfile` | Verify `mise.lock` is in sync with `mise.toml` (host mise, else a throwaway `ghcr.io/jdx/mise` container) |
+| `make mise-lock` | Regenerate `mise.lock` against the current `mise.toml` (uses `ghcr.io/jdx/mise`; run inside the devcontainer or CI; atomic restore on failure) |
 | `make clean` | Down + prune dangling images |
 | `make renovate-validate` | Validate `renovate.json` config |
 | `make renovate-dry-run` | Dry-run Renovate locally (requires `GITHUB_TOKEN`) |
@@ -478,9 +468,9 @@ never stores secrets in its image layers.
 set -euo pipefail
 
 # Fedora/RHEL
-sudo dnf install -y podman podman-docker openssh-server
-systemctl --user enable --now podman.socket
-loginctl enable-linger $USER
+sudo dnf install -y docker openssh-server
+sudo systemctl enable --now docker
+sudo usermod -aG docker "$USER"   # re-login so docker works without sudo
 
 mkdir -p ~/.ssh ~/.kube ~/.config/argocd ~/.config/op ~/.config/opencode ~/.terraform.d ~/.claude
 echo '{}' > ~/.claude.json
@@ -513,21 +503,19 @@ eval "$(ssh-agent -s)"
 ssh-add ~/.ssh/id_ed25519
 ```
 
-### Podman
+### Docker
 
-**Socket not found:**
+**Cannot connect to the Docker daemon:**
 ```bash
-systemctl --user status podman.socket
-export XDG_RUNTIME_DIR=/run/user/$(id -u)
-loginctl enable-linger $USER
+sudo systemctl status docker
+sudo usermod -aG docker "$USER"   # then re-login
+docker info
 ```
 
 ### Cursor + Devcontainers
 
 **"Reopen in Container" not appearing:** Open command palette (Ctrl+Shift+P) →
 `Dev Containers: Reopen in Container`
-
-**Extension calls `docker` despite `dockerPath` setting:** Install `podman-docker`.
 
 **Extensions missing after connecting:** Command palette → **Dev Containers: Rebuild Container**.
 
