@@ -2,9 +2,11 @@ name: release-prepare (weekly mise lock)
 
 # Monday 06:30 UTC (after Renovate's Sunday run). Renovate cannot regenerate
 # mise.lock (hosted Mend app, no postUpgradeTasks), so its mise-tools PR is
-# stale. This job regenerates the lock, pushes it (which re-triggers CI), waits
-# for green, and merges — using RELEASE_PAT so the push actually re-triggers
-# workflows (a GITHUB_TOKEN push would not). The 08:00 release.yaml then ships.
+# stale. This job regenerates the lock, pushes it (which re-triggers CI), and
+# enables GitHub native auto-merge — using RELEASE_PAT so the push re-triggers
+# workflows (a GITHUB_TOKEN push would not) and the bot can merge. GitHub
+# squash-merges the PR once the required `build` check passes; this job no longer
+# blocks waiting. The 08:00 release.yaml then ships.
 
 on:
   schedule:
