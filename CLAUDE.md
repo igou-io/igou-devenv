@@ -86,6 +86,10 @@ make test-env           # Test environment switching functions
 make renovate-validate  # Validate renovate.json config
 GITHUB_TOKEN=... make renovate-dry-run  # Dry-run Renovate locally
 make e2e                # Full end-to-end: rebuild devcontainer + all tests
+make release            # Cut a release now: promote tested :latest -> CalVer tag + Release
+make release-dry-run    # Dry-run the release (resolve + plan only; no side effects)
+make release-prepare    # On demand: regenerate mise.lock on the open Renovate mise PR and merge it
+make release VERSION=2026.06.18-2 FORCE=true  # override the tag / bypass skip guards
 claude-run              # Launch Claude in the container (see bin/claude-run)
 claude-run -e ocp-rosa  # Launch with resolved cluster credentials
 claude-run --shell      # Drop to bash inside the container
@@ -140,8 +144,10 @@ Manual fallback: if `release-prepare` files an issue, regenerate the lock by
 hand — `make mise-lock` on the `renovate/mise-managed-cli-tools` branch, then
 push; it merges and rides the next weekly release.
 
-Manual / test release: `release.yaml` is also `workflow_dispatch`-able (Actions
-tab or `gh workflow run release.yaml`):
+Manual / test release: use the `make release*` targets (`make release`,
+`make release-dry-run`, `make release-prepare`; they wrap the dispatches and need
+a gh token with Actions: write), or drive `release.yaml` directly — it is
+`workflow_dispatch`-able (Actions tab or `gh workflow run release.yaml`):
 - `-f dry_run=true` — resolve + plan only, no promote/tag/release (safe, repeatable).
 - `-f version=0.0.0-test -f force=true` — cut a throwaway release on demand
   (unique `version` avoids clashing with the real weekly CalVer tags; `force`

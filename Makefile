@@ -6,7 +6,7 @@ SSH_MOUNT = $(shell [ -S "$$SSH_AUTH_SOCK" ] && echo '--mount type=bind,source=$
 
 .DEFAULT_GOAL := help
 
-.PHONY: build up down restart exec shell test test-all test-tools test-podman test-env test-mise test-mise-lockfile test-qemu clean rebuild help renovate-validate renovate-dry-run sbom sbom-devcontainer e2e opencode-build mise-lock
+.PHONY: build up down restart exec shell test test-all test-tools test-podman test-env test-mise test-mise-lockfile test-qemu clean rebuild help renovate-validate renovate-dry-run sbom sbom-devcontainer e2e opencode-build mise-lock release release-dry-run release-prepare release-watch
 
 
 ## Build the devcontainer image (with cache)
@@ -159,6 +159,41 @@ opencode-build:
 		exit 1; \
 	fi; \
 	podman build -t ghcr.io/igou-io/opencode:latest -f $$OPENCODE_DIR/Containerfile $$OPENCODE_DIR
+
+# ---------------------------------------------------------------------------
+# Release (CalVer) — dispatch the GitHub Actions release workflows on demand
+# (e.g. a mid-week release). These wrap `gh workflow run`, so they need a gh
+# token with Actions: write (or use the Actions UI). The Monday cron runs the
+# equivalents automatically. Release PROMOTES the current tested :latest by
+# digest, so make sure the latest push to main has a green build.yaml first.
+# ---------------------------------------------------------------------------
+RELEASE_REPO ?= igou-io/igou-devenv
+WF           ?= release.yaml
+
+## Cut a release now: promote the tested :latest to a dated CalVer tag + Release.
+## Optional: VERSION=2026.06.18-2 (tag override), FORCE=true (ignore skip guards).
+release:
+	gh workflow run release.yaml --repo $(RELEASE_REPO) \
+		$(if $(VERSION),-f version=$(VERSION)) \
+		$(if $(FORCE),-f force=$(FORCE))
+	@$(MAKE) --no-print-directory release-watch
+
+## Dry-run a release: resolve + plan only (no promote/tag/release).
+release-dry-run:
+	gh workflow run release.yaml --repo $(RELEASE_REPO) -f dry_run=true
+	@$(MAKE) --no-print-directory release-watch
+
+## On-demand mise prep: regenerate mise.lock on the open Renovate mise PR and merge it.
+release-prepare:
+	gh workflow run release-prepare.yaml --repo $(RELEASE_REPO)
+	@$(MAKE) --no-print-directory release-watch WF=release-prepare.yaml
+
+## Watch the latest run of WF (default release.yaml).
+release-watch:
+	@sleep 8; \
+	id=$$(gh run list --repo $(RELEASE_REPO) --workflow $(WF) --limit 1 --json databaseId --jq '.[0].databaseId'); \
+	echo "Watching $(WF) run $$id ..."; \
+	gh run watch "$$id" --repo $(RELEASE_REPO) --exit-status
 
 help: ## Show available targets
 	@awk '/^## /{if(!desc) desc=substr($$0,4); next} /^[a-zA-Z_-]+:/{if(desc){split($$1,a,":"); printf "  \033[36m%-25s\033[0m %s\n", a[1], desc} desc=""} !/^##/ && !/^[a-zA-Z_-]+:/{desc=""}' $(MAKEFILE_LIST)
