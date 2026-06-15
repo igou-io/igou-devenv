@@ -1,4 +1,4 @@
-# Single source of truth for CLI tools across all three Dockerfiles.
+# Single source of truth for CLI tools in the devcontainer Dockerfile.
 # See docs/superpowers/specs/2026-05-16-mise-tool-management-design.md
 #
 # Renovate manages versions via the native mise manager.

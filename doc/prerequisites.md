@@ -8,25 +8,23 @@ Linux (x86_64). The devcontainer and Claude container are built and tested on Ub
 
 ## Container Runtime
 
-The devcontainer lifecycle requires **both** a Docker-compatible CLI and Podman:
+The devcontainer is **always launched via privileged Docker** on the host —
+Cursor's Dev Containers extension and the `devcontainer` CLI both call `docker`.
+Podman is **not** required on the host; it ships *inside* the image for nested
+container work (e.g. the `claude-run` / `cursor-run` / `opencode-run` agent
+launchers run podman inside the devcontainer).
 
-| Tool | Purpose | Why both? |
-|---|---|---|
-| **Docker CE** (or Docker Desktop) | Cursor/VS Code `devcontainer` CLI calls `docker` internally | Required by the editor extension |
-| **podman-docker** (package) | Provides a `docker` CLI shim that delegates to Podman | Satisfies the `docker` calls when Docker CE is not installed |
-| **Podman** | Used by `claude-run` / `cursor-run` / `opencode-run` to launch agent containers from inside the devcontainer | Required for the agent-container workflow |
-
-Pick **one** of these setups:
-
-- Docker CE installed **and** Podman installed (for Claude container targets).
-- Podman installed **with** the `podman-docker` package (provides the `docker` shim so the devcontainer CLI works).
+| Tool | Purpose |
+|---|---|
+| **Docker** (Engine or Desktop) | Runs the devcontainer; the `devcontainer` CLI and Cursor call `docker` |
+| **devcontainer CLI** | Drives the build/up/exec lifecycle (`npm install -g @devcontainers/cli`, or bundled with Cursor/VS Code) |
 
 ### Minimum versions
 
-- Docker CE >= 24 or Podman >= 4.0
+- Docker Engine >= 24, daemon running, your user in the `docker` group
 - `devcontainer` CLI (installed via `npm install -g @devcontainers/cli` or bundled with Cursor/VS Code)
 
-### Playbook: Install container runtime (Podman + Docker shim)
+### Playbook: Install container runtime (Docker)
 
 ```yaml
 ---
@@ -35,34 +33,33 @@ Pick **one** of these setups:
   connection: local
   become: true
   tasks:
-    - name: Install Podman and Docker shim (Debian/Ubuntu)
+    - name: Install Docker (Debian/Ubuntu)
       ansible.builtin.apt:
         name:
-          - podman
-          - podman-docker
-          - buildah
-          - skopeo
-          - fuse-overlayfs
-          - slirp4netns
-          - uidmap
-          - catatonit
+          - docker.io
+          - docker-compose-plugin
         state: present
         update_cache: true
       when: ansible_os_family == "Debian"
 
-    - name: Install Podman and Docker shim (Fedora/RHEL)
+    - name: Install Docker (Fedora/RHEL)
       ansible.builtin.dnf:
         name:
-          - podman
-          - podman-docker
-          - buildah
-          - skopeo
-          - fuse-overlayfs
-          - slirp4netns
-          - shadow-utils
-          - catatonit
+          - docker
         state: present
       when: ansible_os_family == "RedHat"
+
+    - name: Enable and start the Docker daemon
+      ansible.builtin.systemd:
+        name: docker
+        enabled: true
+        state: started
+
+    - name: Add the current user to the docker group
+      ansible.builtin.user:
+        name: "{{ ansible_user_id }}"
+        groups: docker
+        append: true
 
     - name: Install Node.js for devcontainer CLI (Debian/Ubuntu)
       ansible.builtin.apt:
@@ -478,212 +475,6 @@ The `init.sh` script creates these automatically on first run, but they are wort
 
 ---
 
-## Podman-Specific Setup
-
-If you are running with Podman as your only container runtime (no Docker CE), follow these additional steps.
-
-### Install Podman and the Docker Shim
-
-The `podman-docker` package installs a `/usr/bin/docker` symlink (or wrapper script) that translates Docker CLI calls to Podman. This is required because the `devcontainer` CLI invokes `docker` directly.
-
-### Enable the Podman Socket
-
-The devcontainer expects a Docker-compatible socket at `/var/run/docker.sock`. Podman provides one via a systemd user service.
-
-Alternatively, set `DOCKER_HOST` so the CLI finds the socket without a symlink:
-
-```bash
-export DOCKER_HOST=unix://$XDG_RUNTIME_DIR/podman/podman.sock
-```
-
-### Rootless Podman Kernel Requirements
-
-The devcontainer runs with `--privileged` and mounts `/dev/fuse` and `/dev/net/tun`. For rootless Podman:
-
-- **User namespaces** must be enabled: check `sysctl user.max_user_namespaces` (should be > 0).
-- **fuse-overlayfs** must be installed for the overlay storage driver.
-- **slirp4netns** (or **pasta**) must be installed for rootless networking.
-- Subuid/subgid ranges must be configured for your user.
-
-### Podman and the agent containers
-
-The agent containers (`claude-run`, `cursor-run`, `opencode-run`) are pulled
-from `igou-containers` and launched via Podman directly — no Docker shim
-needed. Key flags used by the launchers:
-
-- `--userns=keep-id` — maps your host UID into the container (rootless).
-- `--cap-drop=ALL` — drops all Linux capabilities for security.
-- `--tmpfs /tmp:rw,noexec,nosuid,size=256m` — hardened tmpfs mount.
-- `--init` — requires `catatonit` on the host (Podman's default init process).
-
-### Network Mode
-
-The devcontainer uses `--network=host` for full host network access. This works out of the box with rootless Podman on Linux. On systems with restricted network namespaces, you may need to lower `net.ipv4.ip_unprivileged_port_start`.
-
-### Playbook: Full Podman-only setup
-
-```yaml
----
-- name: Full Podman-only setup
-  hosts: localhost
-  connection: local
-  vars:
-    subuid_start: 100000
-    subuid_count: 65536
-    user_namespaces_max: 28633
-  tasks:
-    # ----- Package installation -----
-    - name: Install Podman stack (Debian/Ubuntu)
-      become: true
-      ansible.builtin.apt:
-        name:
-          - podman
-          - podman-docker
-          - buildah
-          - skopeo
-          - fuse-overlayfs
-          - slirp4netns
-          - uidmap
-          - catatonit
-        state: present
-        update_cache: true
-      when: ansible_os_family == "Debian"
-
-    - name: Install Podman stack (Fedora/RHEL)
-      become: true
-      ansible.builtin.dnf:
-        name:
-          - podman
-          - podman-docker
-          - buildah
-          - skopeo
-          - fuse-overlayfs
-          - slirp4netns
-          - shadow-utils
-          - catatonit
-        state: present
-      when: ansible_os_family == "RedHat"
-
-    # ----- Kernel tuning -----
-    - name: Enable user namespaces
-      become: true
-      ansible.posix.sysctl:
-        name: user.max_user_namespaces
-        value: "{{ user_namespaces_max }}"
-        sysctl_set: true
-        state: present
-        reload: true
-
-    - name: Allow unprivileged port binding (for --network=host)
-      become: true
-      ansible.posix.sysctl:
-        name: net.ipv4.ip_unprivileged_port_start
-        value: "0"
-        sysctl_set: true
-        state: present
-        reload: true
-
-    # ----- Subuid / subgid -----
-    - name: Check subuid entry
-      ansible.builtin.command: "grep ^{{ ansible_user_id }}: /etc/subuid"
-      register: subuid_check
-      changed_when: false
-      failed_when: false
-
-    - name: Configure subuid range
-      become: true
-      ansible.builtin.command: >-
-        usermod --add-subuids {{ subuid_start }}-{{ subuid_start + subuid_count - 1 }}
-        {{ ansible_user_id }}
-      when: subuid_check.rc != 0
-
-    - name: Check subgid entry
-      ansible.builtin.command: "grep ^{{ ansible_user_id }}: /etc/subgid"
-      register: subgid_check
-      changed_when: false
-      failed_when: false
-
-    - name: Configure subgid range
-      become: true
-      ansible.builtin.command: >-
-        usermod --add-subgids {{ subuid_start }}-{{ subuid_start + subuid_count - 1 }}
-        {{ ansible_user_id }}
-      when: subgid_check.rc != 0
-
-    # ----- Podman socket (Docker-compatible API) -----
-    - name: Enable podman socket for current user
-      ansible.builtin.systemd:
-        name: podman.socket
-        scope: user
-        enabled: true
-        state: started
-
-    - name: Symlink podman socket to /var/run/docker.sock
-      become: true
-      ansible.builtin.file:
-        src: "/run/user/{{ ansible_user_uid }}/podman/podman.sock"
-        dest: /var/run/docker.sock
-        state: link
-        force: true
-
-    # ----- Storage driver validation -----
-    - name: Check podman storage driver
-      ansible.builtin.command: podman info --format {{ '{{.Store.GraphDriverName}}' }}
-      register: podman_driver
-      changed_when: false
-
-    - name: Warn if storage driver is not overlay
-      ansible.builtin.debug:
-        msg: >-
-          Podman is using '{{ podman_driver.stdout }}' storage driver instead of 'overlay'.
-          Install fuse-overlayfs and run 'podman system reset' to switch.
-      when: podman_driver.stdout != "overlay"
-
-    # ----- catatonit validation -----
-    - name: Check catatonit is available
-      ansible.builtin.stat:
-        path: /usr/libexec/podman/catatonit
-      register: catatonit_libexec
-
-    - name: Check catatonit in PATH
-      ansible.builtin.command: command -v catatonit
-      register: catatonit_path
-      changed_when: false
-      failed_when: false
-      when: not catatonit_libexec.stat.exists
-
-    - name: Warn if catatonit is missing
-      ansible.builtin.debug:
-        msg: >-
-          catatonit not found. The --init flag used by claude-run will be skipped.
-          Install it with your package manager.
-      when: not catatonit_libexec.stat.exists and catatonit_path.rc != 0
-
-    # ----- Smoke test -----
-    - name: Podman smoke test
-      ansible.builtin.command: podman run --rm docker.io/library/alpine echo "podman works"
-      changed_when: false
-
-    - name: Docker shim smoke test
-      ansible.builtin.command: docker run --rm docker.io/library/alpine echo "docker shim works"
-      changed_when: false
-```
-
-### Quick Validation
-
-After running the playbook, verify everything works:
-
-```bash
-podman info
-podman run --rm docker.io/library/alpine echo "podman works"
-docker info
-docker run --rm alpine echo "docker shim works"
-make build
-make test
-```
-
----
-
 ## All-in-One Playbook
 
 Run every prerequisite section in a single pass. Combine the per-section playbooks above into one file and run:
@@ -711,36 +502,37 @@ ansible-playbook prereqs.yml -K        # -K prompts for sudo password
     # ==================================================================
     # Container Runtime
     # ==================================================================
-    - name: Install Podman stack (Debian/Ubuntu)
+    - name: Install Docker (Debian/Ubuntu)
       become: true
       ansible.builtin.apt:
         name:
-          - podman
-          - podman-docker
-          - buildah
-          - skopeo
-          - fuse-overlayfs
-          - slirp4netns
-          - uidmap
-          - catatonit
+          - docker.io
+          - docker-compose-plugin
         state: present
         update_cache: true
       when: ansible_os_family == "Debian"
 
-    - name: Install Podman stack (Fedora/RHEL)
+    - name: Install Docker (Fedora/RHEL)
       become: true
       ansible.builtin.dnf:
         name:
-          - podman
-          - podman-docker
-          - buildah
-          - skopeo
-          - fuse-overlayfs
-          - slirp4netns
-          - shadow-utils
-          - catatonit
+          - docker
         state: present
       when: ansible_os_family == "RedHat"
+
+    - name: Enable and start the Docker daemon
+      become: true
+      ansible.builtin.systemd:
+        name: docker
+        enabled: true
+        state: started
+
+    - name: Add the current user to the docker group
+      become: true
+      ansible.builtin.user:
+        name: "{{ ansible_user_id }}"
+        groups: docker
+        append: true
 
     - name: Install Node.js (Debian/Ubuntu)
       become: true
@@ -761,68 +553,6 @@ ansible-playbook prereqs.yml -K        # -K prompts for sudo password
         name: "@devcontainers/cli"
         global: true
         state: present
-
-    # ==================================================================
-    # Podman rootless configuration
-    # ==================================================================
-    - name: Enable user namespaces
-      become: true
-      ansible.posix.sysctl:
-        name: user.max_user_namespaces
-        value: "{{ user_namespaces_max }}"
-        sysctl_set: true
-        state: present
-        reload: true
-
-    - name: Allow unprivileged port binding
-      become: true
-      ansible.posix.sysctl:
-        name: net.ipv4.ip_unprivileged_port_start
-        value: "0"
-        sysctl_set: true
-        state: present
-        reload: true
-
-    - name: Check subuid entry
-      ansible.builtin.command: "grep ^{{ ansible_user_id }}: /etc/subuid"
-      register: subuid_check
-      changed_when: false
-      failed_when: false
-
-    - name: Configure subuid range
-      become: true
-      ansible.builtin.command: >-
-        usermod --add-subuids {{ subuid_start }}-{{ subuid_start + subuid_count - 1 }}
-        {{ ansible_user_id }}
-      when: subuid_check.rc != 0
-
-    - name: Check subgid entry
-      ansible.builtin.command: "grep ^{{ ansible_user_id }}: /etc/subgid"
-      register: subgid_check
-      changed_when: false
-      failed_when: false
-
-    - name: Configure subgid range
-      become: true
-      ansible.builtin.command: >-
-        usermod --add-subgids {{ subuid_start }}-{{ subuid_start + subuid_count - 1 }}
-        {{ ansible_user_id }}
-      when: subgid_check.rc != 0
-
-    - name: Enable podman socket for current user
-      ansible.builtin.systemd:
-        name: podman.socket
-        scope: user
-        enabled: true
-        state: started
-
-    - name: Symlink podman socket to /var/run/docker.sock
-      become: true
-      ansible.builtin.file:
-        src: "/run/user/{{ ansible_user_uid }}/podman/podman.sock"
-        dest: /var/run/docker.sock
-        state: link
-        force: true
 
     # ==================================================================
     # Git
