@@ -1,12 +1,18 @@
 name: release (weekly CalVer)
 
-# Monday 08:00 UTC. Snapshots whatever is on main (the week's merged Renovate
-# updates + the mise PR merged by release-prepare) into a dated release:
-# image :YYYY.MM.DD + :latest, git tag vYYYY.MM.DD, and a GitHub Release with
-# auto-generated notes + the SBOM. Idempotent; skips weeks with no changes.
+# Monday 08:00 UTC. PROMOTES the already-built, already-tested :latest image
+# (build.yaml builds+tests+pushes :latest on every push to main) to an immutable
+# dated tag by digest — no rebuild — so the released image is byte-identical to
+# what CI tested. Then pushes git tag vYYYY.MM.DD and a GitHub Release with auto
+# notes + SBOM. Idempotent; skips weeks with no changes.
 #
-# Also manually runnable from the Actions tab / `gh workflow run release.yaml`
-# with inputs below — handy for testing the pipeline on demand.
+# The test gate lives in build.yaml (push-to-main build runs tests/run-all.sh and
+# only pushes :latest on success); release.yaml trusts that green and promotes it.
+#
+# Also manually runnable (Actions tab / `gh workflow run release.yaml`):
+#   dry_run  — resolve + plan only; no promote/tag/release
+#   version  — tag override (default today UTC YYYY.MM.DD); use a unique value for test promotions
+#   force    — promote even if the tag exists or main hasn't advanced (manual test runs)
 
 on:
   schedule:
@@ -14,21 +20,25 @@ on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: "Build + test only; do not tag/publish/release"
+        description: "Resolve + plan only; do not promote/tag/release"
         type: boolean
         default: false
       version:
-        description: "Version/tag override (default: today UTC YYYY.MM.DD). Use a unique value for repeat test releases, e.g. 0.0.0-test."
+        description: "Version/tag override (default: today UTC YYYY.MM.DD). Use a unique value for test promotions, e.g. 0.0.0-test."
         type: string
         default: ""
       force:
-        description: "Release even if the tag exists or main hasn't advanced (for manual test runs)"
+        description: "Promote even if the tag exists or main hasn't advanced (for manual test runs)"
         type: boolean
         default: false
 
 permissions:
   contents: write
   packages: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
   release:
@@ -45,16 +55,16 @@ jobs:
           if [ -z "$VERSION" ]; then VERSION="$(date -u +%Y.%m.%d)"; fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           if [ "${{ inputs.force }}" = "true" ]; then
-            echo "force=true — releasing v$VERSION regardless of guards."
+            echo "force=true — promoting v$VERSION regardless of guards." | tee -a "$GITHUB_STEP_SUMMARY"
             echo "proceed=true" >> "$GITHUB_OUTPUT"; exit 0
           fi
           if git rev-parse "v$VERSION" >/dev/null 2>&1; then
-            echo "Tag v$VERSION already exists — skipping (use force + a unique version to re-release)."
+            echo "Skipped: tag v$VERSION already exists." | tee -a "$GITHUB_STEP_SUMMARY"
             echo "proceed=false" >> "$GITHUB_OUTPUT"; exit 0
           fi
           last="$(git tag --list 'v*' --sort=-creatordate | head -1)"
           if [ -n "$last" ] && [ -z "$(git log "$last"..HEAD --oneline)" ]; then
-            echo "main has not advanced since $last — skipping."
+            echo "Skipped: main has not advanced since $last." | tee -a "$GITHUB_STEP_SUMMARY"
             echo "proceed=false" >> "$GITHUB_OUTPUT"; exit 0
           fi
           echo "proceed=true" >> "$GITHUB_OUTPUT"
@@ -63,23 +73,21 @@ jobs:
         if: steps.plan.outputs.proceed == 'true'
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
-      - name: Build and test devcontainer
+      - name: Resolve the tested :latest digest
+        id: img
         if: steps.plan.outputs.proceed == 'true'
-        uses: devcontainers/ci@b63b30de439b47a52267f241112c5b453b673db5 # v0.3
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          push: ${{ inputs.dry_run && 'never' || 'always' }}
-          imageName: ghcr.io/igou-io/igou-devenv
-          runCmd: /workspace/igou-devenv/tests/run-all.sh
+        run: |
+          digest=$(docker buildx imagetools inspect ghcr.io/igou-io/igou-devenv:latest --format '{{.Manifest.Digest}}')
+          [ -n "$digest" ] || { echo "::error::could not resolve :latest digest"; exit 1; }
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          echo "Promoting ghcr.io/igou-io/igou-devenv@$digest -> :${{ steps.plan.outputs.version }}" | tee -a "$GITHUB_STEP_SUMMARY"
 
-      - name: Tag and push the CalVer image
+      - name: Promote the digest to the CalVer tag
         if: steps.plan.outputs.proceed == 'true' && inputs.dry_run != true
         run: |
-          # devcontainers/ci (push: always) also --loads :latest into the local
-          # docker daemon; we retag that exact image so the CalVer tag == what was tested.
-          docker tag  ghcr.io/igou-io/igou-devenv:latest ghcr.io/igou-io/igou-devenv:${{ steps.plan.outputs.version }}
-          docker push ghcr.io/igou-io/igou-devenv:${{ steps.plan.outputs.version }}
+          docker buildx imagetools create \
+            --tag ghcr.io/igou-io/igou-devenv:${{ steps.plan.outputs.version }} \
+            ghcr.io/igou-io/igou-devenv@${{ steps.img.outputs.digest }}
 
       - name: Generate SBOM
         if: steps.plan.outputs.proceed == 'true' && inputs.dry_run != true
