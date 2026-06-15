@@ -6,7 +6,7 @@ SSH_MOUNT = $(shell [ -S "$$SSH_AUTH_SOCK" ] && echo '--mount type=bind,source=$
 
 .DEFAULT_GOAL := help
 
-.PHONY: build up down restart exec shell test test-all test-tools test-podman test-env test-mise test-mise-lockfile test-qemu clean rebuild help renovate-validate renovate-dry-run sbom sbom-devcontainer e2e opencode-build mise-lock release release-dry-run release-prepare release-watch
+.PHONY: build up down restart exec shell run test test-all test-tools test-podman test-env test-mise test-mise-lockfile test-qemu clean rebuild help renovate-validate renovate-dry-run sbom sbom-devcontainer e2e opencode-build mise-lock release release-dry-run release-prepare release-watch
 
 
 ## Build the devcontainer image (with cache)
@@ -50,6 +50,35 @@ shell:
 ## Run a command in the running devcontainer (usage: make exec CMD="kubectl version")
 exec:
 	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) $(CMD)
+
+# ---------------------------------------------------------------------------
+# Run via the published image — pull-and-run code-server, no build, no login.
+# The GHCR image is public, so `podman` pulls it anonymously. Opens DIR (default
+# the current directory) in a browser IDE on PORT. Ctrl-C stops it (--rm).
+#   make run                                  # current dir, :latest, port 8080
+#   make run DIR=~/code TAG=2026.06.15-2 PORT=8443 PASSWORD=hunter2
+# `--userns=keep-id:uid=1000,gid=1000` maps your host user to the image's `igou`
+# (uid 1000) so the mounted directory is writable. Ephemeral: code-server config
+# and extensions are not persisted (use `make up` for the full, persistent
+# devcontainer). PASSWORD is generated and printed if not supplied.
+# ---------------------------------------------------------------------------
+IMAGE    ?= ghcr.io/igou-io/igou-devenv
+TAG      ?= latest
+PORT     ?= 8080
+DIR      ?= $(CURDIR)
+PASSWORD ?=
+
+## Pull and run code-server from the published image (no build; usage: make run [DIR=~/code] [TAG=2026.06.15-2] [PORT=8443])
+run:
+	@pw='$(PASSWORD)'; [ -n "$$pw" ] || pw="$$(head -c 18 /dev/urandom | base64)"; \
+	echo ">>> code-server → http://localhost:$(PORT)   (password: $$pw)"; \
+	podman run --rm -it --name igou-devenv-run \
+		--userns=keep-id:uid=1000,gid=1000 \
+		-e HOME=/home/igou -e PASSWORD="$$pw" \
+		-p $(PORT):8080 \
+		-v "$(DIR):/workspace:Z" \
+		$(IMAGE):$(TAG) \
+		code-server --bind-addr 0.0.0.0:8080 /workspace
 
 ## Run all tests (tools, podman, env, mise lockfile freshness + audit)
 test-all: test-tools test-podman test-env test-mise-lockfile test-mise test-qemu
