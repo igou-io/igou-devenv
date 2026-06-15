@@ -6,7 +6,7 @@ SSH_MOUNT = $(shell [ -S "$$SSH_AUTH_SOCK" ] && echo '--mount type=bind,source=$
 
 .DEFAULT_GOAL := help
 
-.PHONY: build up down restart exec shell run test test-all test-tools test-podman test-env test-mise test-mise-lockfile test-qemu clean rebuild help renovate-validate renovate-dry-run sbom sbom-devcontainer e2e opencode-build mise-lock release release-dry-run release-prepare release-watch
+.PHONY: build up up-release down restart exec shell run test test-all test-tools test-podman test-env test-mise test-mise-lockfile test-qemu clean rebuild help renovate-validate renovate-dry-run sbom sbom-devcontainer e2e opencode-build mise-lock release release-dry-run release-prepare release-watch
 
 
 ## Build the devcontainer image (with cache)
@@ -93,6 +93,25 @@ run:
 		-v "$(DIR):/workspace:Z" \
 		$(IMAGE):$(TAG) \
 		code-server --bind-addr 0.0.0.0:8080 /workspace
+
+## Start the FULL devcontainer from the published image instead of building it
+## locally. Pulls $(IMAGE):$(TAG) and runs it with the same mounts + lifecycle
+## hooks as `make up` (post-start re-syncs code-server). The canonical
+## devcontainer.json is left untouched — CI's build.yaml and `make build` depend
+## on its `build:` config — so this derives an image-based config on the fly and
+## passes it via --override-config, recreating the container from the pulled image.
+##   make up-release                    # newest tested image (:latest)
+##   make up-release TAG=2026.06.15-4   # pin a specific immutable release
+up-release:
+	@command -v jq >/dev/null 2>&1 || { echo "jq is required for up-release"; exit 1; }
+	@echo "==> Pulling $(IMAGE):$(TAG)..."
+	@docker pull $(IMAGE):$(TAG)
+	@cfg="$$(mktemp -d)/devcontainer.json"; \
+	jq 'del(.build) | .image = "$(IMAGE):$(TAG)"' .devcontainer/devcontainer.json > "$$cfg"; \
+	echo "==> Starting devcontainer from $(IMAGE):$(TAG)"; \
+	$(DEVCONTAINER) up --workspace-folder $(WORKSPACE) --override-config "$$cfg" \
+		--remove-existing-container $(SSH_MOUNT); \
+	st=$$?; rm -rf "$$(dirname "$$cfg")"; exit $$st
 
 ## Run all tests (tools, podman, env, mise lockfile freshness + audit)
 test-all: test-tools test-podman test-env test-mise-lockfile test-mise test-qemu
