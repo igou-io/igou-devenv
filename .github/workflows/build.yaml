@@ -67,9 +67,8 @@ jobs:
             bash -c 'chown -R igou:igou /workspace/igou-devenv && \
               exec runuser -u igou -- env \
                 HOME=/home/igou \
-                CI=true \
                 PATH=/home/igou/.local/bin:/home/igou/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
-                bash /workspace/igou-devenv/tests/run-all.sh'
+                /workspace/igou-devenv/tests/ci-run.sh'
 
       - name: Push image
         if: github.event_name != 'pull_request'
