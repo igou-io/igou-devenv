@@ -56,15 +56,21 @@ jobs:
       # (devcontainers/ci handled this via UID remap) and set PATH/HOME/CI
       # explicitly because CI builds don't run post-create's .bashrc copy.
       - name: Test
+        # Mount the checkout read-only and copy it to a container-local,
+        # igou-owned path. The suite writes inside the repo (test-run-scripts
+        # creates temp env files), so it needs a writable, igou-owned tree —
+        # but chowning the bind-mounted checkout would change the host
+        # workspace's ownership and break later steps (e.g. the SBOM writer).
         run: |
           docker run --rm \
             --privileged --network=host \
             --device=/dev/fuse --device=/dev/net/tun \
             -v /dev:/dev \
-            -v "$PWD:/workspace/igou-devenv" \
+            -v "$PWD:/src:ro" \
             -w /workspace \
             "${IMAGE}:latest" \
-            bash -c 'chown -R igou:igou /workspace/igou-devenv && \
+            bash -c 'cp -a /src /workspace/igou-devenv && \
+              chown -R igou:igou /workspace/igou-devenv && \
               exec runuser -u igou -- env \
                 HOME=/home/igou \
                 PATH=/home/igou/.local/bin:/home/igou/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
