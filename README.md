@@ -349,8 +349,8 @@ promoted from that same tested `:latest` digest — to pin or roll back to. Need
 the `RELEASE_PAT` secret.
 
 `release.yaml` can also be run on demand (`gh workflow run release.yaml`):
-`-f dry_run=true` for build+test only, or `-f version=0.0.0-test -f force=true`
-to cut a throwaway test release.
+`-f dry_run=true` for resolve+plan only, or `-f version=0.0.0-test -f force=true`
+to cut a throwaway test promotion.
 
 ## CI
 

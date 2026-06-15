@@ -142,7 +142,7 @@ push; it merges and rides the next weekly release.
 
 Manual / test release: `release.yaml` is also `workflow_dispatch`-able (Actions
 tab or `gh workflow run release.yaml`):
-- `-f dry_run=true` — build + test only, no publish (safe, repeatable).
+- `-f dry_run=true` — resolve + plan only, no promote/tag/release (safe, repeatable).
 - `-f version=0.0.0-test -f force=true` — cut a throwaway release on demand
   (unique `version` avoids clashing with the real weekly CalVer tags; `force`
   bypasses the "tag exists / main not advanced" skip guards). Delete the test
