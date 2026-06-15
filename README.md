@@ -349,9 +349,12 @@ bind-mounted, so anyone who reaches the code-server port gets a terminal with
 
 **Config** lives at `~/.config/code-server/config.yaml`, seeded from
 [`dotfiles/code-server-config.yaml`](dotfiles/code-server-config.yaml) by
-`post-create.sh`. Config and extensions are not persisted across image
-rebuilds (the config dir is not bind-mounted), so the password regenerates on
-each rebuild.
+`post-create.sh` on first run only. Both `~/.config/code-server` and
+`~/.local/share/code-server` are bind-mounted from the host, so the config
+(including the generated password), installed extensions, and editor settings
+**persist across image rebuilds** — the password is generated once and reused.
+To force a fresh config, delete `~/.config/code-server/config.yaml` on the host
+and restart.
 
 **Extensions** come from the [Open VSX](https://open-vsx.org/) registry, not
 Microsoft's marketplace, so the set available in the browser differs from

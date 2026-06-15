@@ -14,9 +14,14 @@ if [ -z "${CI:-}" ]; then
     echo "==> Writing workspace file..."
     cp /workspace/igou-devenv/dotfiles/homelab.code-workspace /workspace/homelab.code-workspace
 
-    echo "==> Installing code-server config..."
+    # Seed the code-server config only if absent — ~/.config/code-server is a
+    # persistent bind mount, so an existing config (with its generated password
+    # and any user edits) must survive rebuilds rather than be overwritten.
+    echo "==> Installing code-server config (first run only)..."
     mkdir -p /home/igou/.config/code-server
-    cp /workspace/igou-devenv/dotfiles/code-server-config.yaml /home/igou/.config/code-server/config.yaml
+    if [ ! -f /home/igou/.config/code-server/config.yaml ]; then
+        cp /workspace/igou-devenv/dotfiles/code-server-config.yaml /home/igou/.config/code-server/config.yaml
+    fi
 else
     echo "==> CI detected, skipping shell config and workspace file"
 fi
