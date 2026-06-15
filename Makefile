@@ -17,7 +17,22 @@ build:
 ## Build (cached) and start the devcontainer
 ## Runs: init.sh → Dockerfile → onCreateCommand (pip) → post-create.sh → post-start.sh
 ## On subsequent starts (container already exists): post-start.sh only
+##
+## The host SSH agent socket path ($SSH_AUTH_SOCK, e.g. /tmp/ssh-XXXX/agent.PID)
+## is ephemeral — regenerated each login session — but gets baked into the
+## container's bind mount at create time. `devcontainer up` restarts an existing
+## container via `docker start`, which re-validates that baked source path and
+## fails if it has gone stale. So before starting, drop any existing container
+## whose ssh-agent mount source no longer exists; `devcontainer up` then
+## recreates it with the current socket. Same-session restarts skip this.
 up:
+	@for c in $$(docker ps -aq --filter "label=devcontainer.local_folder=$(WORKSPACE)"); do \
+		src=$$(docker inspect "$$c" --format '{{range .Mounts}}{{if eq .Destination "/tmp/ssh-agent.sock"}}{{.Source}}{{end}}{{end}}' 2>/dev/null); \
+		if [ -n "$$src" ] && [ ! -S "$$src" ]; then \
+			echo "==> ssh-agent mount source $$src is stale; recreating container"; \
+			docker rm -f "$$c" >/dev/null; \
+		fi; \
+	done
 	$(DEVCONTAINER) up --workspace-folder $(WORKSPACE) $(SSH_MOUNT)
 
 ## Restart the devcontainer (recreate without rebuilding image)
