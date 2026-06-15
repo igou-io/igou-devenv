@@ -128,10 +128,13 @@ Every Monday two scheduled workflows run:
    Renovate mise PR (`bin/release-prepare-mise`), waits for green, and merges
    it — using `RELEASE_PAT`. If the bump breaks the build it files an issue and
    leaves the PR open; the release still ships the rest.
-2. `release.yaml` (08:00 UTC) builds + tests `main`, publishes
-   `ghcr.io/igou-io/igou-devenv:YYYY.MM.DD` + `:latest`, pushes tag
-   `vYYYY.MM.DD`, and creates a GitHub Release (auto notes + SBOM). Skips weeks
-   with no changes; idempotent.
+2. `release.yaml` (08:00 UTC) **promotes** the already-tested
+   `ghcr.io/igou-io/igou-devenv:latest` image (built + tested by `build.yaml` on
+   every push to `main`) to the immutable dated tag `:YYYY.MM.DD` **by digest —
+   no rebuild** — so the released image is byte-identical to what CI tested. It
+   then pushes tag `vYYYY.MM.DD` and creates a GitHub Release (auto notes +
+   SBOM). `:latest` is owned by `build.yaml`; release no longer publishes
+   `:latest`. Skips weeks with no changes; idempotent.
 
 Manual fallback: if `release-prepare` files an issue, regenerate the lock by
 hand — `make mise-lock` on the `renovate/mise-managed-cli-tools` branch, then
@@ -139,7 +142,7 @@ push; it merges and rides the next weekly release.
 
 Manual / test release: `release.yaml` is also `workflow_dispatch`-able (Actions
 tab or `gh workflow run release.yaml`):
-- `-f dry_run=true` — build + test only, no publish (safe, repeatable).
+- `-f dry_run=true` — resolve + plan only, no promote/tag/release (safe, repeatable).
 - `-f version=0.0.0-test -f force=true` — cut a throwaway release on demand
   (unique `version` avoids clashing with the real weekly CalVer tags; `force`
   bypasses the "tag exists / main not advanced" skip guards). Delete the test
