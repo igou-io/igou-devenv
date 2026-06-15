@@ -13,6 +13,10 @@ if [ -z "${CI:-}" ]; then
 
     echo "==> Writing workspace file..."
     cp /workspace/igou-devenv/dotfiles/homelab.code-workspace /workspace/homelab.code-workspace
+
+    echo "==> Installing code-server config..."
+    mkdir -p /home/igou/.config/code-server
+    cp /workspace/igou-devenv/dotfiles/code-server-config.yaml /home/igou/.config/code-server/config.yaml
 else
     echo "==> CI detected, skipping shell config and workspace file"
 fi

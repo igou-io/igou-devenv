@@ -91,3 +91,8 @@ argocd = "sha256+slsa"
 # a postinstall = path-to-script, (c) confirm that script references `gpg`.
 # Trust anchor: Red Hat key 2, fpr 567E347AD0044ADE55BA8A5F199E2F91FD431D51.
 "http:oc" = "postinstall-gpg"   # binary: oc
+
+# code-server. Upstream publishes no checksums/signatures/provenance, so the
+# http backend's blake3 TOFU pin in mise.lock is the strongest floor available
+# (same as the other http: tools). The launch check runs `code-server --version`.
+"http:code-server" = "blake3"   # binary: code-server

@@ -137,6 +137,39 @@ for d in virtqemud virtnetworkd virtstoraged; do
 done
 
 # ---------------------------------------------------------------------------
+# code-server — browser-based VS Code, started always-on. Bound to 0.0.0.0
+# (the container runs --network=host) so it's reachable on the host's network.
+# The container is --privileged with /dev bind-mounted, so reaching this port
+# grants a terminal with full host access — password auth is mandatory. The
+# config (bind-addr + auth) ships in ~/.config/code-server/config.yaml via
+# post-create.sh; we ensure a password is present (generated once, persisted
+# in the config — read it with `cat ~/.config/code-server/config.yaml`) and
+# launch detached. Idempotent: skips if the port is already being served.
+# Note: this block is skipped in CI (the early exit at the top of this script).
+# ---------------------------------------------------------------------------
+if command -v code-server >/dev/null 2>&1; then
+    CS_CONFIG="$HOME/.config/code-server/config.yaml"
+    mkdir -p "$HOME/.config/code-server" "$HOME/.local/share/code-server"
+    # Defensive: reinstall config if post-create did not run (e.g. bare restart).
+    if [ ! -f "$CS_CONFIG" ]; then
+        cp /workspace/igou-devenv/dotfiles/code-server-config.yaml "$CS_CONFIG"
+    fi
+    CS_PORT=$(awk -F: '/^bind-addr:/{print $NF; exit}' "$CS_CONFIG")
+    CS_PORT="${CS_PORT:-8080}"
+    # Ensure an auth password exists — auth: password is useless without one.
+    if ! grep -qE '^(password|hashed-password):' "$CS_CONFIG"; then
+        printf 'password: %s\n' "$(openssl rand -hex 24)" >> "$CS_CONFIG"
+    fi
+    if ss -ltnH 2>/dev/null | awk '{print $4}' | grep -qE "[:.]${CS_PORT}\$"; then
+        echo "==> code-server already listening on :${CS_PORT}"
+    else
+        echo "==> Starting code-server on 0.0.0.0:${CS_PORT} (password in ${CS_CONFIG})..."
+        nohup code-server /workspace >> "$HOME/.local/share/code-server/code-server.log" 2>&1 &
+        disown || true
+    fi
+fi
+
+# ---------------------------------------------------------------------------
 # Restore Claude Code config if missing (backup lives in mounted ~/.claude/)
 # ---------------------------------------------------------------------------
 if [ ! -f "$HOME/.claude.json" ] && [ -d "$HOME/.claude/backups" ]; then

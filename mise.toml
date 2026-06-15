@@ -132,3 +132,26 @@ postinstall = "/etc/mise/aqua-registry/oc-postinstall.sh"
 [tools."http:oc".platforms]
 linux-x64   = { url = "https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/{{ version }}/openshift-client-linux.tar.gz" }
 linux-arm64 = { url = "https://mirror.openshift.com/pub/openshift-v4/aarch64/clients/ocp/{{ version }}/openshift-client-linux.tar.gz" }
+
+# code-server — browser-based VS Code (the only long-running server in the image;
+# started always-on by .devcontainer/post-start.sh). Not in aqua-registry, and
+# upstream ships NO supply-chain verification material (checked 2026-06 against
+# v4.123.0: no SHA256SUMS, no .asc/.sig, no SLSA/sigstore provenance, and
+# `gh attestation verify` 404s). The http backend's blake3 TOFU floor pinned in
+# mise.lock is therefore the strongest verification available — the same trust
+# floor we already accept for the Cursor agent and opencode. The global
+# minimum_release_age = "10d" gate above still applies via the http backend.
+#
+# Unlike every other http: tool here, the release is a wrapper+lib tree rather
+# than a flat binary: strip_components drops the versioned top-level dir so the
+# layout is arch-independent, and bin_path points mise at the bin/ directory
+# holding the `code-server` launcher (which resolves its own lib/ via the
+# symlink, so /usr/local/bin/code-server works).
+# renovate: datasource=github-releases depName=coder/code-server
+[tools."http:code-server"]
+version = "4.123.0"
+bin_path = "bin"
+
+[tools."http:code-server".platforms]
+linux-x64   = { url = "https://github.com/coder/code-server/releases/download/v{{ version }}/code-server-{{ version }}-linux-amd64.tar.gz", strip_components = 1 }
+linux-arm64 = { url = "https://github.com/coder/code-server/releases/download/v{{ version }}/code-server-{{ version }}-linux-arm64.tar.gz", strip_components = 1 }

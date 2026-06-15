@@ -1,0 +1,15 @@
+# code-server runtime config. Copied to ~/.config/code-server/config.yaml by
+# post-create.sh; code-server is started always-on by post-start.sh.
+#
+# Bound to 0.0.0.0 so the browser IDE is reachable on the host network
+# (the devcontainer runs with --network=host). The container is --privileged
+# with /dev bind-mounted, so anyone who reaches this port gets a terminal with
+# full host access — password auth is therefore mandatory and must never be set
+# to `none`. post-start.sh injects a generated `password:` here on first start
+# if one is not already present; read it back with:
+#   cat ~/.config/code-server/config.yaml
+# To pin a known password instead, set the PASSWORD (or HASHED_PASSWORD) env var
+# before code-server starts — it overrides the value below.
+bind-addr: 0.0.0.0:8080
+auth: password
+cert: false

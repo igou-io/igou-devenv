@@ -27,6 +27,10 @@ tree, nmap, tmux, vim, htop, node
 **AI agent CLIs:** Claude Code (`claude`), Cursor agent (`cursor-agent`, alias `agent`),
 opencode (`opencode`) — each pinned + cryptographically verified at build time
 
+**Browser IDE:** code-server (browser-based VS Code) — started always-on by
+`post-start.sh`, password-authenticated, served on port `8080`
+(see [Browser IDE (code-server)](#browser-ide-code-server))
+
 ### How Tools Are Installed
 
 CLI tooling is split across four layers, each with its own version-pinning
@@ -35,7 +39,7 @@ mechanism. See [CLAUDE.md](CLAUDE.md) for the per-layer Renovate strategy.
 | Layer | What | Where to add |
 |---|---|---|
 | Dockerfile (dnf) | podman, buildah, skopeo, jq, direnv, gpg2, 1Password CLI, Docker CLI, base utilities | `.devcontainer/Dockerfile` |
-| Mise (`mise.toml` + `mise.lock`) | kubectl, helm, terraform, gh, argocd, kustomize, kubeseal, flux2, sops, kubeconform, kind, act, tkn, rclone, direnv, age, node, oc, virtctl, kube-burner, kube-burner-ocp | `mise.toml` (versions) + `mise.lock` (per-asset checksums) |
+| Mise (`mise.toml` + `mise.lock`) | kubectl, helm, terraform, gh, argocd, kustomize, kubeseal, flux2, sops, kubeconform, kind, act, tkn, rclone, direnv, age, node, oc, virtctl, kube-burner, kube-burner-ocp, code-server | `mise.toml` (versions) + `mise.lock` (per-asset checksums) |
 | Dockerfile (binary downloads) | mise itself (GPG-signed checksums — trust anchor), Claude Code, Cursor agent, opencode | `.devcontainer/Dockerfile` (ARG + RUN) |
 | pip (onCreateCommand) | Ansible ecosystem, yq, mkdocs-material | `.devcontainer/requirements.txt` |
 
@@ -45,7 +49,7 @@ mechanism. See [CLAUDE.md](CLAUDE.md) for the per-layer Renovate strategy.
 - **GPG (pinned fingerprint, via `aqua-registry/<tool>-postinstall.sh`)**: helm, terraform, oc
 - **SLSA L3 attestation + sha256**: flux2, sops, argocd
 - **sha256** (upstream-published checksums): kubectl, gh, kustomize, kubeseal, kubeconform, kind, act, tkn, rclone, direnv, age
-- **blake3 TOFU** (mise lockfile pin, no upstream-signed checksums available): node, virtctl, kube-burner, kube-burner-ocp
+- **blake3 TOFU** (mise lockfile pin, no upstream-signed checksums available): node, virtctl, kube-burner, kube-burner-ocp, code-server
 
 ## Quick Start
 
@@ -311,6 +315,48 @@ buildah bud -t myimage .
 Podman is configured with `fuse-overlayfs` for storage and `slirp4netns` for
 rootless networking. Docker CLI is also available via the host socket
 (docker-outside-of-docker Feature).
+
+## Browser IDE (code-server)
+
+[code-server](https://github.com/coder/code-server) (browser-based VS Code) is
+installed via mise and started **always-on** by `post-start.sh` on every
+container start. It serves on port **8080**.
+
+**Access it:**
+
+```bash
+# Get the password (generated on first start, persisted in the config)
+cat ~/.config/code-server/config.yaml   # look for the `password:` line
+
+# Then open http://<host>:8080 in a browser and log in.
+```
+
+Because the container runs with `--network=host`, port 8080 is published
+directly on the host's network — no port forwarding needed. From another
+machine, reach it over your existing SSH/Tailscale path to the host.
+
+**Security — read this.** The container is `--privileged` with `/dev`
+bind-mounted, so anyone who reaches the code-server port gets a terminal with
+**full host access**. It is bound to `0.0.0.0`, so:
+
+- Password authentication is **mandatory** and configured by default
+  (`auth: password`). Never set `auth: none`.
+- Prefer reaching it over an SSH tunnel or Tailscale rather than exposing
+  `:8080` to an untrusted network.
+- To pin a known password (instead of the generated one), set the `PASSWORD`
+  (or `HASHED_PASSWORD`) environment variable before code-server starts — it
+  overrides the config. e.g. source it via the `use` / `op` flow.
+
+**Config** lives at `~/.config/code-server/config.yaml`, seeded from
+[`dotfiles/code-server-config.yaml`](dotfiles/code-server-config.yaml) by
+`post-create.sh`. Config and extensions are not persisted across image
+rebuilds (the config dir is not bind-mounted), so the password regenerates on
+each rebuild.
+
+**Extensions** come from the [Open VSX](https://open-vsx.org/) registry, not
+Microsoft's marketplace, so the set available in the browser differs from
+Cursor/VS Code (Red Hat Ansible and HashiCorp Terraform are on Open VSX;
+some Microsoft-owned extensions are not).
 
 ## Dependency Management (Renovate)
 
