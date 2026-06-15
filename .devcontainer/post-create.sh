@@ -10,6 +10,7 @@ set -euo pipefail
 if [ -z "${CI:-}" ]; then
     echo "==> Configuring shell..."
     cp /workspace/igou-devenv/dotfiles/.bashrc /home/igou/.bashrc
+    cp /workspace/igou-devenv/dotfiles/tmux.conf /home/igou/.tmux.conf
 
     echo "==> Writing workspace file..."
     cp /workspace/igou-devenv/dotfiles/homelab.code-workspace /workspace/homelab.code-workspace

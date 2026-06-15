@@ -415,6 +415,19 @@ RUN --mount=type=secret,id=github_token set -eux; \
     "$HOME/.local/bin/opencode" --version
 USER root
 
+# tmux session-persistence plugins (resurrect + continuum), baked so there is no
+# runtime network fetch / TPM. Pinned to commits — tmux-resurrect publishes no
+# releases, so both are tracked by commit SHA (bump by hand). Loaded by
+# ~/.tmux.conf; the save dir lives on the ~/.local/share/igou-devenv bind mount.
+ARG TMUX_RESURRECT_SHA="cff343cf9e81983d3da0c8562b01616f12e8d548"
+ARG TMUX_CONTINUUM_SHA="0698e8f4b17d6454c71bf5212895ec055c578da0"
+RUN set -eux; \
+    git clone https://github.com/tmux-plugins/tmux-resurrect /opt/tmux-plugins/tmux-resurrect; \
+    git -C /opt/tmux-plugins/tmux-resurrect checkout "$TMUX_RESURRECT_SHA"; \
+    git clone https://github.com/tmux-plugins/tmux-continuum /opt/tmux-plugins/tmux-continuum; \
+    git -C /opt/tmux-plugins/tmux-continuum checkout "$TMUX_CONTINUUM_SHA"; \
+    rm -rf /opt/tmux-plugins/*/.git
+
 # code-server customizations — bridge devcontainer.json's editor settings +
 # Open VSX extensions into the image's default code-server data dir. code-server
 # does not read devcontainer.json, so without this the published image (used by
