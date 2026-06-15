@@ -12,6 +12,9 @@ permissions:
   contents: write
   packages: write
 
+env:
+  IMAGE: ghcr.io/igou-io/igou-devenv
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -21,18 +24,56 @@ jobs:
       - name: Log in to GHCR
         # Direct docker CLI login instead of docker/login-action because
         # codeload.github.com is consistently failing to serve that action's
-        # tarball ("An action could not be found at the URI ..."), affecting
-        # both v4.1.0 and v4.2.0 digests. This bypasses codeload entirely.
+        # tarball ("An action could not be found at the URI ..."). This bypasses
+        # codeload entirely.
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
-      - name: Build and test devcontainer
-        uses: devcontainers/ci@513af61f4de4f75d37e4438f184ba4358f0fc1ca # v0.3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
+
+      # Build with buildx directly (not devcontainers/ci) so GITHUB_TOKEN can be
+      # passed as a BuildKit *secret* rather than a build ARG. Build args leak
+      # into the published image's history; secrets never touch a layer. The
+      # Dockerfile reads it from /run/secrets/github_token during mise/opencode.
+      - name: Build image
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          push: ${{ github.event_name != 'pull_request' && 'always' || 'never' }}
-          imageName: ghcr.io/igou-io/igou-devenv
-          runCmd: /workspace/igou-devenv/tests/run-all.sh
+        run: |
+          docker buildx build \
+            --file .devcontainer/Dockerfile \
+            --secret id=github_token,env=GITHUB_TOKEN \
+            --cache-from type=registry,ref=${IMAGE}:latest \
+            --cache-to type=inline \
+            --tag ${IMAGE}:latest \
+            --load \
+            .
+
+      # Run the full suite inside the freshly built image. This mirrors what
+      # devcontainers/ci did via `devcontainer up` + exec: the devcontainer
+      # runArgs (privileged, host network, /dev passthrough for KVM/fuse), the
+      # workspace bind-mounted at /workspace/igou-devenv, and the suite running
+      # as the non-root `igou` user. We chown the bind-mounted workspace to igou
+      # (devcontainers/ci handled this via UID remap) and set PATH/HOME/CI
+      # explicitly because CI builds don't run post-create's .bashrc copy.
+      - name: Test
+        run: |
+          docker run --rm \
+            --privileged --network=host \
+            --device=/dev/fuse --device=/dev/net/tun \
+            -v /dev:/dev \
+            -v "$PWD:/workspace/igou-devenv" \
+            -w /workspace \
+            "${IMAGE}:latest" \
+            bash -c 'chown -R igou:igou /workspace/igou-devenv && \
+              exec runuser -u igou -- env \
+                HOME=/home/igou \
+                CI=true \
+                PATH=/home/igou/.local/bin:/home/igou/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
+                bash /workspace/igou-devenv/tests/run-all.sh'
+
+      - name: Push image
+        if: github.event_name != 'pull_request'
+        run: docker push ${IMAGE}:latest
 
       - name: Generate devcontainer SBOM
         uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0

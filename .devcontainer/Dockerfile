@@ -208,11 +208,18 @@ ENV MISE_DATA_DIR=/opt/mise \
 # GITHUB_TOKEN is consumed by mise's GitHub-attestations / aqua release-tag
 # lookups during install. The 60/hr unauthenticated quota is too small to
 # survive a full rebuild of 21 aqua-managed tools; the token bumps it to
-# 5000/hr. Declared as ARG (not ENV) so the secret stays out of the final
-# image — it's only available to this single RUN layer.
+# 5000/hr.
+#
+# Provided via a BuildKit secret mount (--mount=type=secret), so the value is
+# NEVER written to an image layer or recorded in build history. CI builds pass
+# it with `docker buildx build --secret id=github_token,env=GITHUB_TOKEN` and do
+# NOT set the build ARG, so the published image is token-free. The ARG below is
+# only a fallback for local `make`/Cursor builds, which can't pass a build secret
+# through devcontainer.json — a token baked into a local, never-published image
+# is acceptable. (Build args leak into image history; secrets do not.)
 ARG GITHUB_TOKEN=""
-RUN set -eux; \
-    export GITHUB_TOKEN="${GITHUB_TOKEN}"; \
+RUN --mount=type=secret,id=github_token set -eux; \
+    export GITHUB_TOKEN="$(cat /run/secrets/github_token 2>/dev/null || printf '%s' "${GITHUB_TOKEN}")"; \
     mise install --yes; \
     # Symlink installed binaries into /usr/local/bin so they're on PATH
     # for any user without shell activation. mise's per-tool layout is not
@@ -363,10 +370,12 @@ ARG OPENCODE_SHA256_X64="f23bcabaf3f2fa9b66b8011813606501885aa6bfdf31030d4c061bd
 ARG OPENCODE_SHA256_ARM64="58bdd72718817043f9e3328c9f78acc6c667dd26e5fd013a6cf3c03593de2374"
 # GITHUB_TOKEN authenticates the release-age API call below. Without it the
 # 60/hr unauthenticated quota gets exhausted on busy CI runners and the build
-# fails with HTTP 403. Declared as ARG so the secret stays out of the image.
+# fails with HTTP 403. Provided via a BuildKit secret mount (see the mise block
+# above); the ARG is only the local-build fallback and is left empty in CI so the
+# published image carries no token.
 ARG GITHUB_TOKEN=""
 USER igou
-RUN set -eux; \
+RUN --mount=type=secret,id=github_token set -eux; \
     ARCH_RAW=$(uname -m); \
     case "$ARCH_RAW" in \
       x86_64)  ARCH="x64";   EXPECTED_SHA="${OPENCODE_SHA256_X64}" ;; \
@@ -376,8 +385,9 @@ RUN set -eux; \
     # Release-age gate: fetch the release's published_at from the GitHub API.
     # Authenticated when GITHUB_TOKEN is set (5000/hr), else unauthenticated (60/hr).
     META_URL="https://api.github.com/repos/anomalyco/opencode/releases/tags/${OPENCODE_VERSION}"; \
+    GH_TOKEN_RESOLVED="$(cat /run/secrets/github_token 2>/dev/null || printf '%s' "${GITHUB_TOKEN}")"; \
     AUTH_HEADER=""; \
-    [ -n "${GITHUB_TOKEN}" ] && AUTH_HEADER="Authorization: Bearer ${GITHUB_TOKEN}"; \
+    [ -n "$GH_TOKEN_RESOLVED" ] && AUTH_HEADER="Authorization: Bearer $GH_TOKEN_RESOLVED"; \
     PUBLISHED_AT=$(curl -fsSL ${AUTH_HEADER:+-H "$AUTH_HEADER"} "$META_URL" | jq -r '.published_at'); \
     if [ -z "$PUBLISHED_AT" ] || [ "$PUBLISHED_AT" = "null" ]; then \
       echo "Failed to fetch published_at for opencode ${OPENCODE_VERSION} from $META_URL" >&2; \
