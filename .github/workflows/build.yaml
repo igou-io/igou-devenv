@@ -41,4 +41,12 @@ jobs:
           artifact-name: devcontainer-sbom
           output-file: devcontainer.spdx.json
           format: spdx-json
-          dependency-snapshot: true
+          # Keep the SBOM as a workflow artifact, but do NOT submit it to the
+          # GitHub dependency graph. The image bundles many third-party Go/npm
+          # CLIs (podman, buildah, kubectl, argocd, code-server, ...); submitting
+          # their embedded module SBOMs floods Dependabot with hundreds of CVE
+          # alerts for upstream binaries we don't build and can't patch here.
+          # Those are remediated by tool-version bumps via Renovate + mise.toml,
+          # not by this repo, so the alerts are non-actionable noise that buries
+          # any real signal. See git history / PR for the investigation.
+          dependency-snapshot: false
