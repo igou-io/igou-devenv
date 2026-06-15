@@ -36,6 +36,7 @@ RUN dnf install -y \
     fuse-overlayfs \
     slirp4netns \
     jq \
+    openssl \
     ShellCheck \
     make \
     sshpass \

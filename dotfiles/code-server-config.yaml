@@ -10,6 +10,12 @@
 #   cat ~/.config/code-server/config.yaml
 # To pin a known password instead, set the PASSWORD (or HASHED_PASSWORD) env var
 # before code-server starts — it overrides the value below.
+#
+# cert: true serves HTTPS with a self-signed cert that code-server generates on
+# first start (it shells out to the `openssl` CLI, baked into the image) and
+# writes into ~/.local/share/code-server/ — a persistent bind mount, so the cert
+# survives restarts/rebuilds. No private key is ever committed. Browsing by IP
+# shows the usual self-signed warning (the cert is scoped to localhost).
 bind-addr: 0.0.0.0:8080
 auth: password
-cert: false
+cert: true

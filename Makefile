@@ -69,7 +69,8 @@ exec:
 # ---------------------------------------------------------------------------
 # Run via the published image — pull-and-run code-server, no build, no login.
 # The GHCR image is public, so `docker` pulls it anonymously. Opens DIR (default
-# the current directory) in a browser IDE on PORT. Ctrl-C stops it (--rm).
+# the current directory) in a browser IDE on PORT over HTTPS (--cert generates a
+# self-signed cert; browse https:// and accept the warning). Ctrl-C stops it (--rm).
 #   make run                                  # current dir, :latest, port 8080
 #   make run DIR=~/code TAG=2026.06.15-3 PORT=8443 PASSWORD=hunter2
 # Runs as the image's `igou` user (uid 1000); on a single-user host (your uid is
@@ -86,13 +87,13 @@ PASSWORD ?=
 ## Pull and run code-server from the published image (no build; usage: make run [DIR=~/code] [TAG=2026.06.15-3] [PORT=8443])
 run:
 	@pw='$(PASSWORD)'; [ -n "$$pw" ] || pw="$$(head -c 18 /dev/urandom | base64)"; \
-	echo ">>> code-server → http://localhost:$(PORT)   (password: $$pw)"; \
+	echo ">>> code-server → https://localhost:$(PORT)   (self-signed; password: $$pw)"; \
 	docker run --rm -it --name igou-devenv-run \
 		--user igou -e HOME=/home/igou -e PASSWORD="$$pw" \
 		-p $(PORT):8080 \
 		-v "$(DIR):/workspace:Z" \
 		$(IMAGE):$(TAG) \
-		code-server --bind-addr 0.0.0.0:8080 /workspace
+		code-server --bind-addr 0.0.0.0:8080 /workspace --cert
 
 ## Start the FULL devcontainer from the published image instead of building it
 ## locally. Pulls $(IMAGE):$(TAG) and runs it with the same mounts + lifecycle
