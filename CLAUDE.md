@@ -39,7 +39,7 @@ tests/
 renovate.json            # Renovate config with custom regex manager for Dockerfile ARGs
 .github/workflows/build.yaml         # CI: builds full devcontainer on push/PR via devcontainers/ci
 .github/workflows/mise-lockfile-check.yaml  # CI: fails PRs whose mise.lock is stale vs mise.toml
-.github/workflows/release-prepare.yaml  # CI: Mon 06:30 — regenerate mise.lock + merge the mise PR
+.github/workflows/release-prepare.yaml  # CI: Mon 06:30 — regenerate mise.lock + auto-merge the mise PR
 .github/workflows/release.yaml          # CI: Mon 08:00 — weekly CalVer image + git tag + GitHub Release
 ```
 
@@ -104,11 +104,13 @@ Tools managed by mise (see Architecture table) are pinned in `mise.toml`
 with per-asset checksums in `mise.lock`. Renovate bumps the *version* in
 `mise.toml` but cannot regenerate `mise.lock` — the hosted Mend app cannot run
 postUpgradeTasks — so its raw PRs are stale and fail the `mise-lockfile-check`
-CI guard. There is no auto-commit: on a flagged Renovate PR, regenerate the lock
-on its branch (`make mise-lock`), commit and push the updated `mise.lock`, and
-it then passes and automerges. (The mise binary itself is verified against
-mise's GPG-signed checksums, so a version-only `MISE_VERSION` bump needs no
-follow-up.) To bump a tool manually:
+CI guard. `release-prepare.yaml` handles this automatically (Mondays, or on
+demand via `make release-prepare`): it regenerates the lock on the open mise PR
+and enables auto-merge. You only step in if a bump genuinely breaks the build
+(release-prepare files an issue) — then fix it by hand on the
+`renovate/mise-managed-cli-tools` branch (`make mise-lock`, commit, push). (The
+mise binary itself is verified against mise's GPG-signed checksums, so a
+version-only `MISE_VERSION` bump needs no follow-up.) To bump a tool manually:
 
 ```bash
 # 1. Edit the version in mise.toml
@@ -129,9 +131,14 @@ confirming the upstream change was deliberate.
 Every Monday two scheduled workflows run:
 
 1. `release-prepare.yaml` (06:30 UTC) regenerates `mise.lock` on the open
-   Renovate mise PR (`bin/release-prepare-mise`), waits for green, and merges
-   it — using `RELEASE_PAT`. If the bump breaks the build it files an issue and
-   leaves the PR open; the release still ships the rest.
+   Renovate mise PR (`bin/release-prepare-mise`) and **enables GitHub
+   auto-merge** — using `RELEASE_PAT`; GitHub squash-merges the PR once the
+   required `build` check passes (the job no longer blocks waiting). The mise
+   group is `automerge:false` in `renovate.json` so this job is its sole merger.
+   If the lock can't be regenerated (e.g. a version that won't resolve) it files
+   an issue and leaves the PR open; a bump that locks but then fails the build
+   just leaves the PR open (red, auto-merge pending) — the release still ships
+   the rest.
 2. `release.yaml` (08:00 UTC) **promotes** the already-tested
    `ghcr.io/igou-io/igou-devenv:latest` image (built + tested by `build.yaml` on
    every push to `main`) to the immutable dated tag `:YYYY.MM.DD` **by digest —

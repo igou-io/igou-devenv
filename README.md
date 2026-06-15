@@ -336,9 +336,9 @@ GITHUB_TOKEN=ghp_... make renovate-dry-run # see what would be updated
 
 A Monday pipeline cuts a dated release of the devcontainer:
 
-- `release-prepare.yaml` (06:30 UTC) regenerates `mise.lock` to merge the week's
-  Renovate mise PR (it can't merge itself — the hosted app can't regenerate the
-  lock).
+- `release-prepare.yaml` (06:30 UTC) regenerates `mise.lock` on the week's
+  Renovate mise PR and enables GitHub auto-merge (it can't merge itself — the
+  hosted app can't regenerate the lock); GitHub merges it once `build` passes.
 - `release.yaml` (08:00 UTC) promotes the tested `:latest` digest to
   `ghcr.io/igou-io/igou-devenv:YYYY.MM.DD` (no rebuild — byte-identical to what
   CI tested), tags `vYYYY.MM.DD`, and creates a GitHub Release with notes + SBOM.

@@ -31,7 +31,9 @@
     },
     {
       "matchManagers": ["mise"],
-      "groupName": "mise-managed cli tools"
+      "groupName": "mise-managed cli tools",
+      "description": "automerge:false — release-prepare.yaml owns merging this PR (it regenerates mise.lock then enables GitHub auto-merge); this avoids racing Renovate's own automerge.",
+      "automerge": false
     },
     {
       "matchManagers": ["custom.regex"],
