@@ -122,6 +122,38 @@ make down    # stop and remove the container
 The Makefile automatically forwards your SSH agent if `SSH_AUTH_SOCK` is set
 and the socket exists.
 
+`make up` is not a from-scratch build: `devcontainer.json` sets
+`cacheFrom: ghcr.io/igou-io/igou-devenv`, so it pulls the published image and
+reuses its layers. The image is **public**, so no `docker login` is needed.
+
+### Run via pull (no build)
+
+To skip building entirely and just get the browser IDE on a folder, pull and run
+the published image directly. The package is public, so this needs **no login**:
+
+```bash
+make run                 # opens the current dir in code-server at http://localhost:8080
+make run DIR=~/code      # open a different folder
+make run TAG=2026.06.15-2 PORT=8443 PASSWORD=hunter2   # pin a release, port, password
+```
+
+`make run` prints a generated password and starts code-server in the foreground
+(Ctrl-C to stop; the container is removed on exit). It's the raw equivalent of:
+
+```bash
+podman run --rm -it --userns=keep-id:uid=1000,gid=1000 \
+  -e HOME=/home/igou -e PASSWORD=hunter2 \
+  -p 8080:8080 -v "$PWD:/workspace:Z" \
+  ghcr.io/igou-io/igou-devenv:2026.06.15-2 \
+  code-server --bind-addr 0.0.0.0:8080 /workspace
+```
+
+This is a lightweight, **ephemeral** path — code-server settings/extensions and
+the password are not persisted. For the full, persistent environment (always-on
+code-server, SSH agent, 1Password, kubeconfig, podman-in-podman, libvirt) use the
+devcontainer via `make up` or Cursor. Pin a `:YYYY.MM.DD` tag for reproducibility;
+`:latest` tracks the most recent green build on `main`.
+
 ### After First Build
 
 The `post-create.sh` script automatically:
