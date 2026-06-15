@@ -339,11 +339,14 @@ A Monday pipeline cuts a dated release of the devcontainer:
 - `release-prepare.yaml` (06:30 UTC) regenerates `mise.lock` to merge the week's
   Renovate mise PR (it can't merge itself — the hosted app can't regenerate the
   lock).
-- `release.yaml` (08:00 UTC) publishes `ghcr.io/igou-io/igou-devenv:YYYY.MM.DD` +
-  `:latest`, tags `vYYYY.MM.DD`, and creates a GitHub Release with notes + SBOM.
+- `release.yaml` (08:00 UTC) promotes the tested `:latest` digest to
+  `ghcr.io/igou-io/igou-devenv:YYYY.MM.DD` (no rebuild — byte-identical to what
+  CI tested), tags `vYYYY.MM.DD`, and creates a GitHub Release with notes + SBOM.
 
-`:latest` always tracks `main`; the `:YYYY.MM.DD` tags are immutable weekly
-snapshots to pin or roll back to. Needs the `RELEASE_PAT` secret.
+`:latest` tracks `main` via `build.yaml` (which builds + tests + pushes it on
+every push to `main`); the `:YYYY.MM.DD` tags are immutable weekly snapshots —
+promoted from that same tested `:latest` digest — to pin or roll back to. Needs
+the `RELEASE_PAT` secret.
 
 `release.yaml` can also be run on demand (`gh workflow run release.yaml`):
 `-f dry_run=true` for build+test only, or `-f version=0.0.0-test -f force=true`

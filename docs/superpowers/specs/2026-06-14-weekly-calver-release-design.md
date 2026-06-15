@@ -95,18 +95,25 @@ steps:
   2. VERSION=$(date -u +%Y.%m.%d)        # provided via workflow env at runtime, not committed
   3. if tag vVERSION already exists       -> exit 0 (idempotent re-run guard)
      if main has not advanced since the latest v* tag -> exit 0 (nothing to release)
-  4. build + test the devcontainer (devcontainers/ci, runCmd tests/run-all.sh)
-  5. publish image ghcr.io/igou-io/igou-devenv:$VERSION and :latest
+  4. resolve the tested :latest digest (docker buildx imagetools inspect) — the
+     image build.yaml built, tested (tests/run-all.sh), and pushed on the last
+     push to main
+  5. promote that digest to ghcr.io/igou-io/igou-devenv:$VERSION by digest
+     (docker buildx imagetools create) — no rebuild; byte-identical to what CI
+     tested
   6. generate SBOM (existing anchore/sbom-action step)
   7. push git tag v$VERSION
   8. create GitHub Release v$VERSION:
        - auto-generated notes (merged PRs since the previous tag)
        - attach the SBOM artifact
-  dry_run=true: do steps 1-4 only (build+test), skip 5-8
+  dry_run=true: do steps 1-4 only (resolve + plan), skip 5-8
 ```
 
 `:latest` continues to be published by the existing `build.yaml` on every push
-to `main`; `release.yml` adds the immutable `:YYYY.MM.DD` tag + Release.
+to `main`; `release.yml` promotes that exact tested `:latest` digest to the
+immutable `:YYYY.MM.DD` tag + Release. The test gate lives in `build.yaml`
+(push-to-main only pushes `:latest` on a green `tests/run-all.sh`); `release.yml`
+trusts that green and promotes — it no longer publishes `:latest` itself.
 
 ## Versioning
 
@@ -152,8 +159,11 @@ to `main`; `release.yml` adds the immutable `:YYYY.MM.DD` tag + Release.
 
 ## Out of scope / future
 
-- Retag-instead-of-rebuild in `release.yml` (copy the just-built `latest`
+- ~~Retag-instead-of-rebuild in `release.yml` (copy the just-built `latest`
   digest to the CalVer tag) to avoid the second Monday build — an optimization;
-  the spec rebuilds for determinism.
+  the spec rebuilds for determinism.~~ **Implemented:** `release.yaml` now
+  promotes the tested `:latest` digest to the CalVer tag (`docker buildx
+  imagetools create`) instead of rebuilding — no second Monday build, and the
+  released image is byte-identical to what `build.yaml` tested.
 - GitHub App token instead of a PAT (more secure; more setup).
 - Branch protection / native auto-merge hardening.
