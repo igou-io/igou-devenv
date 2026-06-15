@@ -36,9 +36,16 @@ HISTCONTROL=ignoreboth
 # append to the history file, don't overwrite it
 shopt -s histappend
 
-# for setting history length see HISTSIZE and HISTFILESIZE in bash(1)
-HISTSIZE=1000
-HISTFILESIZE=2000
+# Persist history across container rebuilds and share it live across all open
+# terminals. ~/.local/share/igou-devenv is a bind mount (see devcontainer.json),
+# so HISTFILE survives `make rebuild`. `history -a; history -n` flushes each
+# command and pulls in commands typed in other terminals after every prompt.
+if mkdir -p "$HOME/.local/share/igou-devenv/bash" 2>/dev/null; then
+    HISTFILE="$HOME/.local/share/igou-devenv/bash/history"
+fi
+HISTSIZE=100000
+HISTFILESIZE=200000
+PROMPT_COMMAND="history -a; history -n${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
 
 # check the window size after each command and, if necessary,
 # update the values of LINES and COLUMNS.
@@ -388,4 +395,15 @@ alias k=kubectl
 eval "$(direnv hook bash)"
 if [ -n "${BASHRC_DEBUG:-}" ]; then
     echo "[bashrc] direnv done, bashrc complete" >&2
+fi
+
+# Auto-attach interactive code-server terminals to a persistent tmux session so
+# they survive code-server restarts and browser reconnects. Open more terminals
+# as tmux windows (Ctrl-b c) rather than new editor tabs — extra tabs attach to
+# the same session and mirror it. tmux-resurrect/continuum (~/.tmux.conf) restore
+# the layout across `make rebuild`. Scoped to TERM_PROGRAM=vscode so `make shell`,
+# CI, and automation are unaffected; set NO_AUTO_TMUX=1 to opt out.
+if [[ $- == *i* ]] && [ -z "${TMUX:-}" ] && [ -z "${NO_AUTO_TMUX:-}" ] \
+   && [ "${TERM_PROGRAM:-}" = "vscode" ] && command -v tmux >/dev/null 2>&1; then
+    exec tmux new-session -A -s main
 fi
