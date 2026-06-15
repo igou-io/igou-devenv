@@ -160,6 +160,17 @@ if command -v code-server >/dev/null 2>&1; then
     if ! grep -qE '^(password|hashed-password):' "$CS_CONFIG"; then
         printf 'password: %s\n' "$(openssl rand -hex 24)" >> "$CS_CONFIG"
     fi
+    # Bridge devcontainer.json customizations (editor settings + Open VSX
+    # extensions) into code-server — it does not read devcontainer.json itself.
+    # Runs before launch so a fresh start comes up with highlighting in place;
+    # idempotent and fast on warm starts (extensions already installed). The
+    # data dir is a persistent bind mount, so this populates it once per host.
+    CS_SYNC=/workspace/igou-devenv/.devcontainer/code-server-sync.sh
+    if [ -f "$CS_SYNC" ]; then
+        bash "$CS_SYNC" \
+            /workspace/igou-devenv/.devcontainer/devcontainer.json \
+            "$HOME/.local/share/code-server" || echo "    code-server-sync failed (non-fatal)"
+    fi
     if ss -ltnH 2>/dev/null | awk '{print $4}' | grep -qE "[:.]${CS_PORT}\$"; then
         echo "==> code-server already listening on :${CS_PORT}"
     else

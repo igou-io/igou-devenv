@@ -414,4 +414,18 @@ RUN --mount=type=secret,id=github_token set -eux; \
     "$HOME/.local/bin/opencode" --version
 USER root
 
+# code-server customizations — bridge devcontainer.json's editor settings +
+# Open VSX extensions into the image's default code-server data dir. code-server
+# does not read devcontainer.json, so without this the published image (used by
+# `make run`, which has no lifecycle hooks) opens with no syntax highlighting.
+# `make up` re-runs the same script at start to populate its bind-mounted data
+# dir. Single source of truth: .devcontainer/devcontainer.json. Per-extension
+# failures (e.g. an ID absent from Open VSX) warn but do not fail the build.
+USER igou
+COPY --chown=igou:igou .devcontainer/code-server-sync.sh /tmp/code-server-sync.sh
+COPY --chown=igou:igou .devcontainer/devcontainer.json /tmp/devcontainer.json
+RUN bash /tmp/code-server-sync.sh /tmp/devcontainer.json "$HOME/.local/share/code-server" \
+    && rm -f /tmp/code-server-sync.sh /tmp/devcontainer.json
+USER root
+
 WORKDIR /workspace
