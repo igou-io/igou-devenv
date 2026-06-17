@@ -50,6 +50,7 @@
         "source=${localEnv:HOME}/.config/cursor,target=/home/igou/.config/cursor,type=bind",
         "source=${localEnv:HOME}/.config/opencode,target=/home/igou/.config/opencode,type=bind",
         "source=${localEnv:HOME}/.local/share/opencode,target=/home/igou/.local/share/opencode,type=bind",
+        "source=${localEnv:HOME}/.codex,target=/home/igou/.codex,type=bind",
         "source=${localEnv:HOME}/.config/code-server,target=/home/igou/.config/code-server,type=bind",
         "source=${localEnv:HOME}/.local/share/code-server,target=/home/igou/.local/share/code-server,type=bind",
         "source=${localEnv:HOME}/.local/share/igou-devenv,target=/home/igou/.local/share/igou-devenv,type=bind",
