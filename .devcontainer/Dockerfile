@@ -415,6 +415,68 @@ RUN --mount=type=secret,id=github_token set -eux; \
     "$HOME/.local/bin/opencode" --version
 USER root
 
+# codex CLI (OpenAI) — pinned + SHA256-verified + release-age gated from the
+# openai/codex "package" release assets. The native installer
+# (https://chatgpt.com/codex/install.sh) lays the standalone payload under
+# ~/.codex/packages/standalone; we instead extract it to ~/.local/share/codex
+# (like the Claude block above) so the bind-mounted ~/.codex — which holds
+# config/auth/state — is never shadowed by an image-baked payload.
+# Per-asset SHA256s are published in the release's codex-package_SHA256SUMS;
+# re-capture them on version bumps:
+#   V=0.137.0; curl -fsSL https://github.com/openai/codex/releases/download/rust-v$V/codex-package_SHA256SUMS | grep linux-musl
+# Tags are rust-vX.Y.Z, so extractVersion strips the prefix for Renovate.
+# MINIMUM_RELEASE_AGE_DAYS is inherited from the ARG declared above the Cursor block.
+# Pinned to a release that already clears the 10-day age gate (so `make build`
+# and CI build clean); Renovate advances it on the same 10-day lag thereafter.
+# renovate: datasource=github-releases depName=openai/codex extractVersion=^rust-v(?<version>.+)$
+ARG CODEX_VERSION="0.137.0"
+ARG CODEX_SHA256_X64="b364488097efd12da3b5ffb1b0099cabd8b377b1f97043158f7f771b1456953f"
+ARG CODEX_SHA256_ARM64="8756c80ad058199676d058bbd919812466d796886e7574a57c4e007f766e707c"
+# GITHUB_TOKEN authenticates the release-age API call below (see the opencode
+# block); provided via a BuildKit secret mount, empty in CI's published image.
+ARG GITHUB_TOKEN=""
+USER igou
+RUN --mount=type=secret,id=github_token set -eux; \
+    ARCH_RAW=$(uname -m); \
+    case "$ARCH_RAW" in \
+      x86_64)  TARGET="x86_64-unknown-linux-musl";  EXPECTED_SHA="${CODEX_SHA256_X64}" ;; \
+      aarch64) TARGET="aarch64-unknown-linux-musl"; EXPECTED_SHA="${CODEX_SHA256_ARM64}" ;; \
+      *) echo "Unsupported arch: $ARCH_RAW" >&2; exit 1 ;; \
+    esac; \
+    TAG="rust-v${CODEX_VERSION}"; \
+    # Release-age gate: fetch published_at from the GitHub API. Authenticated
+    # when GITHUB_TOKEN is set (5000/hr), else unauthenticated (60/hr).
+    META_URL="https://api.github.com/repos/openai/codex/releases/tags/${TAG}"; \
+    GH_TOKEN_RESOLVED="$(cat /run/secrets/github_token 2>/dev/null || printf '%s' "${GITHUB_TOKEN}")"; \
+    AUTH_HEADER=""; \
+    [ -n "$GH_TOKEN_RESOLVED" ] && AUTH_HEADER="Authorization: Bearer $GH_TOKEN_RESOLVED"; \
+    PUBLISHED_AT=$(curl -fsSL ${AUTH_HEADER:+-H "$AUTH_HEADER"} "$META_URL" | jq -r '.published_at'); \
+    if [ -z "$PUBLISHED_AT" ] || [ "$PUBLISHED_AT" = "null" ]; then \
+      echo "Failed to fetch published_at for codex ${TAG} from $META_URL" >&2; \
+      exit 1; \
+    fi; \
+    RELEASE_EPOCH=$(date -u -d "$PUBLISHED_AT" +%s); \
+    AGE_DAYS=$(( ($(date -u +%s) - RELEASE_EPOCH) / 86400 )); \
+    if [ "$AGE_DAYS" -lt "${MINIMUM_RELEASE_AGE_DAYS}" ]; then \
+      echo "codex ${CODEX_VERSION} is only ${AGE_DAYS} days old (minimum: ${MINIMUM_RELEASE_AGE_DAYS}). Wait, or override with --build-arg MINIMUM_RELEASE_AGE_DAYS=0." >&2; \
+      exit 1; \
+    fi; \
+    TARBALL="codex-package-${TARGET}.tar.gz"; \
+    URL="https://github.com/openai/codex/releases/download/${TAG}/${TARBALL}"; \
+    DEST="$HOME/.local/share/codex/${CODEX_VERSION}-${TARGET}"; \
+    WORK=$(mktemp -d); \
+    cd "$WORK"; \
+    curl -fsSL -o "$TARBALL" "$URL"; \
+    echo "${EXPECTED_SHA}  ${TARBALL}" | sha256sum -c -; \
+    mkdir -p "$DEST" "$HOME/.local/bin"; \
+    tar -xzf "$TARBALL" -C "$DEST"; \
+    chmod 0755 "$DEST/bin/codex" "$DEST/codex-path/rg"; \
+    if [ -f "$DEST/codex-resources/bwrap" ]; then chmod 0755 "$DEST/codex-resources/bwrap"; fi; \
+    ln -sfn "$DEST/bin/codex" "$HOME/.local/bin/codex"; \
+    cd / && rm -rf "$WORK"; \
+    "$HOME/.local/bin/codex" --version
+USER root
+
 # tmux session-persistence plugins (resurrect + continuum), baked so there is no
 # runtime network fetch / TPM. Pinned to commits — tmux-resurrect publishes no
 # releases, so both are tracked by commit SHA (bump by hand). Loaded by

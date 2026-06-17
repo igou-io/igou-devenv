@@ -18,6 +18,7 @@ declare -A TOOLS=(
     [python3]="python3 --version"
     [claude]="claude --version"
     [opencode]="opencode --version"
+    [codex]="codex --version"
     [agent]="agent --version"
     [ansible]="ansible --version"
     [op]="op --version"
