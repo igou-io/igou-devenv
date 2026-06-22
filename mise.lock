@@ -205,11 +205,11 @@ backend = "aqua:bitnami-labs/sealed-secrets"
 
 [tools.kubeseal."platforms.linux-arm64"]
 checksum = "sha256:b25c791a91f7b1b2b4848e8efa6fc165ee985ef69a1f07a54972f33e69f1c648"
-url = "https://github.com/bitnami-labs/sealed-secrets/releases/download/v0.37.0/kubeseal-0.37.0-linux-arm64.tar.gz"
+url = "https://github.com/bitnami/sealed-secrets/releases/download/v0.37.0/kubeseal-0.37.0-linux-arm64.tar.gz"
 
 [tools.kubeseal."platforms.linux-x64"]
 checksum = "sha256:dd598209cc8b8398ce3234487609f5ba31f963a4547e8561f10739cb66a75262"
-url = "https://github.com/bitnami-labs/sealed-secrets/releases/download/v0.37.0/kubeseal-0.37.0-linux-amd64.tar.gz"
+url = "https://github.com/bitnami/sealed-secrets/releases/download/v0.37.0/kubeseal-0.37.0-linux-amd64.tar.gz"
 
 [[tools.kustomize]]
 version = "5.8.1"
