@@ -151,8 +151,9 @@ test-mise-lockfile:
 ## stale lock the mise-lockfile-check CI guard flags. Hosted Renovate (the Mend
 ## app) cannot run postUpgradeTasks, so it never regenerates the lockfile itself.
 ##
-## Uses a one-shot ghcr.io/jdx/mise container (nested podman) — run this inside
-## the devcontainer or in CI; mise need not be installed. Mise only writes
+## Uses a one-shot ghcr.io/jdx/mise container pinned to the same MISE_VERSION
+## as the Dockerfile — run this inside the devcontainer or in CI; mise need not
+## be installed. Mise only writes
 ## to mise.lock if the file already exists; we touch it before invoking.
 ## Stash the previous lockfile so a transient failure (e.g. GitHub API
 ## rate limit, network blip) doesn't wipe the committed mise.lock.
@@ -162,7 +163,8 @@ mise-lock:
 		exit 1; \
 	fi
 	@[ -f mise.lock ] && cp mise.lock mise.lock.bak || touch mise.lock
-	@if podman run --rm --entrypoint sh \
+	@MISE_IMAGE="ghcr.io/jdx/mise:$$(awk -F'"' '/^ARG MISE_VERSION/{print $$2; exit}' .devcontainer/Dockerfile | sed 's/^v//')"; \
+	if podman run --rm --entrypoint sh \
 		-v "$(CURDIR):/work" \
 		-v "$(CURDIR)/aqua-registry:/etc/mise/aqua-registry:ro" \
 		-w /work \
@@ -170,7 +172,7 @@ mise-lock:
 		-e MISE_TRUSTED_CONFIG_PATHS=/work \
 		-e MISE_LOCKED=0 \
 		-e GITHUB_TOKEN \
-		ghcr.io/jdx/mise:latest -c '\
+		"$$MISE_IMAGE" -c '\
 			rm -f /mise/config.toml; \
 			mise trust --quiet --all >/dev/null 2>&1 || true; \
 			mise install --yes \
