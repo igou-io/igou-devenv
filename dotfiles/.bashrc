@@ -172,11 +172,20 @@ PROMPT_COMMAND="_fix_ssh_auth_sock${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
 # Use unuse() to remove an environment's variables.
 _use_sanitize() { echo "${1//-/_}"; }
 
-# Clean up all temp kubeconfig files on shell exit
+# Clean up temp kubeconfig files on shell exit — but only for files this shell
+# created. The trap is registered in every interactive shell and _USE_TMPKUBE_*
+# vars are exported, so a short-lived child interactive shell would otherwise
+# delete a parent/sibling shell's still-in-use kubeconfig (issue #98). Each entry
+# records its creator's $BASHPID in _USE_TMPKUBE_OWNER_<name>; only the creating
+# shell deletes the file.
 _use_cleanup_all() {
-    local varname
+    local varname name owner_var
     while IFS='=' read -r varname _; do
-        [[ "$varname" == _USE_TMPKUBE_* ]] && rm -f "${!varname}"
+        [[ "$varname" == _USE_TMPKUBE_* ]] || continue
+        [[ "$varname" == _USE_TMPKUBE_OWNER_* ]] && continue
+        name="${varname#_USE_TMPKUBE_}"
+        owner_var="_USE_TMPKUBE_OWNER_${name}"
+        [ "${!owner_var:-}" = "$BASHPID" ] && rm -f "${!varname}"
     done < <(env)
 }
 trap _use_cleanup_all EXIT
@@ -278,6 +287,8 @@ KUBECFG
         export KUBECONFIG="$tmpkube"
         keys+=("KUBECONFIG")
         export "$tmpvar=$tmpkube"
+        # Record the creating shell so only it deletes the file on EXIT (issue #98)
+        export "_USE_TMPKUBE_OWNER_${safe_name}=$BASHPID"
     fi
 
     # Track which keys this env set (for unuse)
@@ -331,6 +342,7 @@ unuse() {
         rm -f "${!tmpvar}"
         unset "$tmpvar"
     fi
+    unset "_USE_TMPKUBE_OWNER_${safe_name}"
 
     # Update OP_ENV_LIST: remove this env
     local new_list="" env_name

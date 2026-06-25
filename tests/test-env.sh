@@ -420,6 +420,51 @@ else
 fi
 
 # =========================================================================
+#  Tests: EXIT-trap cleanup is owner-scoped (issue #98)
+# =========================================================================
+# A short-lived child interactive shell inherits exported _USE_TMPKUBE_* vars.
+# It must NOT delete a kubeconfig created by a different (parent/sibling) shell.
+# _use_cleanup_all deletes only files whose _USE_TMPKUBE_OWNER_<name> == $BASHPID.
+echo ""
+echo "==> Testing owner-scoped EXIT cleanup (issue #98)..."
+
+unset KUBECONFIG OP_ENV OP_ENV_LIST 2>/dev/null || true
+
+use with-kubeconfig > /dev/null 2>&1
+_owned_kube="$KUBECONFIG"
+
+# Sanity: owner var was recorded and points at this shell.
+if [ "${_USE_TMPKUBE_OWNER_with_kubeconfig:-}" = "$BASHPID" ]; then
+    ok "owner PID recorded for created kubeconfig"
+else
+    fail "owner PID recorded (got: ${_USE_TMPKUBE_OWNER_with_kubeconfig:-unset}, BASHPID=$BASHPID)"
+fi
+
+# Simulate a child interactive shell exiting: same inherited env, different
+# BASHPID. _use_cleanup_all must NOT delete the parent's file.
+( _use_cleanup_all ) # subshell → distinct $BASHPID, inherits exported vars
+if [ -f "$_owned_kube" ]; then
+    ok "child-shell EXIT does not delete sibling kubeconfig"
+else
+    fail "child-shell EXIT deleted sibling kubeconfig ($_owned_kube)"
+fi
+# KUBECONFIG still usable in this (owner) shell.
+if [ -f "$KUBECONFIG" ] && grep -q "apiVersion" "$KUBECONFIG" 2>/dev/null; then
+    ok "owner shell kubeconfig still valid after child exit"
+else
+    fail "owner shell kubeconfig still valid after child exit"
+fi
+
+# The owning shell's own cleanup DOES delete the file.
+_use_cleanup_all
+if [ ! -f "$_owned_kube" ]; then
+    ok "owner-shell EXIT deletes its own kubeconfig"
+else
+    fail "owner-shell EXIT deletes its own kubeconfig ($_owned_kube)"
+fi
+unuse with-kubeconfig > /dev/null 2>&1
+
+# =========================================================================
 #  Tests: k8s-unset
 # =========================================================================
 echo ""
