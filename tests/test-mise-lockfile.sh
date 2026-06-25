@@ -25,7 +25,7 @@ run_mise_dryrun() {
     # to proceed if any tool is missing a lockfile entry. That refusal is
     # exactly the assertion we want — if it succeeds, the lockfile is
     # fresh. We never actually install anything.
-    if command -v docker >/dev/null 2>&1; then
+    if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
         docker run --rm --entrypoint sh \
             -v "${WORK}:/work" \
             -v "${REPO}/aqua-registry:/etc/mise/aqua-registry:ro" \
