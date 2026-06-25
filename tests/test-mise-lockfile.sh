@@ -4,14 +4,18 @@
 # mise.toml. Catches "hand-edited mise.toml without regenerating lockfile"
 # at PR time, before the build step.
 #
-# Uses mise on PATH if available (it's installed in the devcontainer and on CI
-# runners); otherwise falls back to a one-shot podman/mise container (same
-# mechanism as `make mise-lock`, run inside the devcontainer or in CI).
+# Uses a one-shot ghcr.io/jdx/mise container pinned to the same MISE_VERSION as
+# the Dockerfile. Do not use arbitrary host mise here: lockfile format and
+# http-backend metadata have changed across mise releases, and this check must
+# match the version that builds the image.
 set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
+MISE_VERSION="$(awk -F'"' '/^ARG MISE_VERSION/{print $2; exit}' "${REPO}/.devcontainer/Dockerfile")"
+MISE_VERSION="${MISE_VERSION#v}"
+MISE_IMAGE="ghcr.io/jdx/mise:${MISE_VERSION}"
 
 cp "${REPO}/mise.toml" "${WORK}/mise.toml"
 cp "${REPO}/mise.lock" "${WORK}/mise.lock"
@@ -21,16 +25,20 @@ run_mise_dryrun() {
     # to proceed if any tool is missing a lockfile entry. That refusal is
     # exactly the assertion we want — if it succeeds, the lockfile is
     # fresh. We never actually install anything.
-    if command -v mise >/dev/null 2>&1; then
-        env -i HOME="$WORK" PATH="$PATH" \
-            MISE_GLOBAL_CONFIG_FILE="${WORK}/mise.toml" \
-            MISE_TRUSTED_CONFIG_PATHS="${WORK}" \
-            MISE_DATA_DIR="${WORK}/data" \
-            mise install --dry-run 2>&1
+    if command -v docker >/dev/null 2>&1; then
+        docker run --rm --entrypoint sh \
+            -v "${WORK}:/work" \
+            -v "${REPO}/aqua-registry:/etc/mise/aqua-registry:ro" \
+            -w /work \
+            -e MISE_GLOBAL_CONFIG_FILE=/work/mise.toml \
+            -e MISE_TRUSTED_CONFIG_PATHS=/work \
+            -e GITHUB_TOKEN \
+            "${MISE_IMAGE}" -c '
+                rm -f /mise/config.toml
+                mise trust --quiet --all >/dev/null 2>&1 || true
+                mise install --dry-run
+            ' 2>&1
     elif command -v podman >/dev/null 2>&1; then
-        # Same trick as `make mise-lock`: run mise inside a container.
-        # Remove the image's baked-in /mise/config.toml so it does not
-        # collide with ours.
         podman run --rm --entrypoint sh \
             -v "${WORK}:/work" \
             -v "${REPO}/aqua-registry:/etc/mise/aqua-registry:ro" \
@@ -38,7 +46,7 @@ run_mise_dryrun() {
             -e MISE_GLOBAL_CONFIG_FILE=/work/mise.toml \
             -e MISE_TRUSTED_CONFIG_PATHS=/work \
             -e GITHUB_TOKEN \
-            ghcr.io/jdx/mise:latest -c '
+            "${MISE_IMAGE}" -c '
                 rm -f /mise/config.toml
                 mise trust --quiet --all >/dev/null 2>&1 || true
                 mise install --dry-run
@@ -48,11 +56,13 @@ run_mise_dryrun() {
     fi
 }
 
+set +e
 OUTPUT="$(run_mise_dryrun)"
 RC=$?
+set -e
 
 if [ "$OUTPUT" = "__SKIP__" ]; then
-    echo "[skip] neither mise nor podman on PATH; cannot verify lockfile freshness"
+    echo "[skip] neither docker nor podman on PATH; cannot verify lockfile freshness with ${MISE_IMAGE}"
     exit 0
 fi
 
