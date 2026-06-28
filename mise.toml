@@ -40,9 +40,9 @@ registry_url = "https://github.com/aquaproj/aqua-registry"
 kubectl = "1.36.2"
 
 # Task 2.1 — SHA256-verified tools (aqua-registry per-tool checksums.txt).
-gh = "2.94.0"
+gh = "2.95.0"
 kustomize = "5.8.1"
-kubeseal = "0.37.0"
+kubeseal = "0.38.1"
 kubeconform = "0.8.0"
 kind = "0.32.0"
 act = "0.2.89"
@@ -57,14 +57,14 @@ age = "1.3.1"
 # `locked = true` rejects it. Using aqua-registry's nodejs/node entry instead;
 # upstream provides no SHASUMS in the aqua definition, so mise falls back to
 # blake3 TOFU (strictly better than the prior unverified `curl | tar`).
-"aqua:nodejs/node" = "26.3.0"
+"aqua:nodejs/node" = "26.3.1"
 
 # Task 2.2 — cosign-keyless-verified tools.
 flux2 = "2.8.8"
 sops = "3.13.1"
 
 # Task 2.4 — SLSA-verified tools.
-argocd = "3.4.3"
+argocd = "3.4.4"
 
 # Task 2.3 / follow-up — GPG-verified tools. aqua-registry's mise install path
 # records only sha256 for helm + terraform (no GPG step), so the previous
@@ -77,7 +77,7 @@ argocd = "3.4.3"
 # references gpg, so the script can't be silently dropped on a future bump.
 
 [tools.helm]
-version = "4.2.1"
+version = "4.2.2"
 postinstall = "/etc/mise/aqua-registry/helm-postinstall.sh"
 
 [tools.terraform]
