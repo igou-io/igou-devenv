@@ -4,67 +4,27 @@
 # mise.toml. Catches "hand-edited mise.toml without regenerating lockfile"
 # at PR time, before the build step.
 #
-# Uses a one-shot ghcr.io/jdx/mise container pinned to the same MISE_VERSION as
-# the Dockerfile. Do not use arbitrary host mise here: lockfile format and
-# http-backend metadata have changed across mise releases, and this check must
-# match the version that builds the image.
+# Uses the same MISE_VERSION as the Dockerfile. Do not use arbitrary host mise
+# here: lockfile format and http-backend metadata have changed across mise
+# releases, and this check must match the version that builds the image.
 set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
-WORK="$(mktemp -d)"
-trap 'rm -rf "$WORK"' EXIT
 MISE_VERSION="$(awk -F'"' '/^ARG MISE_VERSION/{print $2; exit}' "${REPO}/.devcontainer/Dockerfile")"
 MISE_VERSION="${MISE_VERSION#v}"
-MISE_IMAGE="ghcr.io/jdx/mise:${MISE_VERSION}"
-
-cp "${REPO}/mise.toml" "${WORK}/mise.toml"
-cp "${REPO}/mise.lock" "${WORK}/mise.lock"
 
 run_mise_dryrun() {
     # `mise install --dry-run` with locked=true (set in mise.toml) refuses
     # to proceed if any tool is missing a lockfile entry. That refusal is
     # exactly the assertion we want — if it succeeds, the lockfile is
     # fresh. We never actually install anything.
-    if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
-        docker run --rm --entrypoint sh \
-            -v "${WORK}:/work" \
-            -v "${REPO}/aqua-registry:/etc/mise/aqua-registry:ro" \
-            -w /work \
-            -e MISE_GLOBAL_CONFIG_FILE=/work/mise.toml \
-            -e MISE_TRUSTED_CONFIG_PATHS=/work \
-            -e GITHUB_TOKEN \
-            "${MISE_IMAGE}" -c '
-                rm -f /mise/config.toml
-                mise trust --quiet --all >/dev/null 2>&1 || true
-                mise install --dry-run
-            ' 2>&1
-    elif command -v podman >/dev/null 2>&1; then
-        podman run --rm --entrypoint sh \
-            -v "${WORK}:/work" \
-            -v "${REPO}/aqua-registry:/etc/mise/aqua-registry:ro" \
-            -w /work \
-            -e MISE_GLOBAL_CONFIG_FILE=/work/mise.toml \
-            -e MISE_TRUSTED_CONFIG_PATHS=/work \
-            -e GITHUB_TOKEN \
-            "${MISE_IMAGE}" -c '
-                rm -f /mise/config.toml
-                mise trust --quiet --all >/dev/null 2>&1 || true
-                mise install --dry-run
-            ' 2>&1
-    else
-        echo "__SKIP__"
-    fi
+    "${REPO}/bin/run-pinned-mise" mise install --dry-run 2>&1
 }
 
 set +e
 OUTPUT="$(run_mise_dryrun)"
 RC=$?
 set -e
-
-if [ "$OUTPUT" = "__SKIP__" ]; then
-    echo "[skip] neither docker nor podman on PATH; cannot verify lockfile freshness with ${MISE_IMAGE}"
-    exit 0
-fi
 
 if [ $RC -eq 0 ]; then
     echo "[OK] mise.lock is in sync with mise.toml"

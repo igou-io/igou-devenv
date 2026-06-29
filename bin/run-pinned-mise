@@ -1,0 +1,100 @@
+#!/usr/bin/env bash
+# Run the mise version pinned in .devcontainer/Dockerfile.
+#
+# Prefer an already-installed matching mise (the normal path inside the built
+# devcontainer). If the host does not have that exact version, bootstrap it in a
+# throwaway CentOS container using the same GPG-signed checksums trust anchor as
+# the Dockerfile. This avoids relying on ghcr.io/jdx/mise publishing a helper
+# image for every release tag.
+set -euo pipefail
+
+REPO="$(cd "$(dirname "$0")/.." && pwd)"
+DOCKERFILE="${REPO}/.devcontainer/Dockerfile"
+
+MISE_VERSION="$(awk -F'"' '/^ARG MISE_VERSION/{print $2; exit}' "$DOCKERFILE")"
+MISE_GPG_FPR="$(awk -F'"' '/^ARG MISE_GPG_FPR/{print $2; exit}' "$DOCKERFILE")"
+MISE_GPG_URL="$(awk -F'"' '/^ARG MISE_GPG_URL/{print $2; exit}' "$DOCKERFILE")"
+MISE_VERSION_NO_V="${MISE_VERSION#v}"
+
+if [ "$#" -eq 0 ]; then
+    echo "usage: bin/run-pinned-mise <command> [args...]" >&2
+    exit 2
+fi
+
+if command -v mise >/dev/null 2>&1; then
+    installed="$(mise --version 2>/dev/null | awk '{print $1}' || true)"
+    if [ "$installed" = "$MISE_VERSION_NO_V" ]; then
+        cd "$REPO"
+        export MISE_GLOBAL_CONFIG_FILE="${REPO}/mise.toml"
+        export MISE_TRUSTED_CONFIG_PATHS="${REPO}"
+        mise trust --quiet --all >/dev/null 2>&1 || true
+        exec "$@"
+    fi
+fi
+
+if command -v podman >/dev/null 2>&1; then
+    ENGINE=podman
+elif command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+    ENGINE=docker
+else
+    echo "Neither matching local mise (${MISE_VERSION_NO_V}) nor podman/docker is available." >&2
+    exit 1
+fi
+
+"$ENGINE" run --rm -i --entrypoint bash \
+    -v "${REPO}:/work" \
+    -w /work \
+    -e GITHUB_TOKEN \
+    -e MISE_LOCKED \
+    -e MISE_VERSION="${MISE_VERSION}" \
+    -e MISE_GPG_FPR="${MISE_GPG_FPR}" \
+    -e MISE_GPG_URL="${MISE_GPG_URL}" \
+    quay.io/centos/centos:stream10 \
+    -s -- "$@" <<'EOF'
+set -euo pipefail
+
+dnf install -y ca-certificates curl findutils gnupg2 gzip tar xz >/dev/null
+
+ARCH_RAW="$(uname -m)"
+case "$ARCH_RAW" in
+  x86_64)  ARCH="x64" ;;
+  aarch64) ARCH="arm64" ;;
+  *) echo "Unsupported arch: $ARCH_RAW" >&2; exit 1 ;;
+esac
+
+TARBALL="mise-${MISE_VERSION}-linux-${ARCH}.tar.gz"
+BASE="https://github.com/jdx/mise/releases/download/${MISE_VERSION}"
+WORK="$(mktemp -d)"
+trap 'rm -rf "$WORK"' EXIT
+
+export GNUPGHOME="${WORK}/gnupg"
+mkdir -p -m 0700 "$GNUPGHOME"
+cd "$WORK"
+
+curl -fsSL -o key.asc "${MISE_GPG_URL}"
+gpg --batch --import key.asc >/dev/null 2>&1
+gpg --list-keys --with-colons --with-fingerprint \
+  | awk -F: '$1=="fpr"{print $10}' \
+  | grep -qFx "${MISE_GPG_FPR}"
+
+curl -fsSL -o "$TARBALL" "${BASE}/${TARBALL}"
+curl -fsSL -o SHASUMS256.asc "${BASE}/SHASUMS256.asc"
+gpg --batch --status-fd 1 --verify SHASUMS256.asc 2>/dev/null \
+  | grep -qF "VALIDSIG ${MISE_GPG_FPR}"
+gpg --batch --decrypt SHASUMS256.asc 2>/dev/null \
+  | awk -v f="./${TARBALL}" '$2==f{print $1"  "f}' \
+  | sha256sum -c -
+
+tar -xz --strip-components=2 -C /usr/local/bin -f "$TARBALL" mise/bin/mise
+chmod +x /usr/local/bin/mise
+
+cd /work
+export PATH="/usr/local/bin:${PATH}"
+export MISE_GLOBAL_CONFIG_FILE=/work/mise.toml
+export MISE_TRUSTED_CONFIG_PATHS=/work
+mkdir -p /etc/mise
+ln -sfn /work/aqua-registry /etc/mise/aqua-registry
+rm -f /mise/config.toml 2>/dev/null || true
+mise trust --quiet --all >/dev/null 2>&1 || true
+exec "$@"
+EOF

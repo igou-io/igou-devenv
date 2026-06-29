@@ -155,32 +155,15 @@ test-mise-lockfile:
 ## stale lock the mise-lockfile-check CI guard flags. Hosted Renovate (the Mend
 ## app) cannot run postUpgradeTasks, so it never regenerates the lockfile itself.
 ##
-## Uses a one-shot ghcr.io/jdx/mise container pinned to the same MISE_VERSION
-## as the Dockerfile — run this inside the devcontainer or in CI; mise need not
-## be installed. Mise only writes
-## to mise.lock if the file already exists; we touch it before invoking.
+## Uses the same MISE_VERSION as the Dockerfile. If that exact mise is not
+## installed locally, bin/run-pinned-mise bootstraps it in a throwaway CentOS
+## container via GPG-signed upstream checksums. Mise only writes to mise.lock if
+## the file already exists; we touch it before invoking.
 ## Stash the previous lockfile so a transient failure (e.g. GitHub API
 ## rate limit, network blip) doesn't wipe the committed mise.lock.
 mise-lock:
-	@if ! command -v podman >/dev/null 2>&1; then \
-		echo "podman not on PATH. Run this inside the devcontainer (make shell) or in CI."; \
-		exit 1; \
-	fi
 	@[ -f mise.lock ] && cp mise.lock mise.lock.bak || touch mise.lock
-	@MISE_IMAGE="ghcr.io/jdx/mise:$$(awk -F'"' '/^ARG MISE_VERSION/{print $$2; exit}' .devcontainer/Dockerfile | sed 's/^v//')"; \
-	if podman run --rm --entrypoint sh \
-		-v "$(CURDIR):/work" \
-		-v "$(CURDIR)/aqua-registry:/etc/mise/aqua-registry:ro" \
-		-w /work \
-		-e MISE_GLOBAL_CONFIG_FILE=/work/mise.toml \
-		-e MISE_TRUSTED_CONFIG_PATHS=/work \
-		-e MISE_LOCKED=0 \
-		-e GITHUB_TOKEN \
-		"$$MISE_IMAGE" -c '\
-			rm -f /mise/config.toml; \
-			mise trust --quiet --all >/dev/null 2>&1 || true; \
-			mise install --yes \
-		' && [ -s mise.lock ]; then \
+	@if MISE_LOCKED=0 "$(CURDIR)/bin/run-pinned-mise" mise install --yes && [ -s mise.lock ]; then \
 		rm -f mise.lock.bak; \
 		echo "mise.lock regenerated. Commit both mise.toml and mise.lock together."; \
 	else \
