@@ -1,0 +1,379 @@
+#!/usr/bin/env bash
+# Manage namespace-local RoleBindings for a ServiceAccount (binding-only; never
+# creates ServiceAccounts, Roles, ClusterRoles, or ClusterRoleBindings).
+#
+# Usage:
+#   sa-rbac add <serviceaccount-name> <role-name> [flags]
+#   sa-rbac delete <serviceaccount-name> <role-name> [flags]
+#   sa-rbac audit <serviceaccount-name> [flags]
+set -euo pipefail
+
+COMMAND="${1:-}"
+shift || true
+
+SA_NAMESPACE="service-accounts"
+SA_NAME=""
+ROLE_KIND="ClusterRole"
+ROLE_NAME=""
+BINDING_NAME=""
+TARGET_NAMESPACES=("service-accounts")
+YES="false"
+
+usage() {
+  cat <<EOF
+Usage:
+  sa-rbac add <serviceaccount-name> <role-name> [flags]
+  sa-rbac delete <serviceaccount-name> <role-name> [flags]
+  sa-rbac audit <serviceaccount-name> [flags]
+
+Commands:
+  add       Create namespace-local RoleBindings
+  delete    Delete namespace-local RoleBindings
+  audit     Audit bindings and effective permissions
+
+Positional arguments:
+  serviceaccount-name             Required for add/delete/audit
+  role-name                       Required for add/delete
+
+Flags:
+  --sa-namespace <namespace>       Default: service-accounts
+  --target-namespaces <csv>        Default: service-accounts
+  --role-kind <Role|ClusterRole>   Default: ClusterRole; used by add/delete
+  --binding-name <name>            Default: <serviceaccount-name>-<role-name>; used by add/delete
+  --yes                            Required for add/delete
+  -h, --help                       Show help
+EOF
+}
+
+parse_positionals() {
+  case "$COMMAND" in
+    add|delete)
+      SA_NAME="${1:-}"
+      ROLE_NAME="${2:-}"
+      shift 2 || true
+      ;;
+    audit)
+      SA_NAME="${1:-}"
+      shift || true
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    "")
+      usage
+      exit 1
+      ;;
+    *)
+      echo "ERROR: Unsupported command: $COMMAND" >&2
+      usage
+      exit 1
+      ;;
+  esac
+
+  REMAINING_ARGS=("$@")
+}
+
+parse_flags() {
+  set -- "${REMAINING_ARGS[@]}"
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --sa-namespace)
+        SA_NAMESPACE="$2"
+        shift 2
+        ;;
+      --target-namespaces)
+        IFS=',' read -r -a TARGET_NAMESPACES <<< "$2"
+        shift 2
+        ;;
+      --role-kind)
+        ROLE_KIND="$2"
+        shift 2
+        ;;
+      --binding-name)
+        BINDING_NAME="$2"
+        shift 2
+        ;;
+      --yes)
+        YES="true"
+        shift
+        ;;
+      -h|--help)
+        usage
+        exit 0
+        ;;
+      *)
+        echo "ERROR: Unknown argument: $1" >&2
+        usage
+        exit 1
+        ;;
+    esac
+  done
+
+  if [[ -z "$BINDING_NAME" && -n "$SA_NAME" && -n "$ROLE_NAME" ]]; then
+    BINDING_NAME="${SA_NAME}-${ROLE_NAME}"
+  fi
+}
+
+validate_args() {
+  case "$COMMAND" in
+    add|delete|audit)
+      ;;
+    *)
+      echo "ERROR: Unsupported command: $COMMAND" >&2
+      usage
+      exit 1
+      ;;
+  esac
+
+  if [[ -z "$SA_NAME" ]]; then
+    echo "ERROR: serviceaccount-name is required" >&2
+    usage
+    exit 1
+  fi
+
+  if [[ "$COMMAND" == "add" || "$COMMAND" == "delete" ]]; then
+    if [[ -z "$ROLE_NAME" ]]; then
+      echo "ERROR: role-name is required for $COMMAND" >&2
+      usage
+      exit 1
+    fi
+  fi
+
+  case "$ROLE_KIND" in
+    Role|ClusterRole)
+      ;;
+    *)
+      echo "ERROR: --role-kind must be Role or ClusterRole" >&2
+      exit 1
+      ;;
+  esac
+
+  if [[ "${#TARGET_NAMESPACES[@]}" -eq 0 ]]; then
+    echo "ERROR: At least one target namespace is required" >&2
+    exit 1
+  fi
+}
+
+require_tools() {
+  command -v oc >/dev/null || {
+    echo "ERROR: oc is required" >&2
+    exit 1
+  }
+
+  if [[ "$COMMAND" == "audit" ]]; then
+    command -v jq >/dev/null || {
+      echo "ERROR: jq is required for audit" >&2
+      exit 1
+    }
+  fi
+}
+
+require_yes_for_mutation() {
+  if [[ "$YES" != "true" ]]; then
+    echo "ERROR: $COMMAND changes the cluster. Re-run with --yes." >&2
+    exit 1
+  fi
+}
+
+print_context() {
+  echo "OpenShift user:     $(oc whoami)"
+  echo "OpenShift context:  $(oc config current-context)"
+  echo "ServiceAccount:    system:serviceaccount:${SA_NAMESPACE}:${SA_NAME}"
+  echo "Target namespaces: ${TARGET_NAMESPACES[*]}"
+
+  if [[ "$COMMAND" == "add" || "$COMMAND" == "delete" ]]; then
+    echo "Role kind:         ${ROLE_KIND}"
+    echo "Role name:         ${ROLE_NAME}"
+    echo "Binding name:      ${BINDING_NAME}"
+  fi
+}
+
+ensure_namespace_exists() {
+  local namespace="$1"
+  oc get namespace "$namespace" >/dev/null
+}
+
+ensure_service_account_exists() {
+  ensure_namespace_exists "$SA_NAMESPACE"
+  oc -n "$SA_NAMESPACE" get serviceaccount "$SA_NAME" >/dev/null
+}
+
+ensure_referenced_role_exists() {
+  local namespace="$1"
+
+  if [[ "$ROLE_KIND" == "ClusterRole" ]]; then
+    oc get clusterrole "$ROLE_NAME" >/dev/null
+  else
+    oc -n "$namespace" get role "$ROLE_NAME" >/dev/null
+  fi
+}
+
+render_rolebinding() {
+  local namespace="$1"
+
+  cat <<EOF
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ${BINDING_NAME}
+  namespace: ${namespace}
+subjects:
+- kind: ServiceAccount
+  name: ${SA_NAME}
+  namespace: ${SA_NAMESPACE}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ${ROLE_KIND}
+  name: ${ROLE_NAME}
+EOF
+}
+
+print_binding_rows() {
+  local scope="$1"
+  local json
+  json="$(cat)"
+
+  jq -r --arg scope "$scope" --arg sa "$SA_NAME" --arg sans "$SA_NAMESPACE" '
+    [.items[]
+      | select(any(.subjects[]?;
+          .kind == "ServiceAccount"
+          and .name == $sa
+          and ((.namespace // "") == $sans)
+        ))
+      | {
+          scope: $scope,
+          namespace: (.metadata.namespace // "CLUSTER"),
+          binding: .metadata.name,
+          role_kind: .roleRef.kind,
+          role_name: .roleRef.name
+        }
+    ]
+    | if length == 0 then
+        empty
+      else
+        (["SCOPE", "NAMESPACE", "BINDING", "ROLE_KIND", "ROLE_NAME"] | @tsv),
+        (.[] | [.scope, .namespace, .binding, .role_kind, .role_name] | @tsv)
+      end
+  ' <<<"$json"
+}
+
+cmd_add() {
+  require_yes_for_mutation
+  print_context
+
+  echo
+  echo "Validating ServiceAccount exists..."
+  ensure_service_account_exists
+
+  for namespace in "${TARGET_NAMESPACES[@]}"; do
+    echo
+    echo "Validating namespace and referenced ${ROLE_KIND} for ${namespace}..."
+    ensure_namespace_exists "$namespace"
+    ensure_referenced_role_exists "$namespace"
+
+    echo "Applying RoleBinding/${BINDING_NAME} in namespace ${namespace}..."
+    render_rolebinding "$namespace" | oc apply -f -
+  done
+}
+
+cmd_delete() {
+  require_yes_for_mutation
+  print_context
+
+  for namespace in "${TARGET_NAMESPACES[@]}"; do
+    echo
+    echo "Deleting RoleBinding/${BINDING_NAME} in namespace ${namespace}..."
+    oc -n "$namespace" delete rolebinding "$BINDING_NAME" --ignore-not-found
+  done
+}
+
+cmd_audit() {
+  print_context
+
+  local sa_user="system:serviceaccount:${SA_NAMESPACE}:${SA_NAME}"
+  local found_bindings=false
+
+  echo
+  echo "### Bound Roles and ClusterRoles"
+
+  for namespace in "${TARGET_NAMESPACES[@]}"; do
+    echo
+    echo "Namespace: ${namespace}"
+
+    local rows
+    rows="$(
+      oc get rolebindings.rbac.authorization.k8s.io -n "$namespace" -o json \
+        | print_binding_rows "RoleBinding"
+    )"
+
+    if [[ -n "$rows" ]]; then
+      found_bindings=true
+      printf '%s\n' "$rows" | column -t -s $'\t'
+    else
+      echo "(no RoleBindings found)"
+    fi
+  done
+
+  echo
+  echo "Cluster-scoped bindings:"
+
+  local cluster_rows
+  cluster_rows="$(
+    oc get clusterrolebindings.rbac.authorization.k8s.io -o json \
+      | print_binding_rows "ClusterRoleBinding"
+  )"
+
+  if [[ -n "$cluster_rows" ]]; then
+    found_bindings=true
+    printf '%s\n' "$cluster_rows" | column -t -s $'\t'
+  else
+    echo "(no ClusterRoleBindings found)"
+  fi
+
+  if [[ "$found_bindings" == "false" ]]; then
+    echo
+    echo "No RoleBindings or ClusterRoleBindings reference ${sa_user}."
+  fi
+
+  echo
+  echo "### Effective permissions by namespace (oc auth can-i --list)"
+
+  for namespace in "${TARGET_NAMESPACES[@]}"; do
+    echo
+    echo "Namespace: ${namespace}"
+    oc auth can-i --as="$sa_user" --list -n "$namespace"
+  done
+
+  echo
+  echo "### Cluster-scoped negative checks (oc auth can-i)"
+
+  for check in \
+    "create namespaces" \
+    "create clusterroles.rbac.authorization.k8s.io" \
+    "create clusterrolebindings.rbac.authorization.k8s.io" \
+    "get nodes"
+  do
+    # shellcheck disable=SC2086
+    result="$(oc auth can-i --as="$sa_user" $check || true)"
+    printf "%-65s %s\n" "$check" "$result"
+  done
+}
+
+parse_positionals "$@"
+parse_flags
+validate_args
+require_tools
+
+case "$COMMAND" in
+  add)
+    cmd_add
+    ;;
+  delete)
+    cmd_delete
+    ;;
+  audit)
+    cmd_audit
+    ;;
+esac
