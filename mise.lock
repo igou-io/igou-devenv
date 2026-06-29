@@ -34,6 +34,7 @@ backend = "aqua:nodejs/node"
 url = "https://nodejs.org/dist/v26.3.1/node-v26.3.1-linux-arm64.tar.gz"
 
 [tools."aqua:nodejs/node"."platforms.linux-x64"]
+checksum = "blake3:5519579833300ba2ed026ec332bde2bea96e452762872bf9355163a3a3beb16c"
 url = "https://nodejs.org/dist/v26.3.1/node-v26.3.1-linux-x64.tar.gz"
 
 [[tools."aqua:tektoncd/pipelines-as-code"]]
