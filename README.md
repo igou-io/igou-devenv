@@ -4,6 +4,22 @@ Reproducible development environment for homelab infrastructure work.
 Runs as a devcontainer via Cursor or the `devcontainer` CLI, with SSH agent
 forwarding.
 
+## Execution Models
+
+This repo has multiple execution models with different capabilities:
+
+- local full devcontainer via Cursor Dev Containers or `make up`
+- lightweight published-image path via `make run`
+- local wrapper-launched agent containers via `claude-run`, `cursor-run`, and
+  `opencode-run`
+- Hermes docker-terminal containers
+- CI/build containers
+
+Do not assume those models share privilege, persistence, nested Podman, Docker
+socket access, `/dev` mounts, credential handling, or sandbox support. See
+[docs/execution-models.md](docs/execution-models.md) and [AGENTS.md](AGENTS.md)
+before making runtime capability claims.
+
 ## What's Inside
 
 **Kubernetes:** kubectl, helm, kustomize, ArgoCD CLI, kubeseal, flux, virtctl,
@@ -16,8 +32,9 @@ ansible-runner, ansible-lint
 
 **OpenShift:** oc CLI
 
-**Container Tooling:** podman, buildah, skopeo (native in container, runs
-privileged for nested container support), Docker CLI (via host socket)
+**Container Tooling:** podman, buildah, skopeo in the local full devcontainer
+(which runs privileged for nested container support), Docker CLI via host socket
+in that same full devcontainer path
 
 **CI/CD:** GitHub CLI, act (local GitHub Actions)
 
@@ -34,7 +51,7 @@ opencode (`opencode`) — each pinned + cryptographically verified at build time
 ### How Tools Are Installed
 
 CLI tooling is split across four layers, each with its own version-pinning
-mechanism. See [CLAUDE.md](CLAUDE.md) for the per-layer Renovate strategy.
+mechanism. See [AGENTS.md](AGENTS.md) for the per-layer Renovate strategy.
 
 | Layer | What | Where to add |
 |---|---|---|
@@ -138,11 +155,13 @@ docker run --rm -it --user igou \
   code-server --bind-addr 0.0.0.0:8080 /workspace
 ```
 
-This is a lightweight, **ephemeral** path — code-server settings/extensions and
-the password are not persisted. For the full, persistent environment (always-on
-code-server, SSH agent, 1Password, kubeconfig, nested containers (podman), libvirt) use the
-devcontainer via `make up` or Cursor. Pin a `:YYYY.MM.DD` tag for reproducibility;
-`:latest` tracks the most recent green build on `main`.
+This is a lightweight, **ephemeral** path: code-server settings/extensions and
+the password are not persisted. It also does not imply the same privileged
+runtime, lifecycle hooks, host config mounts, Docker socket, `/dev` bind mount,
+or nested Podman/buildah capability as the full devcontainer. For the full,
+persistent environment (always-on code-server, SSH agent, 1Password, kubeconfig,
+nested Podman/buildah, libvirt) use `make up` or Cursor. Pin a `:YYYY.MM.DD` tag
+for reproducibility; `:latest` tracks the most recent green build on `main`.
 
 ### After First Build
 
@@ -178,10 +197,10 @@ for full details.
 
 ```bash
 use                     # list available environments
-use ocp-hub             # activate OpenShift hub (spawns subshell with secrets)
+use ocp-hub             # activate OpenShift hub in the current shell
 use ansible             # stack Ansible vault on top
-exit                    # back to ocp-hub
-exit                    # back to clean shell
+unuse ansible           # remove Ansible vault environment
+unuse ocp-hub           # back to clean shell
 
 k8s-unset               # clear KUBECONFIG and K8S_AUTH_* vars
 ```
@@ -202,6 +221,7 @@ secrets are stored in the repo.
 | `make exec CMD="..."` | Run a one-off command in the container |
 | `make test` | Run all tests (alias for `test-all`) |
 | `make test-tools` | Verify CLI tools, Python packages, and user config |
+| `make test-sandbox-primitives` | Diagnostic user-namespace and bubblewrap smoke test; runtime failures are non-fatal unless `REQUIRE_SANDBOX_PRIMITIVES=true` |
 | `make test-podman` | Test podman pull, run, and build |
 | `make test-env` | Test environment switching functions |
 | `make test-mise` | Audit mise-managed tools' verification methods against `tests/mise-expected-verification.toml` |
@@ -214,18 +234,25 @@ secrets are stored in the repo.
 | `make opencode-build` | Build the opencode container image from `../igou-containers/apps/opencode/` |
 | `make e2e` | Full end-to-end: rebuild devcontainer + run all tests |
 
-Agent-container images (Claude, Cursor, opencode) are built and published by
-[`igou-containers`](https://github.com/igou-io/igou-containers), not this repo.
-The `claude-run` / `cursor-run` / `opencode-run` launcher scripts in `bin/`
-pull and run those images.
+Local agent-container images (Claude, Cursor, opencode) are built and published
+by [`igou-containers`](https://github.com/igou-io/igou-containers), not this
+repo. The `claude-run`, `cursor-run`, and `opencode-run` launcher scripts in
+`bin/` pull and run those images from the local full devcontainer or another
+environment with working rootless Podman.
 
 ## Agent Containers (Claude, Cursor, opencode)
 
-Three hardened UBI10-based images for running coding-agent sessions against
-infrastructure repos, each launched from inside the devcontainer with
-selective per-session credential injection. **Built and published by
-[`igou-containers`](https://github.com/igou-io/igou-containers); this repo
-just ships the launcher scripts and the `bin/` entry points.**
+These are local-development convenience wrappers launched from the full
+devcontainer. They are not the Hermes execution model.
+
+The wrapped UBI10-based images run coding-agent sessions against infrastructure
+repos with selective per-session credential injection. **Images are built and
+published by [`igou-containers`](https://github.com/igou-io/igou-containers);
+this repo ships only the launcher scripts and `bin/` entry points.**
+
+Hermes uses its docker-terminal setting to enter a configured rootless Podman
+container. Do not assume Hermes uses these wrappers unless someone explicitly
+wires Hermes to call them and verifies that path.
 
 ### Usage
 
@@ -246,12 +273,13 @@ container never has direct access to 1Password.
 
 ### Differences from the devcontainer
 
-| | Devcontainer | Agent containers |
+| | Local full devcontainer | Local wrapper-launched agent containers |
 |---|---|---|
 | Base image | CentOS Stream 10 | UBI10 (`ubi-micro` for Claude, `ubi-minimal` for Cursor/opencode) |
 | Container engine inside | podman, buildah, skopeo, Docker CLI | None (no nested containers) |
 | Privileged mode | Yes (for nested podman) | No (rootless via `--userns=keep-id`) |
-| Hardening | None (general-purpose) | `--cap-drop=ALL`, noexec `/tmp`, bubblewrap + seccomp sandbox |
+| Hardening | General-purpose trusted workstation container; not a sandbox | Wrapper flags such as `--cap-drop=ALL` and noexec `/tmp`; tool-specific sandboxing only where that tool supports it and runtime tests pass |
+| OpenCode isolation | Outer container only | OpenCode permissions are UX guardrails, not OS isolation |
 | Launched via | Cursor / `make up` | `claude-run` / `cursor-run` / `opencode-run` from inside devcontainer |
 
 ### opencode-specific: pointing at the local Qwen endpoint
@@ -325,8 +353,8 @@ The shell prompt auto-heals stale SSH agent sockets on every prompt via
 
 ## Container Tooling
 
-The container runs in `--privileged` mode, enabling podman to run containers
-natively inside:
+The local full devcontainer runs in `--privileged` mode, enabling podman to run
+containers natively inside that specific model:
 
 ```bash
 podman build -t myimage .
@@ -335,8 +363,10 @@ buildah bud -t myimage .
 ```
 
 Podman is configured with `fuse-overlayfs` for storage and `slirp4netns` for
-rootless networking. Docker CLI is also available via the host socket
-(docker-outside-of-docker Feature).
+rootless networking in the full devcontainer. Docker CLI is also available there
+via the host socket (docker-outside-of-docker Feature). Do not infer nested
+Podman, host Docker socket access, or `/dev` access for `make run`, Hermes, CI,
+or wrapper-launched agent containers without testing that exact runtime.
 
 ## Browser IDE (code-server)
 
@@ -430,6 +460,10 @@ GitHub Actions builds the devcontainer on every push and PR to `main` using
 the full image (Dockerfile + Features + lifecycle hooks) and runs the full
 test suite (`tests/run-all.sh`) inside the container.
 
+CI should hard-fail when required packages or commands are missing. Runtime
+namespace and bubblewrap capability checks are diagnostic by default because CI
+does not necessarily provide those kernel/runtime capabilities.
+
 ## Customization
 
 ### Adding Tools
@@ -440,6 +474,10 @@ test suite (`tests/run-all.sh`) inside the container.
 - **Binaries not in aqua-registry that need custom verification logic** (Claude Code, Cursor agent, opencode pattern) → add a dedicated `ARG <NAME>_VERSION` + `RUN` block in `.devcontainer/Dockerfile` with a `# renovate:` comment. Keep these rare — prefer mise's `http:` backend when possible.
 - **Custom scripts** → add to `bin/` (symlinked to `~/bin`, on PATH)
 - **Cursor extensions** → add to `customizations.vscode.extensions` in `devcontainer.json`
+
+Hermes dependencies must be added to the image Hermes actually enters. Patching
+only the local wrapper-launched agent images, or only these wrapper scripts, does
+not make that dependency available to Hermes.
 
 ### 1Password Integration
 

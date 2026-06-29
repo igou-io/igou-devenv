@@ -22,6 +22,7 @@ RUN dnf install -y epel-release && \
 #   adb (android-tools), iozone3, arp-scan
 # yamllint installed via pip (ansible-lint dependency) — EPEL build is broken on CS10
 RUN dnf install -y \
+    bubblewrap \
     git \
     wget \
     curl \
@@ -45,6 +46,7 @@ RUN dnf install -y \
     tree \
     p7zip \
     p7zip-plugins \
+    procps-ng \
     openssh-clients \
     iputils \
     libatomic \
@@ -61,10 +63,12 @@ RUN dnf install -y \
     iperf3 \
     minicom \
     rsync \
+    ripgrep \
     screen \
     tmux \
     tftp \
     unzip \
+    util-linux \
     vim-enhanced \
     xorriso \
     fping \
