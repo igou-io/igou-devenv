@@ -6,7 +6,7 @@ SSH_MOUNT = $(shell [ -S "$$SSH_AUTH_SOCK" ] && echo '--mount type=bind,source=$
 
 .DEFAULT_GOAL := help
 
-.PHONY: build up up-release down restart exec shell run test test-all test-tools test-podman test-env test-mise test-mise-lockfile test-qemu clean rebuild help renovate-validate renovate-dry-run sbom sbom-devcontainer e2e opencode-build mise-lock release release-dry-run release-prepare release-watch
+.PHONY: build up up-release down restart exec shell run test test-all test-tools test-sandbox-primitives test-podman test-env test-mise test-mise-lockfile test-qemu clean rebuild help renovate-validate renovate-dry-run sbom sbom-devcontainer e2e opencode-build mise-lock release release-dry-run release-prepare release-watch
 
 
 ## Build the devcontainer image (with cache)
@@ -123,6 +123,10 @@ test: test-all
 ## Verify CLI tools, Python packages, and user config inside the devcontainer
 test-tools:
 	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) /workspace/igou-devenv/tests/test-tools.sh
+
+## Diagnostic sandbox primitive smoke test (runtime failures require REQUIRE_SANDBOX_PRIMITIVES=true to fail)
+test-sandbox-primitives:
+	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) /workspace/igou-devenv/tests/test-sandbox-primitives.sh
 
 ## Test podman pull, run, and build inside the devcontainer
 test-podman:

@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2002,SC2011,SC2054
 # Launch a rootless opencode container with selective credential injection.
+# Local full-devcontainer wrapper. Not the Hermes execution path.
+# This script assumes it is run from the privileged local devcontainer or another
+# environment with working rootless Podman.
 #
 # Usage:
 #   opencode-run                          # launch opencode with workspace mounted
