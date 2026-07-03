@@ -11,6 +11,17 @@ on:
 permissions:
   contents: write
   packages: write
+  id-token: write
+  attestations: write
+
+# Serialize builds per ref: two near-simultaneous pushes to main would race
+# on `docker push :latest` with last-writer-wins, letting an older commit's
+# image overwrite a newer one. GitHub keeps at most one running + one pending
+# run per group and replaces the pending run with the newest, so :latest
+# always converges on the most recent commit.
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: false
 
 env:
   IMAGE: ghcr.io/igou-io/igou-devenv
@@ -44,6 +55,8 @@ jobs:
             --secret id=github_token,env=GITHUB_TOKEN \
             --cache-from type=registry,ref=${IMAGE}:latest \
             --cache-to type=inline \
+            --label org.opencontainers.image.revision=${{ github.sha }} \
+            --label org.opencontainers.image.source=https://github.com/${{ github.repository }} \
             --tag ${IMAGE}:latest \
             --load \
             .
@@ -77,20 +90,64 @@ jobs:
                 /workspace/igou-devenv/tests/ci-run.sh'
 
       - name: Push image
+        id: push
         if: github.event_name != 'pull_request'
-        run: docker push ${IMAGE}:latest
+        run: |
+          docker push ${IMAGE}:latest
+          digest=$(docker buildx imagetools inspect ${IMAGE}:latest --format '{{.Manifest.Digest}}')
+          [ -n "$digest" ] || { echo "::error::could not resolve pushed digest"; exit 1; }
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          echo "Pushed \`${IMAGE}@${digest}\` (revision ${{ github.sha }})" >> "$GITHUB_STEP_SUMMARY"
+
+      # Scan the exact pushed digest so the SBOM is bound to the artifact
+      # consumers pull, not a mutable tag. PR builds are never pushed, so they
+      # scan the just-built image in the local daemon instead (the explicit
+      # :latest tag keeps syft's daemon-first resolution from silently falling
+      # back to the stale remote image).
+      - name: Resolve SBOM image reference
+        id: sbomref
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "ref=${IMAGE}@${{ steps.push.outputs.digest }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${IMAGE}:latest" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Generate devcontainer SBOM
         uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0
         with:
-          image: ghcr.io/igou-io/igou-devenv
+          image: ${{ steps.sbomref.outputs.ref }}
           artifact-name: devcontainer-sbom
           output-file: devcontainer.spdx.json
           format: spdx-json
           # Submit the SBOM to the GitHub dependency graph so it always
-          # reflects the image currently on main (the action only submits on
-          # push, not on PRs). This re-enables Dependabot alerts for embedded
+          # reflects the image currently on main. The action itself has no
+          # event gating (it would submit on PRs too, and fork PRs' read-only
+          # tokens would 403), so gate the submission here to non-PR events;
+          # the weekly scheduled rebuild submits against main and keeps the
+          # graph fresh. This re-enables Dependabot alerts for embedded
           # modules in bundled Go/npm CLIs (see #84 for the earlier opt-out);
           # accepted trade-off: alerts against /opt/mise/installs/... paths are
           # remediated by Renovate tool bumps, not by patches in this repo.
-          dependency-snapshot: true
+          dependency-snapshot: ${{ github.event_name != 'pull_request' }}
+
+      # Keyless (OIDC) attestations bound to the pushed digest: build
+      # provenance (which workflow/commit produced the image) and the SBOM
+      # generated above. Verifiable with
+      # `gh attestation verify oci://ghcr.io/igou-io/igou-devenv:latest --owner igou-io`.
+      - name: Attest build provenance
+        if: github.event_name != 'pull_request'
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
+        with:
+          subject-name: ghcr.io/igou-io/igou-devenv
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
+
+      - name: Attest SBOM
+        if: github.event_name != 'pull_request'
+        uses: actions/attest-sbom@c604332985a26aa8cf1bdc465b92731239ec6b9e # v4.1.0
+        with:
+          subject-name: ghcr.io/igou-io/igou-devenv
+          subject-digest: ${{ steps.push.outputs.digest }}
+          sbom-path: devcontainer.spdx.json
+          push-to-registry: true
