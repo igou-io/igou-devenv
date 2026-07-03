@@ -16,6 +16,11 @@ on:
       - mise.toml
       - mise.lock
       - .github/workflows/mise-lockfile-check.yaml
+      # The check pins its mise container to the Dockerfile's MISE_VERSION and
+      # mounts the vendored aqua-registry, so bumps to either can invalidate
+      # lockfile semantics and must re-run the check.
+      - .devcontainer/Dockerfile
+      - aqua-registry/**
 
 permissions:
   contents: read

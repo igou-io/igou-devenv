@@ -36,6 +36,12 @@
       "automerge": false
     },
     {
+      "matchManagers": ["mise"],
+      "matchUpdateTypes": ["lockFileMaintenance"],
+      "description": "Lock-file-maintenance PRs only refresh mise.lock (no mise.toml bump), so release-prepare never touches them; they are safe to automerge behind the required build check.",
+      "automerge": true
+    },
+    {
       "matchManagers": ["custom.regex"],
       "matchPackageNames": ["jdx/mise"],
       "groupName": "mise itself (trust anchor)"
