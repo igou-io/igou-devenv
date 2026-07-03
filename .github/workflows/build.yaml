@@ -13,6 +13,7 @@ permissions:
   packages: write
   id-token: write
   attestations: write
+  artifact-metadata: write
 
 # Serialize builds per ref: two near-simultaneous pushes to main would race
 # on `docker push :latest` with last-writer-wins, letting an older commit's
@@ -143,11 +144,14 @@ jobs:
           subject-digest: ${{ steps.push.outputs.digest }}
           push-to-registry: true
 
-      - name: Attest SBOM
+      # The SPDX SBOM (~25 MB) exceeds attest-sbom's 16 MiB predicate limit
+      # (and that action is deprecated), so rather than embedding the SBOM in
+      # an attestation, attest provenance over the SBOM *file*: a signed
+      # statement binding the SBOM's sha256 to this workflow run and commit.
+      # Verify a downloaded copy with
+      # `gh attestation verify devcontainer.spdx.json --owner igou-io`.
+      - name: Attest SBOM file provenance
         if: github.event_name != 'pull_request'
-        uses: actions/attest-sbom@c604332985a26aa8cf1bdc465b92731239ec6b9e # v4.1.0
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
         with:
-          subject-name: ghcr.io/igou-io/igou-devenv
-          subject-digest: ${{ steps.push.outputs.digest }}
-          sbom-path: devcontainer.spdx.json
-          push-to-registry: true
+          subject-path: devcontainer.spdx.json
