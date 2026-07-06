@@ -34,6 +34,7 @@ backend = "aqua:nodejs/node"
 url = "https://nodejs.org/dist/v26.4.0/node-v26.4.0-linux-arm64.tar.gz"
 
 [tools."aqua:nodejs/node"."platforms.linux-x64"]
+checksum = "blake3:8cf53a872032634dcb93885f156bbe1af1630ec701b6bf050ceb015e1c180ba3"
 url = "https://nodejs.org/dist/v26.4.0/node-v26.4.0-linux-x64.tar.gz"
 
 [[tools."aqua:tektoncd/pipelines-as-code"]]
@@ -126,14 +127,6 @@ url = "https://get.helm.sh/helm-v4.2.2-linux-amd64.tar.gz"
 version = "4.123.0"
 backend = "http:code-server"
 
-[tools."http:code-server"."platforms.linux-x64"]
-checksum = "blake3:5ccbf2bb252e1ba2dcba24e4a7ab4c14586feca77dd69dc09c884757d6561326"
-url = "https://github.com/coder/code-server/releases/download/v4.123.0/code-server-4.123.0-linux-amd64.tar.gz"
-
-[[tools."http:code-server"]]
-version = "4.123.0"
-backend = "http:code-server"
-
 [tools."http:code-server".options]
 strip_components = "1"
 
@@ -141,15 +134,8 @@ strip_components = "1"
 url = "https://github.com/coder/code-server/releases/download/v4.123.0/code-server-4.123.0-linux-arm64.tar.gz"
 
 [tools."http:code-server"."platforms.linux-x64"]
+checksum = "blake3:5ccbf2bb252e1ba2dcba24e4a7ab4c14586feca77dd69dc09c884757d6561326"
 url = "https://github.com/coder/code-server/releases/download/v4.123.0/code-server-4.123.0-linux-amd64.tar.gz"
-
-[[tools."http:kube-burner"]]
-version = "2.6.1"
-backend = "http:kube-burner"
-
-[tools."http:kube-burner"."platforms.linux-x64"]
-checksum = "blake3:c515fc3bada5a01a6496ae358bfbeed52cc882409e0b01964caf40e2fe2b2454"
-url = "https://github.com/cloud-bulldozer/kube-burner/releases/download/v2.6.1/kube-burner-V2.6.1-linux-x86_64.tar.gz"
 
 [[tools."http:kube-burner"]]
 version = "2.6.1"
@@ -162,15 +148,8 @@ strip_components = "0"
 url = "https://github.com/cloud-bulldozer/kube-burner/releases/download/v2.6.1/kube-burner-V2.6.1-linux-arm64.tar.gz"
 
 [tools."http:kube-burner"."platforms.linux-x64"]
+checksum = "blake3:c515fc3bada5a01a6496ae358bfbeed52cc882409e0b01964caf40e2fe2b2454"
 url = "https://github.com/cloud-bulldozer/kube-burner/releases/download/v2.6.1/kube-burner-V2.6.1-linux-x86_64.tar.gz"
-
-[[tools."http:kube-burner-ocp"]]
-version = "1.11.11"
-backend = "http:kube-burner-ocp"
-
-[tools."http:kube-burner-ocp"."platforms.linux-x64"]
-checksum = "blake3:429021e6105e10ce3c3eb23e3d3a5d82be8b5a8553e499dd2e04ac8efe7a3402"
-url = "https://github.com/kube-burner/kube-burner-ocp/releases/download/v1.11.11/kube-burner-ocp-V1.11.11-linux-x86_64.tar.gz"
 
 [[tools."http:kube-burner-ocp"]]
 version = "1.11.11"
@@ -183,6 +162,7 @@ strip_components = "0"
 url = "https://github.com/kube-burner/kube-burner-ocp/releases/download/v1.11.11/kube-burner-ocp-V1.11.11-linux-arm64.tar.gz"
 
 [tools."http:kube-burner-ocp"."platforms.linux-x64"]
+checksum = "blake3:429021e6105e10ce3c3eb23e3d3a5d82be8b5a8553e499dd2e04ac8efe7a3402"
 url = "https://github.com/kube-burner/kube-burner-ocp/releases/download/v1.11.11/kube-burner-ocp-V1.11.11-linux-x86_64.tar.gz"
 
 [[tools."http:oc"]]
