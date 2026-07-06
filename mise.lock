@@ -7,10 +7,12 @@ backend = "aqua:nektos/act"
 [tools.act."platforms.linux-arm64"]
 checksum = "sha256:daa8679ba9615a74d2d0cec321dc593f21948a2a11bb65862b063d8b930f4bcb"
 url = "https://github.com/nektos/act/releases/download/v0.2.89/act_Linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/nektos/act/releases/assets/434891274"
 
 [tools.act."platforms.linux-x64"]
 checksum = "sha256:0191d6f1f3b716b5c55820032605d05fc3c1cdbf581ebeff655019e5dd1524c0"
 url = "https://github.com/nektos/act/releases/download/v0.2.89/act_Linux_x86_64.tar.gz"
+url_api = "https://api.github.com/repos/nektos/act/releases/assets/434891246"
 
 [[tools.age]]
 version = "1.3.1"
@@ -19,11 +21,13 @@ backend = "aqua:FiloSottile/age"
 [tools.age."platforms.linux-arm64"]
 checksum = "sha256:c6878a324421b69e3e20b00ba17c04bc5c6dab0030cfe55bf8f68fa8d9e9093a"
 url = "https://github.com/FiloSottile/age/releases/download/v1.3.1/age-v1.3.1-linux-arm64.tar.gz"
+url_api = "https://api.github.com/repos/FiloSottile/age/releases/assets/333752668"
 provenance = "github-attestations"
 
 [tools.age."platforms.linux-x64"]
 checksum = "sha256:bdc69c09cbdd6cf8b1f333d372a1f58247b3a33146406333e30c0f26e8f51377"
 url = "https://github.com/FiloSottile/age/releases/download/v1.3.1/age-v1.3.1-linux-amd64.tar.gz"
+url_api = "https://api.github.com/repos/FiloSottile/age/releases/assets/333752671"
 provenance = "github-attestations"
 
 [[tools."aqua:nodejs/node"]]
@@ -44,10 +48,12 @@ backend = "aqua:tektoncd/pipelines-as-code"
 [tools."aqua:tektoncd/pipelines-as-code"."platforms.linux-arm64"]
 checksum = "sha256:b8b816bda8cffe4fe6dae83a6b645052c749c72a4601ad3a9091feea1fe0e341"
 url = "https://github.com/tektoncd/pipelines-as-code/releases/download/v0.48.0/tkn-pac_0.48.0_linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/tektoncd/pipelines-as-code/releases/assets/438457544"
 
 [tools."aqua:tektoncd/pipelines-as-code"."platforms.linux-x64"]
 checksum = "sha256:5fb9a3bf80d44cb2b1c36ba1609ab3a7b7a2e37ac0285573166a1bf11e605a96"
 url = "https://github.com/tektoncd/pipelines-as-code/releases/download/v0.48.0/tkn-pac_0.48.0_linux_x86_64.tar.gz"
+url_api = "https://api.github.com/repos/tektoncd/pipelines-as-code/releases/assets/438457546"
 
 [[tools.argocd]]
 version = "3.4.4"
@@ -56,6 +62,7 @@ backend = "aqua:argoproj/argo-cd"
 [tools.argocd."platforms.linux-arm64"]
 checksum = "sha256:ade7e2eff37230b9d19ea864f3ad51af4596416426244be8cb350a05cd4a0182"
 url = "https://github.com/argoproj/argo-cd/releases/download/v3.4.4/argocd-linux-arm64"
+url_api = "https://api.github.com/repos/argoproj/argo-cd/releases/assets/451073528"
 
 [tools.argocd."platforms.linux-arm64".provenance.slsa]
 url = "https://github.com/argoproj/argo-cd/releases/download/v3.4.4/argocd-cli.intoto.jsonl"
@@ -63,6 +70,7 @@ url = "https://github.com/argoproj/argo-cd/releases/download/v3.4.4/argocd-cli.i
 [tools.argocd."platforms.linux-x64"]
 checksum = "sha256:b93c312956880c9597a246a7d1e705fbb7ee7f19c5229affdec99b26d5663e09"
 url = "https://github.com/argoproj/argo-cd/releases/download/v3.4.4/argocd-linux-amd64"
+url_api = "https://api.github.com/repos/argoproj/argo-cd/releases/assets/451073524"
 
 [tools.argocd."platforms.linux-x64".provenance.slsa]
 url = "https://github.com/argoproj/argo-cd/releases/download/v3.4.4/argocd-cli.intoto.jsonl"
@@ -74,10 +82,12 @@ backend = "aqua:direnv/direnv"
 [tools.direnv."platforms.linux-arm64"]
 checksum = "sha256:2a9cef8d73521d6a3ec3f2871c4b747b8c4cc038628c1b57a7efa42b393a2d82"
 url = "https://github.com/direnv/direnv/releases/download/v2.37.1/direnv.linux-arm64"
+url_api = "https://api.github.com/repos/direnv/direnv/releases/assets/274610549"
 
 [tools.direnv."platforms.linux-x64"]
 checksum = "sha256:1f1b93dd6f38523fde26dfac96151ef9d31a374e3005cd3345fb93555ae0c9b5"
 url = "https://github.com/direnv/direnv/releases/download/v2.37.1/direnv.linux-amd64"
+url_api = "https://api.github.com/repos/direnv/direnv/releases/assets/274610548"
 
 [[tools.flux2]]
 version = "2.8.8"
@@ -86,6 +96,7 @@ backend = "aqua:fluxcd/flux2"
 [tools.flux2."platforms.linux-arm64"]
 checksum = "sha256:738604ab040055ace69777988a24def98ada1aff14ae4726e733089dc8cc5e12"
 url = "https://github.com/fluxcd/flux2/releases/download/v2.8.8/flux_2.8.8_linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/fluxcd/flux2/releases/assets/425171446"
 
 [tools.flux2."platforms.linux-arm64".provenance.slsa]
 url = "https://github.com/fluxcd/flux2/releases/download/v2.8.8/provenance.intoto.jsonl"
@@ -93,6 +104,7 @@ url = "https://github.com/fluxcd/flux2/releases/download/v2.8.8/provenance.intot
 [tools.flux2."platforms.linux-x64"]
 checksum = "sha256:3791d8fbb73b967ada021186f7b46686a2b180ce206d3c279c3f2ad183877a7f"
 url = "https://github.com/fluxcd/flux2/releases/download/v2.8.8/flux_2.8.8_linux_amd64.tar.gz"
+url_api = "https://api.github.com/repos/fluxcd/flux2/releases/assets/425171454"
 
 [tools.flux2."platforms.linux-x64".provenance.slsa]
 url = "https://github.com/fluxcd/flux2/releases/download/v2.8.8/provenance.intoto.jsonl"
@@ -104,11 +116,13 @@ backend = "aqua:cli/cli"
 [tools.gh."platforms.linux-arm64"]
 checksum = "sha256:d41e0b3b6218e5741c8bb4db39b16e53a59e0e06299a8489bd38f623ef7ebaae"
 url = "https://github.com/cli/cli/releases/download/v2.95.0/gh_2.95.0_linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/cli/cli/releases/assets/450525946"
 provenance = "github-attestations"
 
 [tools.gh."platforms.linux-x64"]
 checksum = "sha256:25d1e4729e8808c9ed3d613e96ebd3f3e44446f2d368c89d878a71a36ddb3d8c"
 url = "https://github.com/cli/cli/releases/download/v2.95.0/gh_2.95.0_linux_amd64.tar.gz"
+url_api = "https://api.github.com/repos/cli/cli/releases/assets/450525940"
 provenance = "github-attestations"
 
 [[tools.helm]]
@@ -215,10 +229,12 @@ backend = "aqua:kubernetes-sigs/kind"
 [tools.kind."platforms.linux-arm64"]
 checksum = "sha256:b92cd615e97585de8ddade28ed5cd7feb4248d717c233eea5b03c37298900f5d"
 url = "https://github.com/kubernetes-sigs/kind/releases/download/v0.32.0/kind-linux-arm64"
+url_api = "https://api.github.com/repos/kubernetes-sigs/kind/releases/assets/436442565"
 
 [tools.kind."platforms.linux-x64"]
 checksum = "sha256:50030de23cf40a18505f20426f6a8506bedf13c6e509244bd1fa9463721b0f54"
 url = "https://github.com/kubernetes-sigs/kind/releases/download/v0.32.0/kind-linux-amd64"
+url_api = "https://api.github.com/repos/kubernetes-sigs/kind/releases/assets/436442498"
 
 [[tools.kubeconform]]
 version = "0.8.0"
@@ -227,10 +243,12 @@ backend = "aqua:yannh/kubeconform"
 [tools.kubeconform."platforms.linux-arm64"]
 checksum = "sha256:1f53fc8e81258197a35e8603054162a5af1de8c5af13746c71ab680d9534ed87"
 url = "https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-linux-arm64.tar.gz"
+url_api = "https://api.github.com/repos/yannh/kubeconform/releases/assets/438612685"
 
 [tools.kubeconform."platforms.linux-x64"]
 checksum = "sha256:9bc2bffbf71f261128533edaf912153948b7ff238f9a531ae6d34466ec287883"
 url = "https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-linux-amd64.tar.gz"
+url_api = "https://api.github.com/repos/yannh/kubeconform/releases/assets/438612666"
 
 [[tools.kubectl]]
 version = "1.36.2"
@@ -251,10 +269,12 @@ backend = "aqua:bitnami-labs/sealed-secrets"
 [tools.kubeseal."platforms.linux-arm64"]
 checksum = "sha256:4637aac2ee095d6555242cc1ad51f13b9dfcfee7db6b0a4cf4f5a1443309d05e"
 url = "https://github.com/bitnami/sealed-secrets/releases/download/v0.38.1/kubeseal-0.38.1-linux-arm64.tar.gz"
+url_api = "https://api.github.com/repos/bitnami/sealed-secrets/releases/assets/451222550"
 
 [tools.kubeseal."platforms.linux-x64"]
 checksum = "sha256:71791ebf0c26675927153e7c2a4418ae769db27084931d24dee2ac58a3c76c2d"
 url = "https://github.com/bitnami/sealed-secrets/releases/download/v0.38.1/kubeseal-0.38.1-linux-amd64.tar.gz"
+url_api = "https://api.github.com/repos/bitnami/sealed-secrets/releases/assets/451222582"
 
 [[tools.kustomize]]
 version = "5.8.1"
@@ -263,10 +283,12 @@ backend = "aqua:kubernetes-sigs/kustomize"
 [tools.kustomize."platforms.linux-arm64"]
 checksum = "sha256:0953ea3e476f66d6ddfcd911d750f5167b9365aa9491b2326398e289fef2c142"
 url = "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/v5.8.1/kustomize_v5.8.1_linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/kubernetes-sigs/kustomize/releases/assets/353160971"
 
 [tools.kustomize."platforms.linux-x64"]
 checksum = "sha256:029a7f0f4e1932c52a0476cf02a0fd855c0bb85694b82c338fc648dcb53a819d"
 url = "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/v5.8.1/kustomize_v5.8.1_linux_amd64.tar.gz"
+url_api = "https://api.github.com/repos/kubernetes-sigs/kustomize/releases/assets/353160972"
 
 [[tools.rclone]]
 version = "1.74.3"
@@ -275,10 +297,12 @@ backend = "aqua:rclone/rclone"
 [tools.rclone."platforms.linux-arm64"]
 checksum = "sha256:8f8d47446e061f80c3256659fe8e21f56d72d96aaefe1275d088ea5eb6b42aa7"
 url = "https://github.com/rclone/rclone/releases/download/v1.74.3/rclone-v1.74.3-linux-arm64.zip"
+url_api = "https://api.github.com/repos/rclone/rclone/releases/assets/439459056"
 
 [tools.rclone."platforms.linux-x64"]
 checksum = "sha256:dbee7ccd7a5d617e4ed4cd4555c16669b511abfe8d31164f61be35ac9e999bd2"
 url = "https://github.com/rclone/rclone/releases/download/v1.74.3/rclone-v1.74.3-linux-amd64.zip"
+url_api = "https://api.github.com/repos/rclone/rclone/releases/assets/439458559"
 
 [[tools.sops]]
 version = "3.13.1"
@@ -287,6 +311,7 @@ backend = "aqua:getsops/sops"
 [tools.sops."platforms.linux-arm64"]
 checksum = "sha256:19576fb1734dbf8fb77eda0cf0f3a2218f99bf4d33b814318e5e10d6babb9820"
 url = "https://github.com/getsops/sops/releases/download/v3.13.1/sops-v3.13.1.linux.arm64"
+url_api = "https://api.github.com/repos/getsops/sops/releases/assets/421868621"
 
 [tools.sops."platforms.linux-arm64".provenance.slsa]
 url = "https://github.com/getsops/sops/releases/download/v3.13.1/sops-v3.13.1.intoto.jsonl"
@@ -294,6 +319,7 @@ url = "https://github.com/getsops/sops/releases/download/v3.13.1/sops-v3.13.1.in
 [tools.sops."platforms.linux-x64"]
 checksum = "sha256:620a9d7e3352ababeca6908cea24a6e8b14ce89a448ddbd3f94f1ef3398f470a"
 url = "https://github.com/getsops/sops/releases/download/v3.13.1/sops-v3.13.1.linux.amd64"
+url_api = "https://api.github.com/repos/getsops/sops/releases/assets/421868619"
 
 [tools.sops."platforms.linux-x64".provenance.slsa]
 url = "https://github.com/getsops/sops/releases/download/v3.13.1/sops-v3.13.1.intoto.jsonl"
@@ -305,10 +331,12 @@ backend = "aqua:tektoncd/cli"
 [tools.tekton-cli."platforms.linux-arm64"]
 checksum = "sha256:f11bc2f834a2ab845b24f40dc01faf4b41dfc3af142062bf38e44f3fb5358456"
 url = "https://github.com/tektoncd/cli/releases/download/v0.45.0/tkn_0.45.0_Linux_aarch64.tar.gz"
+url_api = "https://api.github.com/repos/tektoncd/cli/releases/assets/418344643"
 
 [tools.tekton-cli."platforms.linux-x64"]
 checksum = "sha256:c32a60b97388eb14e1ed2155b10bd7202aaf2e0a67ca7594b08fb96c1b94454b"
 url = "https://github.com/tektoncd/cli/releases/download/v0.45.0/tkn_0.45.0_Linux_x86_64.tar.gz"
+url_api = "https://api.github.com/repos/tektoncd/cli/releases/assets/418344648"
 
 [[tools.terraform]]
 version = "1.15.6"
