@@ -155,3 +155,24 @@ bin_path = "bin"
 [tools."http:code-server".platforms]
 linux-x64   = { url = "https://github.com/coder/code-server/releases/download/v{{ version }}/code-server-{{ version }}-linux-amd64.tar.gz", strip_components = 1 }
 linux-arm64 = { url = "https://github.com/coder/code-server/releases/download/v{{ version }}/code-server-{{ version }}-linux-arm64.tar.gz", strip_components = 1 }
+
+# rustfs-cli — the `rc` admin/client CLI for RustFS S3 servers. Only the RustFS
+# *server* (github:rustfs/rustfs) is in aqua-registry; the CLI is not, so it
+# uses the http backend like the other off-registry tools above. Upstream ships
+# per-asset .sha256 + SHA256SUMS but NO GPG signature, SLSA provenance, or
+# gh-attestation (checked 2026-07 against v0.1.25), so the http backend's blake3
+# TOFU pin in mise.lock is the strongest verification available — the same trust
+# floor accepted for virtctl/kube-burner/code-server. The global
+# minimum_release_age = "10d" gate still applies.
+#
+# The gnu (glibc) artifacts match the CentOS Stream 10 devcontainer. The tarball
+# is a flat archive whose single binary is named `rc` (not rustfs-cli), so no
+# strip_components/bin_path is needed and the launch-check binary override in
+# tests/mise-expected-verification.toml points at `rc`.
+# renovate: datasource=github-releases depName=rustfs/cli
+[tools."http:rustfs-cli"]
+version = "0.1.25"
+
+[tools."http:rustfs-cli".platforms]
+linux-x64   = { url = "https://github.com/rustfs/cli/releases/download/v{{ version }}/rustfs-cli-linux-amd64-gnu-v{{ version }}.tar.gz" }
+linux-arm64 = { url = "https://github.com/rustfs/cli/releases/download/v{{ version }}/rustfs-cli-linux-arm64-gnu-v{{ version }}.tar.gz" }
