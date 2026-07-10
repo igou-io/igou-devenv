@@ -159,6 +159,26 @@ PROMPT_COMMAND="__prompt_command${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
 # Use unuse() to remove an environment's variables.
 _use_sanitize() { echo "${1//-/_}"; }
 
+# Kubeconfig-resolution failure path for use(). Called from inside use(), so it
+# sees use()'s locals ($tmpkube, $keys) via dynamic scoping: report the error,
+# remove the temp file, and roll back the keys already exported so a failed
+# use() doesn't leave a half-active environment.
+_use_kube_fail() {
+    echo "Failed to resolve kubeconfig for ${1}"
+    rm -f "$tmpkube"
+    local k
+    for k in "${keys[@]}"; do unset "$k"; done
+}
+
+# Registry-resolution failure path for use() — same dynamic-scoping contract
+# as _use_kube_fail: report the error and roll back the keys already exported
+# so a failed use() doesn't leave a half-active environment.
+_use_registry_fail() {
+    echo "Failed to resolve registry credentials for ${1}"
+    local k
+    for k in "${keys[@]}"; do unset "$k"; done
+}
+
 # Clean up temp kubeconfig files and registry-auth dirs on shell exit — but
 # only those this shell created. The trap is registered in every interactive
 # shell and _USE_TMP* vars are exported, so a short-lived child interactive
@@ -216,9 +236,9 @@ use() {
     #   KUBECONFIG_TOKEN + KUBECONFIG_HOST — dynamically build a kubeconfig from token/host
     # Both present is an error.
     local kubeconfig_data_ref kubeconfig_token_ref kubeconfig_host_ref
-    kubeconfig_data_ref=$(grep '^KUBECONFIG_DATA=' "$envfile" | cut -d= -f2)
-    kubeconfig_token_ref=$(grep '^KUBECONFIG_TOKEN=' "$envfile" | cut -d= -f2)
-    kubeconfig_host_ref=$(grep '^KUBECONFIG_HOST=' "$envfile" | cut -d= -f2)
+    kubeconfig_data_ref=$(grep -m1 '^KUBECONFIG_DATA=' "$envfile" | cut -d= -f2-)
+    kubeconfig_token_ref=$(grep -m1 '^KUBECONFIG_TOKEN=' "$envfile" | cut -d= -f2-)
+    kubeconfig_host_ref=$(grep -m1 '^KUBECONFIG_HOST=' "$envfile" | cut -d= -f2-)
 
     if [ -n "$kubeconfig_data_ref" ] && { [ -n "$kubeconfig_token_ref" ] || [ -n "$kubeconfig_host_ref" ]; }; then
         echo "Error: ${1}.env has both KUBECONFIG_DATA and KUBECONFIG_TOKEN/KUBECONFIG_HOST — use one or the other"
@@ -237,9 +257,9 @@ use() {
     #   REGISTRY_USERNAME + REGISTRY_PASSWORD — credentials (op:// refs)
     # A subset is an error.
     local registry_host_ref registry_user_ref registry_pass_ref
-    registry_host_ref=$(grep '^REGISTRY_HOST=' "$envfile" | cut -d= -f2)
-    registry_user_ref=$(grep '^REGISTRY_USERNAME=' "$envfile" | cut -d= -f2)
-    registry_pass_ref=$(grep '^REGISTRY_PASSWORD=' "$envfile" | cut -d= -f2)
+    registry_host_ref=$(grep -m1 '^REGISTRY_HOST=' "$envfile" | cut -d= -f2-)
+    registry_user_ref=$(grep -m1 '^REGISTRY_USERNAME=' "$envfile" | cut -d= -f2-)
+    registry_pass_ref=$(grep -m1 '^REGISTRY_PASSWORD=' "$envfile" | cut -d= -f2-)
 
     if [ -n "${registry_host_ref}${registry_user_ref}${registry_pass_ref}" ] && \
        { [ -z "$registry_host_ref" ] || [ -z "$registry_user_ref" ] || [ -z "$registry_pass_ref" ]; }; then
@@ -271,20 +291,36 @@ use() {
     fi
 
     if [ -n "$kubeconfig_data_ref" ] || [ -n "$kubeconfig_token_ref" ]; then
-        # Clean up previous temp kubeconfig for this env if re-using
+        # Clean up previous temp kubeconfig for this env if re-using — but only
+        # if this shell created it. An inherited _USE_TMPKUBE_* var points at a
+        # file a parent/sibling shell still uses (issue #98).
         local tmpvar="_USE_TMPKUBE_${safe_name}"
-        [ -n "${!tmpvar:-}" ] && rm -f "${!tmpvar}"
+        local ownervar="_USE_TMPKUBE_OWNER_${safe_name}"
+        if [ -n "${!tmpvar:-}" ] && [ "${!ownervar:-}" = "$BASHPID" ]; then
+            rm -f "${!tmpvar}"
+        fi
         local tmpkube
         tmpkube=$(mktemp /tmp/kubeconfig.XXXXXX)
 
         if [ -n "$kubeconfig_data_ref" ]; then
             # Full kubeconfig from 1Password (base64-encoded)
-            op read "$kubeconfig_data_ref" | base64 -d > "$tmpkube"
+            local kube_b64
+            if ! kube_b64=$(op read "$kubeconfig_data_ref") || \
+               ! echo "$kube_b64" | base64 -d > "$tmpkube"; then
+                _use_kube_fail "$1"
+                return 1
+            fi
         else
             # Build kubeconfig from token + host
             local kube_token kube_host
-            kube_token=$(echo "$kubeconfig_token_ref" | op inject)
-            kube_host=$(echo "$kubeconfig_host_ref" | op inject)
+            if ! kube_token=$(echo "$kubeconfig_token_ref" | op inject) || [ -z "$kube_token" ]; then
+                _use_kube_fail "$1"
+                return 1
+            fi
+            if ! kube_host=$(echo "$kubeconfig_host_ref" | op inject) || [ -z "$kube_host" ]; then
+                _use_kube_fail "$1"
+                return 1
+            fi
             cat > "$tmpkube" << KUBECFG
 apiVersion: v1
 kind: Config
@@ -315,22 +351,27 @@ KUBECFG
 
     if [ -n "$registry_host_ref" ]; then
         local registry_host registry_user registry_pass
-        registry_host=$(_use_resolve_value "$registry_host_ref") || {
-            echo "Failed to resolve REGISTRY_HOST for ${1}"
+        if ! registry_host=$(_use_resolve_value "$registry_host_ref") || [ -z "$registry_host" ]; then
+            _use_registry_fail "$1"
             return 1
-        }
-        registry_user=$(_use_resolve_value "$registry_user_ref") || {
-            echo "Failed to resolve REGISTRY_USERNAME for ${1}"
+        fi
+        if ! registry_user=$(_use_resolve_value "$registry_user_ref") || [ -z "$registry_user" ]; then
+            _use_registry_fail "$1"
             return 1
-        }
-        registry_pass=$(_use_resolve_value "$registry_pass_ref") || {
-            echo "Failed to resolve REGISTRY_PASSWORD for ${1}"
+        fi
+        if ! registry_pass=$(_use_resolve_value "$registry_pass_ref") || [ -z "$registry_pass" ]; then
+            _use_registry_fail "$1"
             return 1
-        }
+        fi
 
-        # Clean up previous temp auth dir for this env if re-using
+        # Clean up previous temp auth dir for this env if re-using — but only
+        # if this shell created it. An inherited _USE_TMPAUTH_* var points at a
+        # dir a parent/sibling shell still uses (issue #98).
         local authvar="_USE_TMPAUTH_${safe_name}"
-        [ -n "${!authvar:-}" ] && rm -rf "${!authvar}"
+        local auth_ownervar="_USE_TMPAUTH_OWNER_${safe_name}"
+        if [ -n "${!authvar:-}" ] && [ "${!auth_ownervar:-}" = "$BASHPID" ]; then
+            rm -rf "${!authvar}"
+        fi
         local tmpauth
         tmpauth=$(mktemp -d /tmp/registry-auth.XXXXXX)
 
@@ -404,21 +445,27 @@ unuse() {
         unset "$keys_var"
     fi
 
-    # Clean up temp kubeconfig
+    # Clean up temp kubeconfig — delete the file only if this shell created it.
+    # An inherited _USE_TMPKUBE_* var points at a file a parent/sibling shell
+    # still uses (issue #98); still unset this shell's copies of the vars.
     local tmpvar="_USE_TMPKUBE_${safe_name}"
+    local ownervar="_USE_TMPKUBE_OWNER_${safe_name}"
     if [ -n "${!tmpvar:-}" ]; then
-        rm -f "${!tmpvar}"
+        [ "${!ownervar:-}" = "$BASHPID" ] && rm -f "${!tmpvar}"
         unset "$tmpvar"
     fi
-    unset "_USE_TMPKUBE_OWNER_${safe_name}"
+    unset "$ownervar"
 
-    # Clean up temp registry auth dir
+    # Clean up temp registry auth dir — delete it only if this shell created
+    # it (issue #98, same rule as the kubeconfig above); still unset this
+    # shell's copies of the vars.
     local authvar="_USE_TMPAUTH_${safe_name}"
+    local auth_ownervar="_USE_TMPAUTH_OWNER_${safe_name}"
     if [ -n "${!authvar:-}" ]; then
-        rm -rf "${!authvar}"
+        [ "${!auth_ownervar:-}" = "$BASHPID" ] && rm -rf "${!authvar}"
         unset "$authvar"
     fi
-    unset "_USE_TMPAUTH_OWNER_${safe_name}"
+    unset "$auth_ownervar"
 
     # Update OP_ENV_LIST: remove this env
     local new_list="" env_name
