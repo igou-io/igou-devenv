@@ -172,6 +172,17 @@ PROMPT_COMMAND="_fix_ssh_auth_sock${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
 # Use unuse() to remove an environment's variables.
 _use_sanitize() { echo "${1//-/_}"; }
 
+# Kubeconfig-resolution failure path for use(). Called from inside use(), so it
+# sees use()'s locals ($tmpkube, $keys) via dynamic scoping: report the error,
+# remove the temp file, and roll back the keys already exported so a failed
+# use() doesn't leave a half-active environment.
+_use_kube_fail() {
+    echo "Failed to resolve kubeconfig for ${1}"
+    rm -f "$tmpkube"
+    local k
+    for k in "${keys[@]}"; do unset "$k"; done
+}
+
 # Clean up temp kubeconfig files on shell exit — but only for files this shell
 # created. The trap is registered in every interactive shell and _USE_TMPKUBE_*
 # vars are exported, so a short-lived child interactive shell would otherwise
@@ -212,9 +223,9 @@ use() {
     #   KUBECONFIG_TOKEN + KUBECONFIG_HOST — dynamically build a kubeconfig from token/host
     # Both present is an error.
     local kubeconfig_data_ref kubeconfig_token_ref kubeconfig_host_ref
-    kubeconfig_data_ref=$(grep '^KUBECONFIG_DATA=' "$envfile" | cut -d= -f2)
-    kubeconfig_token_ref=$(grep '^KUBECONFIG_TOKEN=' "$envfile" | cut -d= -f2)
-    kubeconfig_host_ref=$(grep '^KUBECONFIG_HOST=' "$envfile" | cut -d= -f2)
+    kubeconfig_data_ref=$(grep -m1 '^KUBECONFIG_DATA=' "$envfile" | cut -d= -f2-)
+    kubeconfig_token_ref=$(grep -m1 '^KUBECONFIG_TOKEN=' "$envfile" | cut -d= -f2-)
+    kubeconfig_host_ref=$(grep -m1 '^KUBECONFIG_HOST=' "$envfile" | cut -d= -f2-)
 
     if [ -n "$kubeconfig_data_ref" ] && { [ -n "$kubeconfig_token_ref" ] || [ -n "$kubeconfig_host_ref" ]; }; then
         echo "Error: ${1}.env has both KUBECONFIG_DATA and KUBECONFIG_TOKEN/KUBECONFIG_HOST — use one or the other"
@@ -249,20 +260,36 @@ use() {
     fi
 
     if [ -n "$kubeconfig_data_ref" ] || [ -n "$kubeconfig_token_ref" ]; then
-        # Clean up previous temp kubeconfig for this env if re-using
+        # Clean up previous temp kubeconfig for this env if re-using — but only
+        # if this shell created it. An inherited _USE_TMPKUBE_* var points at a
+        # file a parent/sibling shell still uses (issue #98).
         local tmpvar="_USE_TMPKUBE_${safe_name}"
-        [ -n "${!tmpvar:-}" ] && rm -f "${!tmpvar}"
+        local ownervar="_USE_TMPKUBE_OWNER_${safe_name}"
+        if [ -n "${!tmpvar:-}" ] && [ "${!ownervar:-}" = "$BASHPID" ]; then
+            rm -f "${!tmpvar}"
+        fi
         local tmpkube
         tmpkube=$(mktemp /tmp/kubeconfig.XXXXXX)
 
         if [ -n "$kubeconfig_data_ref" ]; then
             # Full kubeconfig from 1Password (base64-encoded)
-            op read "$kubeconfig_data_ref" | base64 -d > "$tmpkube"
+            local kube_b64
+            if ! kube_b64=$(op read "$kubeconfig_data_ref") || \
+               ! echo "$kube_b64" | base64 -d > "$tmpkube"; then
+                _use_kube_fail "$1"
+                return 1
+            fi
         else
             # Build kubeconfig from token + host
             local kube_token kube_host
-            kube_token=$(echo "$kubeconfig_token_ref" | op inject)
-            kube_host=$(echo "$kubeconfig_host_ref" | op inject)
+            if ! kube_token=$(echo "$kubeconfig_token_ref" | op inject) || [ -z "$kube_token" ]; then
+                _use_kube_fail "$1"
+                return 1
+            fi
+            if ! kube_host=$(echo "$kubeconfig_host_ref" | op inject) || [ -z "$kube_host" ]; then
+                _use_kube_fail "$1"
+                return 1
+            fi
             cat > "$tmpkube" << KUBECFG
 apiVersion: v1
 kind: Config
@@ -336,13 +363,16 @@ unuse() {
         unset "$keys_var"
     fi
 
-    # Clean up temp kubeconfig
+    # Clean up temp kubeconfig — delete the file only if this shell created it.
+    # An inherited _USE_TMPKUBE_* var points at a file a parent/sibling shell
+    # still uses (issue #98); still unset this shell's copies of the vars.
     local tmpvar="_USE_TMPKUBE_${safe_name}"
+    local ownervar="_USE_TMPKUBE_OWNER_${safe_name}"
     if [ -n "${!tmpvar:-}" ]; then
-        rm -f "${!tmpvar}"
+        [ "${!ownervar:-}" = "$BASHPID" ] && rm -f "${!tmpvar}"
         unset "$tmpvar"
     fi
-    unset "_USE_TMPKUBE_OWNER_${safe_name}"
+    unset "$ownervar"
 
     # Update OP_ENV_LIST: remove this env
     local new_list="" env_name

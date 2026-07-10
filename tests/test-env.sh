@@ -99,6 +99,23 @@ CONTROLLER_PASSWORD=op://Homelab/aap/password
 CONTROLLER_USERNAME=op://Homelab/aap/username
 EOF
 
+# Refs that don't exist in the mock secrets — resolution must fail loudly
+cat > "$TESTDIR/envs/bad-kubeconfig.env" << 'EOF'
+KUBECONFIG_DATA=op://Homelab/missing/kubeconfig
+AWS_DEFAULT_REGION=us-east-1
+EOF
+
+cat > "$TESTDIR/envs/bad-token.env" << 'EOF'
+KUBECONFIG_TOKEN=op://Homelab/missing/token
+KUBECONFIG_HOST=op://Homelab/test-cluster/api-host
+EOF
+
+# Plain (non-op://) host value containing '=' — must not be truncated
+cat > "$TESTDIR/envs/equals-host.env" << 'EOF'
+KUBECONFIG_TOKEN=op://Homelab/test-cluster/token
+KUBECONFIG_HOST=https://api.test-cluster.example.com:6443/?scope=admin
+EOF
+
 # Override the envdir used by use() for testing.
 # Redefine use() to point at our test envdir instead of the real one.
 _original_use=$(declare -f use)
@@ -463,6 +480,114 @@ else
     fail "owner-shell EXIT deletes its own kubeconfig ($_owned_kube)"
 fi
 unuse with-kubeconfig > /dev/null 2>&1
+
+# =========================================================================
+#  Tests: use() — kubeconfig resolution failure is detected
+# =========================================================================
+# A failed `op read`/`op inject` must fail the whole use() call: nonzero rc,
+# no KUBECONFIG export, no half-activated env, no leftover temp file.
+echo ""
+echo "==> Testing use() — kubeconfig resolution failure..."
+
+unset KUBECONFIG AWS_DEFAULT_REGION OP_ENV OP_ENV_LIST 2>/dev/null || true
+_pre_tmp_count=$(compgen -G "/tmp/kubeconfig.*" | wc -l)
+
+use bad-kubeconfig > "$TESTDIR/bad-kube-out" 2>&1
+rc=$?
+if [ $rc -ne 0 ]; then
+    ok "failed op read returns nonzero"
+else
+    fail "failed op read returns nonzero (rc=$rc)"
+fi
+if grep -q "Failed to resolve kubeconfig" "$TESTDIR/bad-kube-out"; then
+    ok "failed op read reports error"
+else
+    fail "failed op read reports error (got: $(cat "$TESTDIR/bad-kube-out"))"
+fi
+if [ -z "${KUBECONFIG:-}" ]; then
+    ok "failed op read does not export KUBECONFIG"
+else
+    fail "failed op read does not export KUBECONFIG (got: ${KUBECONFIG:-})"
+fi
+if [ -z "${AWS_DEFAULT_REGION:-}" ]; then
+    ok "failed use rolls back already-exported vars"
+else
+    fail "failed use rolls back already-exported vars (still: ${AWS_DEFAULT_REGION:-})"
+fi
+if [ -z "${OP_ENV:-}" ] && [ -z "${OP_ENV_LIST:-}" ]; then
+    ok "failed use does not mark env active"
+else
+    fail "failed use does not mark env active (OP_ENV=${OP_ENV:-} OP_ENV_LIST=${OP_ENV_LIST:-})"
+fi
+_post_tmp_count=$(compgen -G "/tmp/kubeconfig.*" | wc -l)
+if [ "$_pre_tmp_count" = "$_post_tmp_count" ]; then
+    ok "failed use leaves no orphan temp kubeconfig"
+else
+    fail "failed use leaves no orphan temp kubeconfig (before=$_pre_tmp_count after=$_post_tmp_count)"
+fi
+
+use bad-token > /dev/null 2>&1
+rc=$?
+if [ $rc -ne 0 ] && [ -z "${KUBECONFIG:-}" ]; then
+    ok "failed token inject returns nonzero without KUBECONFIG"
+else
+    fail "failed token inject returns nonzero without KUBECONFIG (rc=$rc KUBECONFIG=${KUBECONFIG:-unset})"
+fi
+
+# =========================================================================
+#  Tests: use() — values containing '=' are not truncated
+# =========================================================================
+echo ""
+echo "==> Testing use() — values containing '='..."
+
+unset KUBECONFIG OP_ENV OP_ENV_LIST 2>/dev/null || true
+
+use equals-host > /dev/null 2>&1
+if [ -n "${KUBECONFIG:-}" ] && grep -q "scope=admin" "$KUBECONFIG" 2>/dev/null; then
+    ok "host value with '=' written unmodified"
+else
+    fail "host value with '=' written unmodified (KUBECONFIG=${KUBECONFIG:-unset})"
+fi
+unuse equals-host > /dev/null 2>&1
+
+# =========================================================================
+#  Tests: use()/unuse() re-activation is owner-scoped (issue #98)
+# =========================================================================
+# A child shell inherits exported _USE_TMPKUBE_* vars. Re-running use() for
+# the same env, or unuse(), in the child must NOT delete the kubeconfig file
+# a parent/sibling shell created and still points at.
+echo ""
+echo "==> Testing owner-scoped use()/unuse() in child shells (issue #98)..."
+
+unset KUBECONFIG OP_ENV OP_ENV_LIST 2>/dev/null || true
+
+use with-kubeconfig > /dev/null 2>&1
+_parent_kube="$KUBECONFIG"
+
+# Child re-activates the same env (subshell → distinct $BASHPID). It creates
+# its own temp file (removed before exiting); the parent's must survive.
+( use with-kubeconfig > /dev/null 2>&1; rm -f "$KUBECONFIG" )
+if [ -f "$_parent_kube" ]; then
+    ok "child use() preserves parent kubeconfig"
+else
+    fail "child use() preserves parent kubeconfig ($_parent_kube)"
+fi
+
+# Child unuse of the same env must not delete the parent's file either.
+( unuse with-kubeconfig > /dev/null 2>&1 )
+if [ -f "$_parent_kube" ]; then
+    ok "child unuse() preserves parent kubeconfig"
+else
+    fail "child unuse() preserves parent kubeconfig ($_parent_kube)"
+fi
+
+# The owning shell's unuse still deletes its own file.
+unuse with-kubeconfig > /dev/null 2>&1
+if [ ! -f "$_parent_kube" ]; then
+    ok "owner unuse() deletes its own kubeconfig"
+else
+    fail "owner unuse() deletes its own kubeconfig (still exists: $_parent_kube)"
+fi
 
 # =========================================================================
 #  Tests: k8s-unset
