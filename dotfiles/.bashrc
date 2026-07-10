@@ -159,23 +159,40 @@ PROMPT_COMMAND="__prompt_command${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
 # Use unuse() to remove an environment's variables.
 _use_sanitize() { echo "${1//-/_}"; }
 
-# Clean up temp kubeconfig files on shell exit — but only for files this shell
-# created. The trap is registered in every interactive shell and _USE_TMPKUBE_*
-# vars are exported, so a short-lived child interactive shell would otherwise
-# delete a parent/sibling shell's still-in-use kubeconfig (issue #98). Each entry
-# records its creator's $BASHPID in _USE_TMPKUBE_OWNER_<name>; only the creating
-# shell deletes the file.
+# Clean up temp kubeconfig files and registry-auth dirs on shell exit — but
+# only those this shell created. The trap is registered in every interactive
+# shell and _USE_TMP* vars are exported, so a short-lived child interactive
+# shell would otherwise delete a parent/sibling shell's still-in-use temp
+# files (issue #98). Each entry records its creator's $BASHPID in
+# _USE_TMP{KUBE,AUTH}_OWNER_<name>; only the creating shell deletes.
 _use_cleanup_all() {
     local varname name owner_var
     while IFS='=' read -r varname _; do
-        [[ "$varname" == _USE_TMPKUBE_* ]] || continue
-        [[ "$varname" == _USE_TMPKUBE_OWNER_* ]] && continue
-        name="${varname#_USE_TMPKUBE_}"
-        owner_var="_USE_TMPKUBE_OWNER_${name}"
-        [ "${!owner_var:-}" = "$BASHPID" ] && rm -f "${!varname}"
+        case "$varname" in
+            _USE_TMPKUBE_OWNER_*|_USE_TMPAUTH_OWNER_*) continue ;;
+            _USE_TMPKUBE_*)
+                name="${varname#_USE_TMPKUBE_}"
+                owner_var="_USE_TMPKUBE_OWNER_${name}"
+                [ "${!owner_var:-}" = "$BASHPID" ] && rm -f "${!varname}"
+                ;;
+            _USE_TMPAUTH_*)
+                name="${varname#_USE_TMPAUTH_}"
+                owner_var="_USE_TMPAUTH_OWNER_${name}"
+                [ "${!owner_var:-}" = "$BASHPID" ] && rm -rf "${!varname}"
+                ;;
+        esac
     done < <(env)
 }
 trap _use_cleanup_all EXIT
+
+# Resolve a single env-file value: op:// references via op read, plain values
+# pass through unchanged.
+_use_resolve_value() {
+    case "$1" in
+        op://*) op read "$1" ;;
+        *)      printf '%s\n' "$1" ;;
+    esac
+}
 
 use() {
     local envdir="/workspace/igou-devenv/envs"
@@ -213,10 +230,28 @@ use() {
         return 1
     fi
 
+    # Parse container-registry strategy from env file. All three keys build a
+    # temp containers-auth.json that podman/buildah/skopeo (REGISTRY_AUTH_FILE)
+    # and docker (DOCKER_CONFIG) read:
+    #   REGISTRY_HOST     — registry hostname (plain value or op:// ref)
+    #   REGISTRY_USERNAME + REGISTRY_PASSWORD — credentials (op:// refs)
+    # A subset is an error.
+    local registry_host_ref registry_user_ref registry_pass_ref
+    registry_host_ref=$(grep '^REGISTRY_HOST=' "$envfile" | cut -d= -f2)
+    registry_user_ref=$(grep '^REGISTRY_USERNAME=' "$envfile" | cut -d= -f2)
+    registry_pass_ref=$(grep '^REGISTRY_PASSWORD=' "$envfile" | cut -d= -f2)
+
+    if [ -n "${registry_host_ref}${registry_user_ref}${registry_pass_ref}" ] && \
+       { [ -z "$registry_host_ref" ] || [ -z "$registry_user_ref" ] || [ -z "$registry_pass_ref" ]; }; then
+        echo "Error: ${1}.env must have all of REGISTRY_HOST, REGISTRY_USERNAME, REGISTRY_PASSWORD (found a subset)"
+        return 1
+    fi
+
     # Resolve op:// references via op inject (one-shot, no wrapper process).
-    # Kubeconfig-related keys are handled separately — strip them before op inject.
+    # Kubeconfig- and registry-related keys are handled separately — strip them
+    # before op inject.
     local remaining
-    remaining=$(grep -v '^KUBECONFIG_DATA=\|^KUBECONFIG_TOKEN=\|^KUBECONFIG_HOST=' "$envfile")
+    remaining=$(grep -v '^KUBECONFIG_DATA=\|^KUBECONFIG_TOKEN=\|^KUBECONFIG_HOST=\|^REGISTRY_HOST=\|^REGISTRY_USERNAME=\|^REGISTRY_PASSWORD=' "$envfile")
 
     local keys=()
     if [ -n "$remaining" ]; then
@@ -278,6 +313,52 @@ KUBECFG
         export "_USE_TMPKUBE_OWNER_${safe_name}=$BASHPID"
     fi
 
+    if [ -n "$registry_host_ref" ]; then
+        local registry_host registry_user registry_pass
+        registry_host=$(_use_resolve_value "$registry_host_ref") || {
+            echo "Failed to resolve REGISTRY_HOST for ${1}"
+            return 1
+        }
+        registry_user=$(_use_resolve_value "$registry_user_ref") || {
+            echo "Failed to resolve REGISTRY_USERNAME for ${1}"
+            return 1
+        }
+        registry_pass=$(_use_resolve_value "$registry_pass_ref") || {
+            echo "Failed to resolve REGISTRY_PASSWORD for ${1}"
+            return 1
+        }
+
+        # Clean up previous temp auth dir for this env if re-using
+        local authvar="_USE_TMPAUTH_${safe_name}"
+        [ -n "${!authvar:-}" ] && rm -rf "${!authvar}"
+        local tmpauth
+        tmpauth=$(mktemp -d /tmp/registry-auth.XXXXXX)
+
+        # containers-auth.json(5) shares docker's config.json "auths" schema,
+        # so one file serves podman/buildah/skopeo (REGISTRY_AUTH_FILE points
+        # at the file) and docker (DOCKER_CONFIG points at the directory).
+        local auth_b64
+        auth_b64=$(printf '%s:%s' "$registry_user" "$registry_pass" | base64 -w0)
+        cat > "${tmpauth}/config.json" << AUTHJSON
+{
+  "auths": {
+    "${registry_host}": {
+      "auth": "${auth_b64}"
+    }
+  }
+}
+AUTHJSON
+        chmod 600 "${tmpauth}/config.json"
+
+        export REGISTRY_AUTH_FILE="${tmpauth}/config.json"
+        export DOCKER_CONFIG="$tmpauth"
+        keys+=("REGISTRY_AUTH_FILE" "DOCKER_CONFIG")
+        export "$authvar=$tmpauth"
+        # Record the creating shell so only it deletes the dir on EXIT (issue #98)
+        export "_USE_TMPAUTH_OWNER_${safe_name}=$BASHPID"
+        echo "Registry auth for '${registry_host}' written (podman/docker)"
+    fi
+
     # Track which keys this env set (for unuse)
     local keys_var="_USE_KEYS_${safe_name}"
     # shellcheck disable=SC2178
@@ -330,6 +411,14 @@ unuse() {
         unset "$tmpvar"
     fi
     unset "_USE_TMPKUBE_OWNER_${safe_name}"
+
+    # Clean up temp registry auth dir
+    local authvar="_USE_TMPAUTH_${safe_name}"
+    if [ -n "${!authvar:-}" ]; then
+        rm -rf "${!authvar}"
+        unset "$authvar"
+    fi
+    unset "_USE_TMPAUTH_OWNER_${safe_name}"
 
     # Update OP_ENV_LIST: remove this env
     local new_list="" env_name

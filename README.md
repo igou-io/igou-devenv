@@ -198,11 +198,21 @@ use ansible             # stack Ansible vault on top
 unuse ansible           # remove Ansible vault environment
 unuse ocp-hub           # back to clean shell
 
+use quay                # authenticate podman/docker to quay.io
+podman pull quay.io/igou/some-private-image
+unuse quay              # deletes the temp auth file
+
 k8s-unset               # clear KUBECONFIG and K8S_AUTH_* vars
 ```
 
 Environment files live in `envs/` and contain only `op://` references — no
 secrets are stored in the repo.
+
+Env files with `REGISTRY_HOST`, `REGISTRY_USERNAME`, and `REGISTRY_PASSWORD`
+write a temp `containers-auth.json` and export `REGISTRY_AUTH_FILE` (podman,
+buildah, skopeo) plus `DOCKER_CONFIG` (docker), so container CLIs are
+authenticated for the shell session without `podman login` state on disk.
+See `envs/quay.env` for the shape.
 
 ## Makefile Targets
 
