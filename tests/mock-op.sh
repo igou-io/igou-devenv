@@ -18,11 +18,25 @@ fi
 case "${1:-}" in
     read)
         ref="${2:-}"
-        # Look up the ref in the mock secrets file (one "ref=value" per line)
+        # Look up the ref in the mock secrets file (one "ref=value" per line).
+        # Match the ref as a literal prefix and strip it with parameter
+        # expansion — the ref itself may contain "=" (e.g. ?ssh-format=openssh),
+        # so splitting the line on the first "=" would truncate wrongly.
         if [ -f "${MOCK_OP_SECRETS_FILE:-}" ]; then
-            value=$(grep "^${ref}=" "$MOCK_OP_SECRETS_FILE" | head -1 | cut -d= -f2-)
+            value=""
+            while IFS= read -r secret_line; do
+                case "$secret_line" in
+                    "${ref}="*) value="${secret_line#"${ref}"=}"; break ;;
+                esac
+            done < "$MOCK_OP_SECRETS_FILE"
             if [ -n "$value" ]; then
-                echo "$value"
+                # "file:<path>" values return the file's contents — lets tests
+                # serve multi-line secrets (e.g. SSH private keys) that can't
+                # live on one line of the secrets file.
+                case "$value" in
+                    file:*) cat "${value#file:}" ;;
+                    *)      echo "$value" ;;
+                esac
                 exit 0
             fi
         fi

@@ -154,19 +154,6 @@ __prompt_command() {
 }
 PROMPT_COMMAND="__prompt_command${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
 
-# Auto-heal stale SSH agent sockets (Cursor/VS Code reconnect bug).
-# Uses timeout to prevent hanging on broken sockets in use() subshells.
-_fix_ssh_auth_sock() {
-    [ -e "${SSH_AUTH_SOCK:-}" ] && timeout 2 ssh-add -l &>/dev/null && return
-    for sock in $(ls -t /tmp/cursor-remote-ssh-auth-*.sock /tmp/vscode-ssh-auth-*.sock /tmp/ssh-*/agent.* 2>/dev/null); do
-        if SSH_AUTH_SOCK="$sock" timeout 2 ssh-add -l &>/dev/null; then
-            export SSH_AUTH_SOCK="$sock"
-            return
-        fi
-    done
-}
-PROMPT_COMMAND="_fix_ssh_auth_sock${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
-
 # Environment switching via 1Password (see adr/0001)
 # Resolves op:// secrets via "op inject" and exports them in the current shell.
 # Use unuse() to remove an environment's variables.
@@ -359,6 +346,45 @@ unuse() {
     fi
 
     echo "Environment '${1}' deactivated"
+}
+
+# SSH keys from 1Password (see adr/0004)
+# A container-local ssh-agent listens on $SSH_AUTH_SOCK (started empty by
+# post-start.sh via bin/ensure-ssh-agent — no host agent forwarding).
+# ssh-use pipes a private key from 1Password straight into agent memory —
+# never onto disk — with a bounded lifetime. ssh-unuse removes one key by its
+# public half, or all keys with no argument.
+#   ssh-use                  # load the default key (github)
+#   ssh-use lab-nodes        # load op://lab_ssh/lab-nodes
+#   SSH_USE_TTL=1h ssh-use   # override the default 12h lifetime
+#   SSH_USE_VAULT=other ssh-use mykey
+ssh-use() {
+    local item="${1:-github}"
+    local vault="${SSH_USE_VAULT:-lab_ssh}"
+    local ttl="${SSH_USE_TTL:-12h}"
+    if ! op read "op://${vault}/${item}/private key?ssh-format=openssh" \
+            | ssh-add -t "$ttl" - 2>/dev/null; then
+        echo "Failed to load SSH key '${item}' from vault '${vault}'"
+        return 1
+    fi
+    echo "SSH key '${item}' loaded (expires in ${ttl})"
+}
+
+ssh-unuse() {
+    if [ -z "${1:-}" ]; then
+        if ! ssh-add -D 2>/dev/null; then
+            echo "Failed to clear agent (no agent on ${SSH_AUTH_SOCK:-unset}?)"
+            return 1
+        fi
+        echo "All SSH keys removed from agent"
+        return 0
+    fi
+    local vault="${SSH_USE_VAULT:-lab_ssh}"
+    if ! op read "op://${vault}/${1}/public key" | ssh-add -d - 2>/dev/null; then
+        echo "Failed to remove SSH key '${1}' (not loaded, or vault '${vault}' unreachable)"
+        return 1
+    fi
+    echo "SSH key '${1}' removed from agent"
 }
 
 k8s-unset() {

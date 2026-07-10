@@ -33,6 +33,14 @@ fi
 
 echo ""
 echo "========================================="
+echo "  test-ssh"
+echo "========================================="
+# Runs in CI too: extracts functions from dotfiles/.bashrc itself and uses a
+# private ssh-agent, so it needs no interactive shell or post-create setup.
+bash "$DIR/test-ssh.sh"
+
+echo ""
+echo "========================================="
 echo "  test-run-scripts"
 echo "========================================="
 bash "$DIR/test-run-scripts.sh"
