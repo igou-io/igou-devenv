@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Ensure a container-local ssh-agent is listening on the fixed socket path
+# (adr/0004). Idempotent: reuses a live agent, replaces a dead/stale socket.
+# The agent starts EMPTY — load keys on demand from 1Password with ssh-use
+# (dotfiles/.bashrc); never load keys here, or a privileged credential would
+# be ambient at all times again.
+set -euo pipefail
+
+SOCK="${SSH_AUTH_SOCK:-/tmp/ssh-agent.sock}"
+
+# ssh-add -l exit codes: 0 = agent has keys, 1 = agent alive but empty,
+# 2 = cannot contact an agent (124 if timeout fires on a wedged socket).
+rc=0
+SSH_AUTH_SOCK="$SOCK" timeout 2 ssh-add -l >/dev/null 2>&1 || rc=$?
+if [ "$rc" -le 1 ]; then
+    echo "Reusing ssh-agent on ${SOCK}"
+    exit 0
+fi
+
+rm -f "$SOCK" 2>/dev/null || true
+if ssh-agent -a "$SOCK" >/dev/null 2>&1; then
+    echo "Started ssh-agent on ${SOCK}"
+else
+    # Most likely a container created before adr/0004: the host agent socket
+    # is still bind-mounted at this path and a mountpoint can't be replaced
+    # from inside the container.
+    echo "WARNING: could not start ssh-agent on ${SOCK}"
+    echo "If this container predates adr/0004, recreate it: make down && make up"
+    exit 1
+fi

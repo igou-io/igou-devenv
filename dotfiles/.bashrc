@@ -154,19 +154,6 @@ __prompt_command() {
 }
 PROMPT_COMMAND="__prompt_command${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
 
-# Auto-heal stale SSH agent sockets (Cursor/VS Code reconnect bug).
-# Uses timeout to prevent hanging on broken sockets in use() subshells.
-_fix_ssh_auth_sock() {
-    [ -e "${SSH_AUTH_SOCK:-}" ] && timeout 2 ssh-add -l &>/dev/null && return
-    for sock in $(ls -t /tmp/cursor-remote-ssh-auth-*.sock /tmp/vscode-ssh-auth-*.sock /tmp/ssh-*/agent.* 2>/dev/null); do
-        if SSH_AUTH_SOCK="$sock" timeout 2 ssh-add -l &>/dev/null; then
-            export SSH_AUTH_SOCK="$sock"
-            return
-        fi
-    done
-}
-PROMPT_COMMAND="_fix_ssh_auth_sock${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
-
 # Environment switching via 1Password (see adr/0001)
 # Resolves op:// secrets via "op inject" and exports them in the current shell.
 # Use unuse() to remove an environment's variables.
@@ -183,23 +170,49 @@ _use_kube_fail() {
     for k in "${keys[@]}"; do unset "$k"; done
 }
 
-# Clean up temp kubeconfig files on shell exit — but only for files this shell
-# created. The trap is registered in every interactive shell and _USE_TMPKUBE_*
-# vars are exported, so a short-lived child interactive shell would otherwise
-# delete a parent/sibling shell's still-in-use kubeconfig (issue #98). Each entry
-# records its creator's $BASHPID in _USE_TMPKUBE_OWNER_<name>; only the creating
-# shell deletes the file.
+# Registry-resolution failure path for use() — same dynamic-scoping contract
+# as _use_kube_fail: report the error and roll back the keys already exported
+# so a failed use() doesn't leave a half-active environment.
+_use_registry_fail() {
+    echo "Failed to resolve registry credentials for ${1}"
+    local k
+    for k in "${keys[@]}"; do unset "$k"; done
+}
+
+# Clean up temp kubeconfig files and registry-auth dirs on shell exit — but
+# only those this shell created. The trap is registered in every interactive
+# shell and _USE_TMP* vars are exported, so a short-lived child interactive
+# shell would otherwise delete a parent/sibling shell's still-in-use temp
+# files (issue #98). Each entry records its creator's $BASHPID in
+# _USE_TMP{KUBE,AUTH}_OWNER_<name>; only the creating shell deletes.
 _use_cleanup_all() {
     local varname name owner_var
     while IFS='=' read -r varname _; do
-        [[ "$varname" == _USE_TMPKUBE_* ]] || continue
-        [[ "$varname" == _USE_TMPKUBE_OWNER_* ]] && continue
-        name="${varname#_USE_TMPKUBE_}"
-        owner_var="_USE_TMPKUBE_OWNER_${name}"
-        [ "${!owner_var:-}" = "$BASHPID" ] && rm -f "${!varname}"
+        case "$varname" in
+            _USE_TMPKUBE_OWNER_*|_USE_TMPAUTH_OWNER_*) continue ;;
+            _USE_TMPKUBE_*)
+                name="${varname#_USE_TMPKUBE_}"
+                owner_var="_USE_TMPKUBE_OWNER_${name}"
+                [ "${!owner_var:-}" = "$BASHPID" ] && rm -f "${!varname}"
+                ;;
+            _USE_TMPAUTH_*)
+                name="${varname#_USE_TMPAUTH_}"
+                owner_var="_USE_TMPAUTH_OWNER_${name}"
+                [ "${!owner_var:-}" = "$BASHPID" ] && rm -rf "${!varname}"
+                ;;
+        esac
     done < <(env)
 }
 trap _use_cleanup_all EXIT
+
+# Resolve a single env-file value: op:// references via op read, plain values
+# pass through unchanged.
+_use_resolve_value() {
+    case "$1" in
+        op://*) op read "$1" ;;
+        *)      printf '%s\n' "$1" ;;
+    esac
+}
 
 use() {
     local envdir="/workspace/igou-devenv/envs"
@@ -237,10 +250,28 @@ use() {
         return 1
     fi
 
+    # Parse container-registry strategy from env file. All three keys build a
+    # temp containers-auth.json that podman/buildah/skopeo (REGISTRY_AUTH_FILE)
+    # and docker (DOCKER_CONFIG) read:
+    #   REGISTRY_HOST     — registry hostname (plain value or op:// ref)
+    #   REGISTRY_USERNAME + REGISTRY_PASSWORD — credentials (op:// refs)
+    # A subset is an error.
+    local registry_host_ref registry_user_ref registry_pass_ref
+    registry_host_ref=$(grep -m1 '^REGISTRY_HOST=' "$envfile" | cut -d= -f2-)
+    registry_user_ref=$(grep -m1 '^REGISTRY_USERNAME=' "$envfile" | cut -d= -f2-)
+    registry_pass_ref=$(grep -m1 '^REGISTRY_PASSWORD=' "$envfile" | cut -d= -f2-)
+
+    if [ -n "${registry_host_ref}${registry_user_ref}${registry_pass_ref}" ] && \
+       { [ -z "$registry_host_ref" ] || [ -z "$registry_user_ref" ] || [ -z "$registry_pass_ref" ]; }; then
+        echo "Error: ${1}.env must have all of REGISTRY_HOST, REGISTRY_USERNAME, REGISTRY_PASSWORD (found a subset)"
+        return 1
+    fi
+
     # Resolve op:// references via op inject (one-shot, no wrapper process).
-    # Kubeconfig-related keys are handled separately — strip them before op inject.
+    # Kubeconfig- and registry-related keys are handled separately — strip them
+    # before op inject.
     local remaining
-    remaining=$(grep -v '^KUBECONFIG_DATA=\|^KUBECONFIG_TOKEN=\|^KUBECONFIG_HOST=' "$envfile")
+    remaining=$(grep -v '^KUBECONFIG_DATA=\|^KUBECONFIG_TOKEN=\|^KUBECONFIG_HOST=\|^REGISTRY_HOST=\|^REGISTRY_USERNAME=\|^REGISTRY_PASSWORD=' "$envfile")
 
     local keys=()
     if [ -n "$remaining" ]; then
@@ -318,6 +349,57 @@ KUBECFG
         export "_USE_TMPKUBE_OWNER_${safe_name}=$BASHPID"
     fi
 
+    if [ -n "$registry_host_ref" ]; then
+        local registry_host registry_user registry_pass
+        if ! registry_host=$(_use_resolve_value "$registry_host_ref") || [ -z "$registry_host" ]; then
+            _use_registry_fail "$1"
+            return 1
+        fi
+        if ! registry_user=$(_use_resolve_value "$registry_user_ref") || [ -z "$registry_user" ]; then
+            _use_registry_fail "$1"
+            return 1
+        fi
+        if ! registry_pass=$(_use_resolve_value "$registry_pass_ref") || [ -z "$registry_pass" ]; then
+            _use_registry_fail "$1"
+            return 1
+        fi
+
+        # Clean up previous temp auth dir for this env if re-using — but only
+        # if this shell created it. An inherited _USE_TMPAUTH_* var points at a
+        # dir a parent/sibling shell still uses (issue #98).
+        local authvar="_USE_TMPAUTH_${safe_name}"
+        local auth_ownervar="_USE_TMPAUTH_OWNER_${safe_name}"
+        if [ -n "${!authvar:-}" ] && [ "${!auth_ownervar:-}" = "$BASHPID" ]; then
+            rm -rf "${!authvar}"
+        fi
+        local tmpauth
+        tmpauth=$(mktemp -d /tmp/registry-auth.XXXXXX)
+
+        # containers-auth.json(5) shares docker's config.json "auths" schema,
+        # so one file serves podman/buildah/skopeo (REGISTRY_AUTH_FILE points
+        # at the file) and docker (DOCKER_CONFIG points at the directory).
+        local auth_b64
+        auth_b64=$(printf '%s:%s' "$registry_user" "$registry_pass" | base64 -w0)
+        cat > "${tmpauth}/config.json" << AUTHJSON
+{
+  "auths": {
+    "${registry_host}": {
+      "auth": "${auth_b64}"
+    }
+  }
+}
+AUTHJSON
+        chmod 600 "${tmpauth}/config.json"
+
+        export REGISTRY_AUTH_FILE="${tmpauth}/config.json"
+        export DOCKER_CONFIG="$tmpauth"
+        keys+=("REGISTRY_AUTH_FILE" "DOCKER_CONFIG")
+        export "$authvar=$tmpauth"
+        # Record the creating shell so only it deletes the dir on EXIT (issue #98)
+        export "_USE_TMPAUTH_OWNER_${safe_name}=$BASHPID"
+        echo "Registry auth for '${registry_host}' written (podman/docker)"
+    fi
+
     # Track which keys this env set (for unuse)
     local keys_var="_USE_KEYS_${safe_name}"
     # shellcheck disable=SC2178
@@ -374,6 +456,17 @@ unuse() {
     fi
     unset "$ownervar"
 
+    # Clean up temp registry auth dir — delete it only if this shell created
+    # it (issue #98, same rule as the kubeconfig above); still unset this
+    # shell's copies of the vars.
+    local authvar="_USE_TMPAUTH_${safe_name}"
+    local auth_ownervar="_USE_TMPAUTH_OWNER_${safe_name}"
+    if [ -n "${!authvar:-}" ]; then
+        [ "${!auth_ownervar:-}" = "$BASHPID" ] && rm -rf "${!authvar}"
+        unset "$authvar"
+    fi
+    unset "$auth_ownervar"
+
     # Update OP_ENV_LIST: remove this env
     local new_list="" env_name
     for env_name in ${OP_ENV_LIST//,/ }; do
@@ -389,6 +482,45 @@ unuse() {
     fi
 
     echo "Environment '${1}' deactivated"
+}
+
+# SSH keys from 1Password (see adr/0004)
+# A container-local ssh-agent listens on $SSH_AUTH_SOCK (started empty by
+# post-start.sh via bin/ensure-ssh-agent — no host agent forwarding).
+# ssh-use pipes a private key from 1Password straight into agent memory —
+# never onto disk — with a bounded lifetime. ssh-unuse removes one key by its
+# public half, or all keys with no argument.
+#   ssh-use                  # load the default key (github)
+#   ssh-use lab-nodes        # load op://lab_ssh/lab-nodes
+#   SSH_USE_TTL=1h ssh-use   # override the default 12h lifetime
+#   SSH_USE_VAULT=other ssh-use mykey
+ssh-use() {
+    local item="${1:-github}"
+    local vault="${SSH_USE_VAULT:-lab_ssh}"
+    local ttl="${SSH_USE_TTL:-12h}"
+    if ! op read "op://${vault}/${item}/private key?ssh-format=openssh" \
+            | ssh-add -t "$ttl" - 2>/dev/null; then
+        echo "Failed to load SSH key '${item}' from vault '${vault}'"
+        return 1
+    fi
+    echo "SSH key '${item}' loaded (expires in ${ttl})"
+}
+
+ssh-unuse() {
+    if [ -z "${1:-}" ]; then
+        if ! ssh-add -D 2>/dev/null; then
+            echo "Failed to clear agent (no agent on ${SSH_AUTH_SOCK:-unset}?)"
+            return 1
+        fi
+        echo "All SSH keys removed from agent"
+        return 0
+    fi
+    local vault="${SSH_USE_VAULT:-lab_ssh}"
+    if ! op read "op://${vault}/${1}/public key" | ssh-add -d - 2>/dev/null; then
+        echo "Failed to remove SSH key '${1}' (not loaded, or vault '${vault}' unreachable)"
+        return 1
+    fi
+    echo "SSH key '${1}' removed from agent"
 }
 
 k8s-unset() {

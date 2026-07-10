@@ -53,6 +53,8 @@ op://Homelab/aap/password=s3cret
 op://Homelab/aap/username=admin
 op://Homelab/test-cluster/token=sha256~fake-token-12345
 op://Homelab/test-cluster/api-host=https://api.test-cluster.example.com:6443
+op://Homelab/test-registry/username=robot+devenv
+op://Homelab/test-registry/password=hunter2
 EOF
 
 # Mock op call log for verifying invocations
@@ -97,6 +99,25 @@ cat > "$TESTDIR/envs/aap.env" << 'EOF'
 CONTROLLER_HOST=op://Homelab/aap/host
 CONTROLLER_PASSWORD=op://Homelab/aap/password
 CONTROLLER_USERNAME=op://Homelab/aap/username
+EOF
+
+cat > "$TESTDIR/envs/registry.env" << 'EOF'
+REGISTRY_HOST=registry.example.com
+REGISTRY_USERNAME=op://Homelab/test-registry/username
+REGISTRY_PASSWORD=op://Homelab/test-registry/password
+AWS_DEFAULT_REGION=ap-south-1
+EOF
+
+cat > "$TESTDIR/envs/registry-partial.env" << 'EOF'
+REGISTRY_HOST=registry.example.com
+REGISTRY_USERNAME=op://Homelab/test-registry/username
+EOF
+
+cat > "$TESTDIR/envs/bad-registry.env" << 'EOF'
+REGISTRY_HOST=registry.example.com
+REGISTRY_USERNAME=op://Homelab/missing/username
+REGISTRY_PASSWORD=op://Homelab/missing/password
+AWS_DEFAULT_REGION=ap-south-1
 EOF
 
 # Refs that don't exist in the mock secrets — resolution must fail loudly
@@ -322,6 +343,192 @@ if [ $rc -ne 0 ] && echo "$output" | grep -q "must have both"; then
 else
     fail "token without host rejected (rc=$rc output: $output)"
 fi
+
+# =========================================================================
+#  Tests: use() — env with REGISTRY_HOST/USERNAME/PASSWORD
+# =========================================================================
+echo ""
+echo "==> Testing use() — container registry env..."
+
+unset REGISTRY_AUTH_FILE DOCKER_CONFIG AWS_DEFAULT_REGION OP_ENV OP_ENV_LIST 2>/dev/null || true
+
+use registry > /dev/null 2>&1
+if [ -n "${REGISTRY_AUTH_FILE:-}" ] && [ -f "$REGISTRY_AUTH_FILE" ]; then
+    ok "registry auth file created"
+else
+    fail "registry auth file created (REGISTRY_AUTH_FILE=${REGISTRY_AUTH_FILE:-unset})"
+fi
+if [ "${DOCKER_CONFIG:-}" = "$(dirname "${REGISTRY_AUTH_FILE:-/nonexistent}")" ] && [ -f "${DOCKER_CONFIG:-/nonexistent}/config.json" ]; then
+    ok "DOCKER_CONFIG points at the auth file's directory"
+else
+    fail "DOCKER_CONFIG points at the auth file's directory (DOCKER_CONFIG=${DOCKER_CONFIG:-unset})"
+fi
+_expected_auth=$(printf '%s:%s' "robot+devenv" "hunter2" | base64 -w0)
+if grep -q "\"registry.example.com\"" "${REGISTRY_AUTH_FILE:-/nonexistent}" 2>/dev/null && \
+   grep -q "$_expected_auth" "${REGISTRY_AUTH_FILE:-/nonexistent}" 2>/dev/null; then
+    ok "auth file has host entry with base64(user:pass)"
+else
+    fail "auth file has host entry with base64(user:pass)"
+fi
+if [ "$(stat -c %a "${REGISTRY_AUTH_FILE:-/nonexistent}" 2>/dev/null)" = "600" ]; then
+    ok "auth file is mode 600"
+else
+    fail "auth file is mode 600 (got: $(stat -c %a "${REGISTRY_AUTH_FILE:-/nonexistent}" 2>/dev/null))"
+fi
+if [ "${AWS_DEFAULT_REGION:-}" = "ap-south-1" ]; then
+    ok "registry env also resolves other vars"
+else
+    fail "registry env also resolves other vars (got: ${AWS_DEFAULT_REGION:-unset})"
+fi
+
+# Re-using replaces the previous temp auth dir instead of leaking it
+_first_auth_dir="${DOCKER_CONFIG:-}"
+use registry > /dev/null 2>&1
+if [ ! -d "$_first_auth_dir" ] && [ -f "${REGISTRY_AUTH_FILE:-/nonexistent}" ]; then
+    ok "re-use replaces previous auth dir"
+else
+    fail "re-use replaces previous auth dir (old: $_first_auth_dir)"
+fi
+
+_saved_auth_dir="${DOCKER_CONFIG:-}"
+unuse registry > /dev/null 2>&1
+if [ -z "${REGISTRY_AUTH_FILE:-}" ] && [ -z "${DOCKER_CONFIG:-}" ]; then
+    ok "unuse clears REGISTRY_AUTH_FILE and DOCKER_CONFIG"
+else
+    fail "unuse clears REGISTRY_AUTH_FILE and DOCKER_CONFIG (still: ${REGISTRY_AUTH_FILE:-}/${DOCKER_CONFIG:-})"
+fi
+if [ ! -d "$_saved_auth_dir" ]; then
+    ok "unuse deletes temp auth dir"
+else
+    fail "unuse deletes temp auth dir (still exists: $_saved_auth_dir)"
+fi
+
+# =========================================================================
+#  Tests: use() — partial REGISTRY_* keys rejected
+# =========================================================================
+echo ""
+echo "==> Testing use() — partial registry keys rejected..."
+
+output=$(use registry-partial 2>&1)
+rc=$?
+if [ $rc -ne 0 ] && echo "$output" | grep -q "must have all of REGISTRY_HOST"; then
+    ok "partial registry keys rejected"
+else
+    fail "partial registry keys rejected (rc=$rc output: $output)"
+fi
+
+# =========================================================================
+#  Tests: use() — registry credential resolution failure is detected
+# =========================================================================
+# A failed op read must fail the whole use() call: nonzero rc, no
+# REGISTRY_AUTH_FILE/DOCKER_CONFIG export, rolled-back vars, no orphan dir.
+echo ""
+echo "==> Testing use() — registry resolution failure..."
+
+unset REGISTRY_AUTH_FILE DOCKER_CONFIG AWS_DEFAULT_REGION OP_ENV OP_ENV_LIST 2>/dev/null || true
+_pre_auth_count=$(compgen -G "/tmp/registry-auth.*" | wc -l)
+
+use bad-registry > "$TESTDIR/bad-registry-out" 2>&1
+rc=$?
+if [ $rc -ne 0 ]; then
+    ok "failed registry op read returns nonzero"
+else
+    fail "failed registry op read returns nonzero (rc=$rc)"
+fi
+if grep -q "Failed to resolve registry credentials" "$TESTDIR/bad-registry-out"; then
+    ok "failed registry op read reports error"
+else
+    fail "failed registry op read reports error (got: $(cat "$TESTDIR/bad-registry-out"))"
+fi
+if [ -z "${REGISTRY_AUTH_FILE:-}" ] && [ -z "${DOCKER_CONFIG:-}" ]; then
+    ok "failed registry use does not export auth vars"
+else
+    fail "failed registry use does not export auth vars (${REGISTRY_AUTH_FILE:-}/${DOCKER_CONFIG:-})"
+fi
+if [ -z "${AWS_DEFAULT_REGION:-}" ]; then
+    ok "failed registry use rolls back already-exported vars"
+else
+    fail "failed registry use rolls back already-exported vars (still: ${AWS_DEFAULT_REGION:-})"
+fi
+if [ -z "${OP_ENV:-}" ] && [ -z "${OP_ENV_LIST:-}" ]; then
+    ok "failed registry use does not mark env active"
+else
+    fail "failed registry use does not mark env active (OP_ENV=${OP_ENV:-} OP_ENV_LIST=${OP_ENV_LIST:-})"
+fi
+_post_auth_count=$(compgen -G "/tmp/registry-auth.*" | wc -l)
+if [ "$_pre_auth_count" = "$_post_auth_count" ]; then
+    ok "failed registry use leaves no orphan auth dir"
+else
+    fail "failed registry use leaves no orphan auth dir (before=$_pre_auth_count after=$_post_auth_count)"
+fi
+
+# =========================================================================
+#  Tests: registry use()/unuse() re-activation is owner-scoped (issue #98)
+# =========================================================================
+echo ""
+echo "==> Testing owner-scoped registry use()/unuse() in child shells (issue #98)..."
+
+unset REGISTRY_AUTH_FILE DOCKER_CONFIG OP_ENV OP_ENV_LIST 2>/dev/null || true
+
+use registry > /dev/null 2>&1
+_parent_auth_dir="$DOCKER_CONFIG"
+
+# Child re-activates the same env (subshell → distinct $BASHPID). It creates
+# its own temp dir (removed before exiting); the parent's must survive.
+( use registry > /dev/null 2>&1; rm -rf "$DOCKER_CONFIG" )
+if [ -f "$_parent_auth_dir/config.json" ]; then
+    ok "child use() preserves parent auth dir"
+else
+    fail "child use() preserves parent auth dir ($_parent_auth_dir)"
+fi
+
+# Child unuse of the same env must not delete the parent's dir either.
+( unuse registry > /dev/null 2>&1 )
+if [ -f "$_parent_auth_dir/config.json" ]; then
+    ok "child unuse() preserves parent auth dir"
+else
+    fail "child unuse() preserves parent auth dir ($_parent_auth_dir)"
+fi
+
+# The owning shell's unuse still deletes its own dir.
+unuse registry > /dev/null 2>&1
+if [ ! -d "$_parent_auth_dir" ]; then
+    ok "owner unuse() deletes its own auth dir"
+else
+    fail "owner unuse() deletes its own auth dir (still exists: $_parent_auth_dir)"
+fi
+
+# =========================================================================
+#  Tests: registry EXIT-trap cleanup is owner-scoped (issue #98)
+# =========================================================================
+echo ""
+echo "==> Testing owner-scoped EXIT cleanup — registry auth dir..."
+
+unset OP_ENV OP_ENV_LIST 2>/dev/null || true
+
+use registry > /dev/null 2>&1
+_owned_auth_dir="${DOCKER_CONFIG:-}"
+
+if [ "${_USE_TMPAUTH_OWNER_registry:-}" = "$BASHPID" ]; then
+    ok "owner PID recorded for created auth dir"
+else
+    fail "owner PID recorded (got: ${_USE_TMPAUTH_OWNER_registry:-unset}, BASHPID=$BASHPID)"
+fi
+
+( _use_cleanup_all ) # subshell → distinct $BASHPID, inherits exported vars
+if [ -d "$_owned_auth_dir" ]; then
+    ok "child-shell EXIT does not delete sibling auth dir"
+else
+    fail "child-shell EXIT deleted sibling auth dir ($_owned_auth_dir)"
+fi
+
+_use_cleanup_all
+if [ ! -d "$_owned_auth_dir" ]; then
+    ok "owner-shell EXIT deletes its own auth dir"
+else
+    fail "owner-shell EXIT deletes its own auth dir ($_owned_auth_dir)"
+fi
+unuse registry > /dev/null 2>&1
 
 # =========================================================================
 #  Tests: use() idempotent — calling twice doesn't error

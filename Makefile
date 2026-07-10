@@ -1,12 +1,9 @@
 DEVCONTAINER = devcontainer
 WORKSPACE    = $(CURDIR)
 
-# Resolve SSH agent mount at shell level: only mount if the socket file exists
-SSH_MOUNT = $(shell [ -S "$$SSH_AUTH_SOCK" ] && echo '--mount type=bind,source=$(SSH_AUTH_SOCK),target=/tmp/ssh-agent.sock --remote-env SSH_AUTH_SOCK=/tmp/ssh-agent.sock')
-
 .DEFAULT_GOAL := help
 
-.PHONY: build up up-release down restart exec shell run test test-all test-tools test-sandbox-primitives test-podman test-env test-mise test-mise-lockfile test-qemu clean rebuild help renovate-validate renovate-dry-run sbom sbom-devcontainer e2e opencode-build mise-lock release release-dry-run release-prepare release-watch
+.PHONY: build up up-release down restart exec shell run test test-all test-tools test-sandbox-primitives test-podman test-env test-mise test-ssh test-mise-lockfile test-qemu clean rebuild help renovate-validate renovate-dry-run sbom sbom-devcontainer e2e opencode-build mise-lock release release-dry-run release-prepare release-watch
 
 
 ## Build the devcontainer image (with cache)
@@ -18,22 +15,8 @@ build:
 ## Runs: init.sh → Dockerfile → onCreateCommand (pip) → post-create.sh → post-start.sh
 ## On subsequent starts (container already exists): post-start.sh only
 ##
-## The host SSH agent socket path ($SSH_AUTH_SOCK, e.g. /tmp/ssh-XXXX/agent.PID)
-## is ephemeral — regenerated each login session — but gets baked into the
-## container's bind mount at create time. `devcontainer up` restarts an existing
-## container via `docker start`, which re-validates that baked source path and
-## fails if it has gone stale. So before starting, drop any existing container
-## whose ssh-agent mount source no longer exists; `devcontainer up` then
-## recreates it with the current socket. Same-session restarts skip this.
 up:
-	@for c in $$(docker ps -aq --filter "label=devcontainer.local_folder=$(WORKSPACE)"); do \
-		src=$$(docker inspect "$$c" --format '{{range .Mounts}}{{if eq .Destination "/tmp/ssh-agent.sock"}}{{.Source}}{{end}}{{end}}' 2>/dev/null); \
-		if [ -n "$$src" ] && [ ! -S "$$src" ]; then \
-			echo "==> ssh-agent mount source $$src is stale; recreating container"; \
-			docker rm -f "$$c" >/dev/null; \
-		fi; \
-	done
-	$(DEVCONTAINER) up --workspace-folder $(WORKSPACE) $(SSH_MOUNT)
+	$(DEVCONTAINER) up --workspace-folder $(WORKSPACE)
 
 ## Restart the devcontainer (recreate without rebuilding image)
 ## Runs: init.sh → onCreateCommand (pip) → post-create.sh → post-start.sh
@@ -45,8 +28,7 @@ restart: down up
 rebuild:
 	$(DEVCONTAINER) up --workspace-folder $(WORKSPACE) \
 		--remove-existing-container \
-		--build-no-cache \
-		$(SSH_MOUNT)
+		--build-no-cache
 
 ## Stop and remove the devcontainer
 down:
@@ -111,11 +93,11 @@ up-release:
 	jq 'del(.build) | .image = "$(IMAGE):$(TAG)"' .devcontainer/devcontainer.json > "$$cfg"; \
 	echo "==> Starting devcontainer from $(IMAGE):$(TAG)"; \
 	$(DEVCONTAINER) up --workspace-folder $(WORKSPACE) --override-config "$$cfg" \
-		--remove-existing-container $(SSH_MOUNT); \
+		--remove-existing-container; \
 	st=$$?; rm -rf "$$(dirname "$$cfg")"; exit $$st
 
-## Run all tests (tools, podman, env, mise lockfile freshness + audit)
-test-all: test-tools test-podman test-env test-mise-lockfile test-mise test-qemu
+## Run all tests (tools, podman, env, ssh, mise lockfile freshness + audit)
+test-all: test-tools test-podman test-env test-ssh test-mise-lockfile test-mise test-qemu
 
 ## Alias for test-all
 test: test-all
@@ -135,6 +117,10 @@ test-podman:
 ## Test environment switching shell functions (use, k8s-unset, prompt)
 test-env:
 	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) bash -i /workspace/igou-devenv/tests/test-env.sh
+
+## Test SSH key loading from 1Password + container-local agent (adr/0004)
+test-ssh:
+	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) bash /workspace/igou-devenv/tests/test-ssh.sh
 
 ## Audit mise-managed tools: each tool resolves to its expected verification method.
 ## Runs inside the devcontainer (needs mise + installed tools).

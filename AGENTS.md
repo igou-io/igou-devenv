@@ -98,7 +98,7 @@ anyway.
 ├── devcontainer.json    # full local devcontainer config and mounts
 ├── init.sh              # host-side initializeCommand
 ├── post-create.sh       # shell config, workspace file
-├── post-start.sh        # SSH/socket checks, libvirt/dbus, code-server sync/start
+├── post-start.sh        # SSH agent bootstrap, libvirt/dbus, code-server sync/start
 ├── code-server-sync.sh  # applies devcontainer.json VS Code customizations to code-server
 └── requirements.txt     # pinned Python packages
 dotfiles/                # .bashrc, tmux, code-server config, workspace file
@@ -117,7 +117,7 @@ Lifecycle hooks:
 | `initializeCommand` | Host | `.devcontainer/init.sh` | Create mount directories before build/start |
 | `onCreateCommand` | Container | inline in `devcontainer.json` | Install Python requirements |
 | `postCreateCommand` | Container | `.devcontainer/post-create.sh` | Configure shell, tmux, workspace, default code-server config |
-| `postStartCommand` | Container | `.devcontainer/post-start.sh` | Check SSH/socket state, start libvirt/dbus/code-server, sync code-server settings |
+| `postStartCommand` | Container | `.devcontainer/post-start.sh` | Start container-local ssh-agent (adr/0004), libvirt/dbus/code-server, sync code-server settings |
 
 ## Where To Add Dependencies
 
@@ -245,5 +245,5 @@ Manual release targets are `make release`, `make release-dry-run`, and
 ## Linting
 
 ```bash
-shellcheck .devcontainer/post-create.sh .devcontainer/post-start.sh .devcontainer/init.sh dotfiles/.bashrc tests/*.sh bin/claude-run bin/cursor-run bin/opencode-run
+shellcheck .devcontainer/post-create.sh .devcontainer/post-start.sh .devcontainer/init.sh dotfiles/.bashrc tests/*.sh bin/claude-run bin/cursor-run bin/opencode-run bin/ensure-ssh-agent
 ```
