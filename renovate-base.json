@@ -13,6 +13,13 @@
   "minimumReleaseAge": "10 days",
   "schedule": ["before 11pm on sunday"],
   "separateMajorMinor": false,
+  "packageRules": [
+    {
+      "description": "The age gate is unsatisfiable for digest updates: a floating tag's current digest is always the tip (often <10d old), and action digests resolve without a release timestamp so the stability check pends forever. Let digests ride the weekly schedule; versioned updates keep the 10-day lag.",
+      "matchUpdateTypes": ["digest", "pinDigest"],
+      "minimumReleaseAge": null
+    }
+  ],
   "customDatasources": {
     "openshift-mirror": {
       "defaultRegistryUrlTemplate": "https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/stable-4.21/release.txt",
