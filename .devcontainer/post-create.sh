@@ -24,13 +24,22 @@ if [ -z "${CI:-}" ]; then
         cp /workspace/igou-devenv/dotfiles/code-server-config.yaml /home/igou/.config/code-server/config.yaml
     fi
 
-    # GitHub App runtime tokens (ghapp): seed the per-user config. Non-secret
-    # (IDs only); the private key is read from 1Password at mint time. GHAPP_CONFIG
-    # (in .bashrc) points the CLI + git credential helper here.
-    echo "==> Installing ghapp config (GitHub App runtime tokens)..."
+    # GitHub App runtime tokens (ghapp): seed the per-user config — only if
+    # absent, like the code-server config above. On a fresh laptop/devhost
+    # container ~/.config/ghapp is container-local and empty, so the op-based
+    # dotfiles config is seeded exactly as before. On hosts that bind-mount a
+    # pre-existing config into the container (the headless devenv VM mounts
+    # its file-based, private_key_path config read-only at this path), the
+    # mounted config wins and an unconditional cp would fail on the read-only
+    # mount. Non-secret either way (IDs only); the private key is read from
+    # 1Password (op-based) or the mounted key.pem (file-based) at mint time.
+    # GHAPP_CONFIG (in .bashrc) points the CLI + git credential helper here.
+    echo "==> Installing ghapp config (GitHub App runtime tokens, first run only)..."
     mkdir -p /home/igou/.config/ghapp
-    cp /workspace/igou-devenv/dotfiles/ghapp/config.yaml /home/igou/.config/ghapp/config.yaml
-    chmod 600 /home/igou/.config/ghapp/config.yaml
+    if [ ! -f /home/igou/.config/ghapp/config.yaml ]; then
+        cp /workspace/igou-devenv/dotfiles/ghapp/config.yaml /home/igou/.config/ghapp/config.yaml
+        chmod 600 /home/igou/.config/ghapp/config.yaml
+    fi
 else
     echo "==> CI detected, skipping shell config and workspace file"
 fi
