@@ -23,6 +23,14 @@ if [ -z "${CI:-}" ]; then
     if [ ! -f /home/igou/.config/code-server/config.yaml ]; then
         cp /workspace/igou-devenv/dotfiles/code-server-config.yaml /home/igou/.config/code-server/config.yaml
     fi
+
+    # GitHub App runtime tokens (ghapp): seed the per-user config. Non-secret
+    # (IDs only); the private key is read from 1Password at mint time. GHAPP_CONFIG
+    # (in .bashrc) points the CLI + git credential helper here.
+    echo "==> Installing ghapp config (GitHub App runtime tokens)..."
+    mkdir -p /home/igou/.config/ghapp
+    cp /workspace/igou-devenv/dotfiles/ghapp/config.yaml /home/igou/.config/ghapp/config.yaml
+    chmod 600 /home/igou/.config/ghapp/config.yaml
 else
     echo "==> CI detected, skipping shell config and workspace file"
 fi

@@ -255,6 +255,28 @@ COPY .devcontainer/requirements.txt /tmp/requirements.txt
 RUN pip install --break-system-packages --ignore-installed -r /tmp/requirements.txt && \
     rm /tmp/requirements.txt
 
+# ---------------------------------------------------------------------------
+# ghapp — runtime-minted, repo-scoped GitHub App tokens (credential helper +
+# gh-app/git-app wrappers). Not published to PyPI (the name belongs to
+# upstream), so it installs from a pinned git tag. Renovate bumps GHAPP_VERSION
+# via the `# renovate:` custom manager (github-tags on the plugin repo). Config
+# lives per-user in ~/.config/ghapp/config.yaml (dotfiles/ghapp/config.yaml,
+# seeded by post-create.sh); the App private key is read from 1Password at mint
+# time, never baked here. See README "GitHub Authentication (ghapp)".
+# renovate: datasource=github-tags depName=david-igou/hermes_github_app_plugin
+ARG GHAPP_VERSION="v0.2.0"
+RUN pip install --break-system-packages \
+      "hermes-github-app-plugin @ git+https://github.com/david-igou/hermes_github_app_plugin@${GHAPP_VERSION}"
+
+# Wire the ghapp git credential helper for github.com at the SYSTEM scope: the
+# per-user ~/.gitconfig is bind-mounted read-only from the host, so per-user git
+# config isn't writable in-container. With this, plain HTTPS `git clone/fetch/push`
+# on github.com mints a repo-scoped token via ghapp (useHttpPath gives the helper
+# the OWNER/REPO). URLs that embed x-access-token creds bypass the helper, so this
+# never fights an explicitly-tokenized remote.
+RUN git config --system credential."https://github.com".helper ghapp && \
+    git config --system credential."https://github.com".useHttpPath true
+
 # Configure podman for rootless operation inside a container
 RUN mkdir -p /home/igou/.config/containers
 COPY .devcontainer/containers-storage.conf /home/igou/.config/containers/storage.conf

@@ -214,6 +214,58 @@ buildah, skopeo) plus `DOCKER_CONFIG` (docker), so container CLIs are
 authenticated for the shell session without `podman login` state on disk.
 See `envs/quay.env` for the shape.
 
+## GitHub Authentication (ghapp)
+
+GitHub auth uses **runtime-minted, repo-scoped GitHub App tokens** (`ghapp`)
+rather than static Personal Access Tokens. Every token is bound to a **single
+repository**, carries only the permissions the operation needs, expires within
+an hour, and is never written to disk — the App private key is read from
+1Password (`op read`) at mint time.
+
+This replaces the old `use claude-david-igou-github-token` / `use
+claude-igou-io-github-token` PAT flow. Those env files still exist but are
+**deprecated** (kept only as a fallback for gaps the App's permission ceiling
+can't cover, e.g. writing Actions secrets).
+
+The App (`igou-dev`) is installed on both accounts; the owner half of
+`OWNER/REPO` picks the installation, so `david-igou/*` and `igou-io/*` both work
+from one config (`~/.config/ghapp/config.yaml`, seeded by `post-create.sh`).
+
+Three ways to authenticate:
+
+```bash
+# 1. Plain git over HTTPS — just works. The ghapp credential helper (baked into
+#    /etc/gitconfig) mints a contents:write token for exactly the repo pushed.
+git clone https://github.com/igou-io/igou-ansible.git
+git -C igou-ansible push
+
+# 2. gh, scoped to one repo — nothing exported into your shell:
+gh-app --repo igou-io/igou-devenv -- pr list
+gh-app --repo david-igou/ansible-collection-devhost --permission contents=read -- release list
+
+# 3. Export a fresh repo-scoped GH_TOKEN into the current shell (for tools that
+#    read GH_TOKEN and can't use gh-app), then clear it:
+ght igou-io/igou-ansible          # default permissions
+ght david-igou/hermes contents=read
+ght-unset
+```
+
+Other entry points from the same identity: `git-app --repo OWNER/REPO -- push
+...` (askpass variant, no helper needed), `ghapp token --repo OWNER/REPO
+[--permission NAME=LEVEL]` (print a raw token), `ghapp api /repos/OWNER/REPO/...`,
+and `ghapp doctor --repo OWNER/REPO` (diagnostics). `--repo` is required
+anywhere a token is minted — tokens are per-repository by design, so there is no
+org-wide token.
+
+> SSH remotes bypass the App identity — use HTTPS remotes for App-authenticated
+> (bot) work. `op` must be authenticated in the shell (it is by default via the
+> bind-mounted `~/.config/op`), since the private key is fetched from 1Password
+> on every mint.
+
+The host side of this (the devenv VM / physical devhost) installs the same
+`ghapp` CLI and credential helper via the `david_igou.devhost.ghapp` role in
+`igou-ansible`'s `playbooks/devenv/bootstrap.yml`.
+
 ## Makefile Targets
 
 | Target | Description |

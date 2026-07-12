@@ -25,6 +25,19 @@ mkdir -p "$TESTDIR/bin"
 cp "$SCRIPT_DIR/mock-op.sh" "$TESTDIR/bin/op"
 export PATH="$TESTDIR/bin:$PATH"
 
+# Mock ghapp binary — ght() calls `ghapp token --repo OWNER/REPO [--permission ...]`.
+# The real ghapp mints via the GitHub App (network + 1Password); the mock just
+# returns a fixed token so we can test the shell plumbing offline.
+cat > "$TESTDIR/bin/ghapp" << 'GHAPP_EOF'
+#!/usr/bin/env bash
+if [ "$1" = "token" ]; then
+    echo "ghs_mockedtoken0123456789"
+    exit 0
+fi
+exit 1
+GHAPP_EOF
+chmod +x "$TESTDIR/bin/ghapp"
+
 # If use() is not already defined (not running inside devcontainer), extract
 # the function definitions from dotfiles/.bashrc and source them.
 if ! type -t use &>/dev/null; then
@@ -823,6 +836,45 @@ if grep -q "op inject" "$MOCK_OP_LOG"; then
     ok "op inject called to resolve secrets"
 else
     fail "op inject called to resolve secrets"
+fi
+
+# =========================================================================
+#  Tests: ght() — GitHub App repo-scoped token export
+# =========================================================================
+echo ""
+echo "==> Testing ght() / ght-unset()..."
+if [ -n "$(type -t ght)" ]; then ok "ght() defined"; else fail "ght() defined"; fi
+if [ -n "$(type -t ght-unset)" ]; then ok "ght-unset() defined"; else fail "ght-unset() defined"; fi
+
+# No-arg usage: returns non-zero and prints usage.
+if type -t ght >/dev/null; then
+    ght_usage=$(ght 2>&1); ght_rc=$?
+    if [ "$ght_rc" -ne 0 ] && echo "$ght_usage" | grep -q "usage: ght"; then
+        ok "ght with no args shows usage and fails"
+    else
+        fail "ght with no args shows usage and fails"
+    fi
+
+    # Mint: exports a repo-scoped GH_TOKEN/GITHUB_TOKEN from the mocked ghapp.
+    unset GH_TOKEN GITHUB_TOKEN GHT_REPO 2>/dev/null || true
+    ght igou-io/igou-devenv > /dev/null 2>&1
+    if [ "${GH_TOKEN:-}" = "ghs_mockedtoken0123456789" ] \
+       && [ "${GITHUB_TOKEN:-}" = "ghs_mockedtoken0123456789" ] \
+       && [ "${GHT_REPO:-}" = "igou-io/igou-devenv" ]; then
+        ok "ght exports repo-scoped GH_TOKEN/GITHUB_TOKEN"
+    else
+        fail "ght exports repo-scoped GH_TOKEN/GITHUB_TOKEN"
+    fi
+
+    # ght-unset clears the exported token.
+    ght-unset > /dev/null 2>&1
+    if [ -z "${GH_TOKEN:-}" ] && [ -z "${GITHUB_TOKEN:-}" ] && [ -z "${GHT_REPO:-}" ]; then
+        ok "ght-unset clears GH_TOKEN"
+    else
+        fail "ght-unset clears GH_TOKEN"
+    fi
+else
+    fail "ght() available for token tests"
 fi
 
 # =========================================================================
