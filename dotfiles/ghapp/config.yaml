@@ -19,7 +19,7 @@ github_app:
   installations:
     david-igou: "143866260"
     igou-io: "143866153"
-  private_key_cmd: op read "op://claude/igou-dev-github-app/private_key"
+  private_key_cmd: op read "op://lab_external_api_keys/igou-dev-github-app/private_key"
   default_permissions:
     contents: write
     pull_requests: write
