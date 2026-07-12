@@ -164,7 +164,7 @@ RUN rm -f /etc/pam.d/system-auth && \
 # Key UID (cross-checked at keys.openpgp.org and https://mise.jdx.dev/gpg-key.pub):
 # "mise releases <release@mise.jdx.dev>"
 # renovate: datasource=github-releases depName=jdx/mise
-ARG MISE_VERSION="v2026.6.14"
+ARG MISE_VERSION="v2026.7.0"
 ARG MISE_GPG_FPR="24853EC9F655CE80B48E6C3A8B81C9D17413A06D"
 ARG MISE_GPG_URL="https://mise.jdx.dev/gpg-key.pub"
 RUN set -eux; \
