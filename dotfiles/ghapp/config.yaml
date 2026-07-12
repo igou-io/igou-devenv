@@ -1,0 +1,26 @@
+---
+# GitHub App identity for runtime-minted, repo-scoped GitHub tokens
+# (david_igou.devhost.ghapp / the `ghapp` CLI). This file is copied to
+# ~/.config/ghapp/config.yaml by .devcontainer/post-create.sh, and the CLI
+# finds it via GHAPP_CONFIG (exported in dotfiles/.bashrc).
+#
+# NONE of these values are secrets: the App client ID, slug, and installation
+# IDs are all safe to commit. The App PRIVATE KEY is deliberately NOT stored
+# here — `private_key_cmd` reads it from 1Password at mint time, so a
+# short-lived (~1h), single-repo token is minted on demand and nothing
+# long-lived ever lands on disk. `op` auth (Connect/service-account) comes from
+# the bind-mounted ~/.config/op, exported by .bashrc.
+#
+# The owner half of OWNER/REPO selects the installation, so one App installed on
+# both accounts needs no per-call plumbing (david-igou repos vs igou-io repos).
+github_app:
+  client_id: "Iv23liP6aQEsyKXnZYiB"
+  app_slug: "igou-dev"
+  installations:
+    david-igou: "143866260"
+    igou-io: "143866153"
+  private_key_cmd: op read "op://lab_external_api_keys/igou-dev-github-app/private_key"
+  default_permissions:
+    contents: write
+    pull_requests: write
+    issues: write
