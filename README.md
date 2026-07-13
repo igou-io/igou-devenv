@@ -193,10 +193,10 @@ for full details.
 
 ```bash
 use                     # list available environments
-use ocp-hub             # activate OpenShift hub in the current shell
+use ocp                 # activate the OpenShift cluster in the current shell
 use ansible             # stack Ansible vault on top
 unuse ansible           # remove Ansible vault environment
-unuse ocp-hub           # back to clean shell
+unuse ocp               # back to clean shell
 
 use quay                # authenticate podman/docker to quay.io
 podman pull quay.io/igou/some-private-image
@@ -317,7 +317,7 @@ wires Hermes to call them and verifies that path.
 ```bash
 claude-run                          # launch claude with current directory mounted
 claude-run -e ocp-rosa              # resolve ocp-rosa secrets, inject as env vars
-claude-run -e ocp-hub -e ansible    # stack multiple environments
+claude-run -e ocp -e ansible        # stack multiple environments
 claude-run --shell                  # drop to bash instead of claude
 claude-run -e aws -- --resume       # pass flags through to claude
 
@@ -623,5 +623,5 @@ docker info
 **`use` hangs:** Set `BASHRC_DEBUG=1` before the `use` call to trace shell
 startup and identify which `.bashrc` section is blocking:
 ```bash
-BASHRC_DEBUG=1 use ocp-hub
+BASHRC_DEBUG=1 use ocp
 ```
