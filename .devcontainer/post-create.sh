@@ -62,4 +62,12 @@ EOF
 # ---------------------------------------------------------------------------
 ln -sfn /workspace/igou-devenv/bin /home/igou/bin
 
+# ---------------------------------------------------------------------------
+# Expose the shared Claude skills to other agents that look in ~/.agents/skills.
+# ~/.claude persists (bind mount → host ~/.claude-container), but ~/.agents is
+# on the ephemeral container fs, so the symlink must be recreated each build.
+# ---------------------------------------------------------------------------
+mkdir -p /home/igou/.agents
+ln -sfn /home/igou/.claude/skills /home/igou/.agents/skills
+
 echo "==> Setup complete!"
