@@ -503,7 +503,7 @@ unuse() {
 #   SSH_USE_TTL=1h ssh-use   # override the default 12h lifetime
 #   SSH_USE_VAULT=other ssh-use mykey
 ssh-use() {
-    local item="${1:-github}"
+    local item="${1:-ansible}"
     local vault="${SSH_USE_VAULT:-lab_ssh}"
     local ttl="${SSH_USE_TTL:-12h}"
     if ! op read "op://${vault}/${item}/private key?ssh-format=openssh" \
