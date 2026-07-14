@@ -596,8 +596,6 @@ ssh-use             # (re)load the key — it may have hit its TTL
 ```bash
 ensure-ssh-agent    # restart the container-local agent, then ssh-use again
 ```
-A container created before ADR-0004 may still have the old host socket
-bind-mounted at `/tmp/ssh-agent.sock`; recreate it with `make down && make up`.
 
 **`ssh-use` fails to resolve the key:** check 1Password auth (`op vault list`)
 and that the item exists: `op read "op://lab_ssh/github/public key"`.

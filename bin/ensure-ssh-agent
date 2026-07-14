@@ -21,10 +21,6 @@ rm -f "$SOCK" 2>/dev/null || true
 if ssh-agent -a "$SOCK" >/dev/null 2>&1; then
     echo "Started ssh-agent on ${SOCK}"
 else
-    # Most likely a container created before adr/0004: the host agent socket
-    # is still bind-mounted at this path and a mountpoint can't be replaced
-    # from inside the container.
-    echo "WARNING: could not start ssh-agent on ${SOCK}"
-    echo "If this container predates adr/0004, recreate it: make down && make up"
+    echo "ERROR: could not start ssh-agent on ${SOCK}"
     exit 1
 fi

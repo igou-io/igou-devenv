@@ -12,8 +12,7 @@ fi
 # No host agent forwarding: a dedicated agent listens on the fixed socket
 # path devcontainer.json exports as SSH_AUTH_SOCK. It starts empty — load
 # keys on demand from 1Password with ssh-use (dotfiles/.bashrc).
-# Non-fatal: a container created before adr/0004 still has the host socket
-# bind-mounted at this path, and the rest of post-start must still run.
+# Non-fatal: agent bootstrap must not block the rest of post-start.
 # ---------------------------------------------------------------------------
 echo "==> Ensuring container-local SSH agent..."
 /workspace/igou-devenv/bin/ensure-ssh-agent 2>&1 | sed 's/^/    /' \
