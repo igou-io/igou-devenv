@@ -333,13 +333,16 @@ RUN set -eux; \
     "$HOME/.local/bin/claude" --version
 USER root
 
-# Refuse to install unsigned upstream releases (Cursor, opencode) younger than
-# this many days. Defense-in-depth against compromised releases that haven't
-# been publicly noticed yet — mirrors `minimumReleaseAge: 10` in
-# renovate-base.json at the build layer, so it applies even if Renovate is
-# bypassed by a direct edit. Override at build time with:
+# Refuse to install unsigned upstream releases (Cursor, opencode, codex)
+# younger than this many days. Defense-in-depth against compromised releases
+# that haven't been publicly noticed yet — mirrors the coding-agent
+# `minimumReleaseAge: 3 days` packageRule in renovate.json at the build layer,
+# so it applies even if Renovate is bypassed by a direct edit. 3 days (not the
+# global 10): coding-agent CLIs ship harness fixes weekly and staleness has
+# real cost on the Hermes terminal backend; everything else keeps the 10-day
+# gate from renovate-base.json. Override at build time with:
 #   --build-arg MINIMUM_RELEASE_AGE_DAYS=0
-ARG MINIMUM_RELEASE_AGE_DAYS=10
+ARG MINIMUM_RELEASE_AGE_DAYS=3
 
 # Cursor agent CLI — pinned + SHA256-verified + release-age gated. No upstream
 # SHASUMS file is published; SHAs must be re-captured on version bumps.
@@ -387,7 +390,9 @@ USER root
 
 # opencode CLI — pinned + SHA256-verified + release-age gated from
 # anomalyco/opencode releases. No upstream SHASUMS file is published; SHAs must
-# be re-captured on version bumps. Manual update process:
+# be re-captured on version bumps. On Renovate bumps cli-sha-recapture.yaml
+# (bin/release-prepare-clis) recaptures these ARGs automatically; for a manual
+# bump:
 #   curl -sL https://github.com/anomalyco/opencode/releases/download/vX.Y.Z/opencode-linux-x64.tar.gz | sha256sum
 #   (repeat for arm64)
 # MINIMUM_RELEASE_AGE_DAYS is inherited from the ARG declared above the Cursor block.
@@ -448,12 +453,13 @@ USER root
 # (like the Claude block above) so the bind-mounted ~/.codex — which holds
 # config/auth/state — is never shadowed by an image-baked payload.
 # Per-asset SHA256s are published in the release's codex-package_SHA256SUMS;
-# re-capture them on version bumps:
+# cli-sha-recapture.yaml (bin/release-prepare-clis) re-captures them on
+# Renovate bumps; for a manual bump:
 #   V=0.137.0; curl -fsSL https://github.com/openai/codex/releases/download/rust-v$V/codex-package_SHA256SUMS | grep linux-musl
 # Tags are rust-vX.Y.Z, so extractVersion strips the prefix for Renovate.
 # MINIMUM_RELEASE_AGE_DAYS is inherited from the ARG declared above the Cursor block.
-# Pinned to a release that already clears the 10-day age gate (so `make build`
-# and CI build clean); Renovate advances it on the same 10-day lag thereafter.
+# Pinned to a release that already clears the age gate (so `make build` and CI
+# build clean); Renovate advances it on the same 3-day lag thereafter.
 # renovate: datasource=github-releases depName=openai/codex extractVersion=^rust-v(?<version>.+)$
 ARG CODEX_VERSION="0.137.0"
 ARG CODEX_SHA256_X64="b364488097efd12da3b5ffb1b0099cabd8b377b1f97043158f7f771b1456953f"
