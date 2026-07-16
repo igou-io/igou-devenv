@@ -103,3 +103,9 @@ argocd = "sha256+slsa"
 # tools above). The archive's binary is named `rc`, so the launch check runs
 # `rc --version` via the binary override.
 "http:rustfs-cli" = "blake3"   # binary: rc
+
+# gws (Google Workspace CLI). Not in aqua-registry; the http backend pins a
+# blake3 TOFU floor in mise.lock. Upstream ships per-asset .sha256 files and
+# GitHub artifact attestations, but the http backend consumes neither, so
+# blake3 is the strongest available floor (same as the http: tools above).
+"http:gws" = "blake3"   # binary: gws
