@@ -1,0 +1,52 @@
+name: cli-sha-recapture (coding-agent CLI PRs)
+
+# Event-driven sibling of release-prepare: when Renovate opens (or rebases) the
+# renovate/coding-agent-clis group PR, the version bump alone leaves the
+# per-arch *_SHA256_* Dockerfile ARGs stale and the build red. Hosted Renovate
+# cannot update those ARGs, and a manual push would freeze the branch ("PR
+# Edited (Blocked)") — which is exactly how the CLI pins went stale for two
+# months. This job recaptures the SHAs, pushes the fixup (RELEASE_PAT so the
+# push re-triggers the build check), and enables GitHub native auto-merge; the
+# PR squash-merges once `build` passes. Our own fixup push re-fires this
+# workflow via synchronize; that second run finds the SHAs in sync and only
+# re-asserts auto-merge, so there is no loop.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - '.devcontainer/Dockerfile'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  recapture:
+    # Only the Renovate coding-agent group branch — other Dockerfile PRs
+    # (including claude-code, which has no SHA ARGs and automerges on its own)
+    # must not get auto-merge enabled by this job. workflow_dispatch is the
+    # manual retry path and runs unconditionally.
+    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'renovate/coding-agent-clis'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          token: ${{ secrets.RELEASE_PAT }}
+          fetch-depth: 0
+
+      - name: Recapture CLI SHAs and enable auto-merge
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+        run: bash bin/release-prepare-clis
+
+      - name: File an issue on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue create --repo igou-io/igou-devenv \
+            --title "Coding-agent CLI SHA recapture failed ($(date -u +%Y.%m.%d))" \
+            --body "cli-sha-recapture could not recapture/merge the coding-agent CLI PR. Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}. Fix manually: run \`bash bin/release-prepare-clis\` locally with GH_TOKEN set, or recapture the *_SHA256_* ARGs by hand on the renovate/coding-agent-clis branch." \
+            || echo "::warning::failed to file tracking issue"

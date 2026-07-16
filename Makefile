@@ -3,7 +3,7 @@ WORKSPACE    = $(CURDIR)
 
 .DEFAULT_GOAL := help
 
-.PHONY: build up up-release down restart exec shell run test test-all test-tools test-sandbox-primitives test-podman test-env test-mise test-ssh test-mise-lockfile test-qemu clean rebuild help renovate-validate renovate-dry-run sbom sbom-devcontainer e2e opencode-build mise-lock release release-dry-run release-prepare release-watch
+.PHONY: build up up-release down restart exec shell run test test-all test-tools test-sandbox-primitives test-podman test-env test-mise test-ssh test-mise-lockfile test-qemu clean rebuild help renovate-validate renovate-dry-run sbom sbom-devcontainer e2e opencode-build mise-lock release release-dry-run release-prepare release-prepare-clis release-watch
 
 
 ## Build the devcontainer image (with cache)
@@ -225,6 +225,11 @@ release-dry-run:
 release-prepare:
 	gh workflow run release-prepare.yaml --repo $(RELEASE_REPO)
 	@$(MAKE) --no-print-directory release-watch WF=release-prepare.yaml
+
+## On-demand CLI prep: recapture SHA pins on the open Renovate coding-agent CLI PR and merge it.
+release-prepare-clis:
+	gh workflow run cli-sha-recapture.yaml --repo $(RELEASE_REPO)
+	@$(MAKE) --no-print-directory release-watch WF=cli-sha-recapture.yaml
 
 ## Watch the latest run of WF (default release.yaml).
 release-watch:
