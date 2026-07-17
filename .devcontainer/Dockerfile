@@ -397,9 +397,9 @@ USER root
 #   (repeat for arm64)
 # MINIMUM_RELEASE_AGE_DAYS is inherited from the ARG declared above the Cursor block.
 # renovate: datasource=github-releases depName=anomalyco/opencode
-ARG OPENCODE_VERSION="v1.17.18"
-ARG OPENCODE_SHA256_X64="e149d32ee5667c0cd5fb84d0bf8393b312e93782eeb4d74d29bbb0392de7133c"
-ARG OPENCODE_SHA256_ARM64="db9b53eae485da969a0a855bca465f9901dd84676384f724f320e3ccc5a9b107"
+ARG OPENCODE_VERSION="v1.17.20"
+ARG OPENCODE_SHA256_X64="b7100c0ad0980fba25d595123b4219a6fdc1fbd456dcb64859236741e199c564"
+ARG OPENCODE_SHA256_ARM64="0a41572e83a896eb008683589dfe09e17b941d06122608510f3e5f16d86d9afc"
 # GITHUB_TOKEN authenticates the release-age API call below. Without it the
 # 60/hr unauthenticated quota gets exhausted on busy CI runners and the build
 # fails with HTTP 403. Provided via a BuildKit secret mount (see the mise block
@@ -461,9 +461,9 @@ USER root
 # Pinned to a release that already clears the age gate (so `make build` and CI
 # build clean); Renovate advances it on the same 3-day lag thereafter.
 # renovate: datasource=github-releases depName=openai/codex extractVersion=^rust-v(?<version>.+)$
-ARG CODEX_VERSION="0.144.3"
-ARG CODEX_SHA256_X64="1c3c1f1f636da56a197ce0b5084d44b86f58f0fb32983278fa55c2544d221af4"
-ARG CODEX_SHA256_ARM64="d91c6354ec1efc125068056c02bc8cffbc0a53fd4ecfebc3e5f1771765fc7fa3"
+ARG CODEX_VERSION="0.144.4"
+ARG CODEX_SHA256_X64="d0a7bdb2ca821c9bb5f4cc2fb11a4ed96025db63b20d1bddf1e632361a108220"
+ARG CODEX_SHA256_ARM64="b1bc561a5bf74f9c5767c698275ae8043cee2ce45341098048b0b0b8b4e2cfc5"
 # GITHUB_TOKEN authenticates the release-age API call below (see the opencode
 # block); provided via a BuildKit secret mount, empty in CI's published image.
 ARG GITHUB_TOKEN=""
