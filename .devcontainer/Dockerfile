@@ -295,7 +295,7 @@ COPY .devcontainer/CLAUDE.md /etc/claude-code/CLAUDE.md
 # AND produce a colliding SHA-1 fingerprint (computationally infeasible).
 # Key UID (out-of-band-verified): "Anthropic Claude Code Release Signing <security@anthropic.com>"
 # renovate: datasource=github-releases depName=anthropics/claude-code
-ARG CLAUDE_CODE_VERSION="v2.1.209"
+ARG CLAUDE_CODE_VERSION="v2.1.210"
 ARG CLAUDE_CODE_PGP_FPR="31DDDE24DDFAB679F42D7BD2BAA929FF1A7ECACE"
 ARG CLAUDE_CODE_PGP_URL="https://downloads.claude.ai/keys/claude-code.asc"
 USER igou
