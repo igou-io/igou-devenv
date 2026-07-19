@@ -8,7 +8,7 @@ ansible-lint==26.6.0
 ansible-creator==26.6.1
 molecule==26.6.0
 awxkit==24.6.1
-yq==3.4.3
+yq==4.1.1
 kubernetes==36.0.2
 jmespath==1.1.0
 lxml==6.1.1
