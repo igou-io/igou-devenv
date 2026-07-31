@@ -214,6 +214,30 @@ else
 fi
 
 # =========================================================================
+#  Tests: SSH_AUTH_SOCK pinning (VS Code injected-socket override)
+# =========================================================================
+echo ""
+echo "==> Testing SSH_AUTH_SOCK pinning..."
+
+# Sourcing dotfiles/.bashrc non-interactively runs only the pre-interactive
+# prologue (where the guard lives) before the early return — safe in CI.
+sock=$(env SSH_AUTH_SOCK=/tmp/vscode-ssh-auth-deadbeef.sock \
+    bash -c "source '$REPO_DIR/dotfiles/.bashrc' >/dev/null 2>&1; echo \"\$SSH_AUTH_SOCK\"")
+if [ "$sock" = "/tmp/ssh-agent.sock" ]; then
+    ok "vscode-injected socket is pinned back to the container-local agent"
+else
+    fail "vscode-injected socket is pinned back to the container-local agent (got: $sock)"
+fi
+
+sock=$(env SSH_AUTH_SOCK="$TESTDIR/agent.sock" \
+    bash -c "source '$REPO_DIR/dotfiles/.bashrc' >/dev/null 2>&1; echo \"\$SSH_AUTH_SOCK\"")
+if [ "$sock" = "$TESTDIR/agent.sock" ]; then
+    ok "non-vscode socket is left untouched"
+else
+    fail "non-vscode socket is left untouched (got: $sock)"
+fi
+
+# =========================================================================
 #  Results
 # =========================================================================
 echo ""
