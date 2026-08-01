@@ -13,6 +13,11 @@
 #                        inside the mise binary and is not recorded in mise.lock
 #                        (e.g. core:node, which verifies against nodejs.org's
 #                        GPG-signed SHASUMS256.txt internally).
+#   "npm"              — uses mise's npm backend: `npm install` verifies each
+#                        package against the npm registry's per-tarball sha512
+#                        integrity metadata. Happens inside npm, not recorded
+#                        in mise.lock (entry is version+backend only, like
+#                        core). Audit asserts lockfile presence only.
 #   "postinstall-gpg"  — http: backend baseline (blake3 TOFU) plus a postinstall
 #                        hook that re-verifies an upstream-signed checksum file
 #                        against a pinned GPG key (e.g. oc against Red Hat key 2).
@@ -42,7 +47,7 @@ tekton-cli = "sha256"   # binary: tkn
 rclone = "sha256"
 direnv = "sha256"
 age = "sha256"
-"aqua:nodejs/node" = "blake3"   # binary: node — aqua-registry has no SHASUMS reference; mise pins blake3 TOFU. Strictly better than the prior unverified curl|tar.
+node = "blake3"   # aliased to aqua:nodejs/node in mise.toml [tool_alias]; aqua-registry has no SHASUMS reference; mise pins blake3 TOFU. Strictly better than the prior unverified curl|tar.
 
 # Task 2.2 — flux2 + sops.
 # Plan expected "cosign-keyless"; aqua-registry actually verifies SLSA L3
@@ -103,3 +108,11 @@ argocd = "sha256+slsa"
 # tools above). The archive's binary is named `rc`, so the launch check runs
 # `rc --version` via the binary override.
 "http:rustfs-cli" = "blake3"   # binary: rc
+
+# t3 (T3 Code). npm-only distribution with runtime deps (native node-pty), so
+# it installs via mise's npm backend: `npm install` verifies every package
+# against the registry's per-tarball sha512 integrity metadata. Like "core",
+# that verification happens outside mise.lock — the lockfile entry is
+# version+backend only — so the audit asserts lockfile presence, not a
+# checksum prefix. `locked = true` still pins the exact version fail-closed.
+"npm:t3" = "npm"   # binary: t3

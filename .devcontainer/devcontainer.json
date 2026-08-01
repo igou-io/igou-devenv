@@ -10,10 +10,14 @@
         "cacheFrom": "ghcr.io/igou-io/igou-devenv"
     },
     "features": {},
-    "forwardPorts": [8080],
+    "forwardPorts": [8080, 3773],
     "portsAttributes": {
         "8080": {
             "label": "code-server",
+            "onAutoForward": "silent"
+        },
+        "3773": {
+            "label": "t3code",
             "onAutoForward": "silent"
         }
     },
@@ -51,6 +55,7 @@
         "source=${localEnv:HOME}/.config/cursor,target=/home/igou/.config/cursor,type=bind",
         "source=${localEnv:HOME}/.config/opencode,target=/home/igou/.config/opencode,type=bind",
         "source=${localEnv:HOME}/.local/share/opencode,target=/home/igou/.local/share/opencode,type=bind",
+        "source=${localEnv:HOME}/.t3,target=/home/igou/.t3,type=bind",
         "source=${localEnv:HOME}/.codex,target=/home/igou/.codex,type=bind",
         "source=${localEnv:HOME}/.config/code-server,target=/home/igou/.config/code-server,type=bind",
         "source=${localEnv:HOME}/.local/share/code-server,target=/home/igou/.local/share/code-server,type=bind",

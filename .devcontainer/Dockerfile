@@ -225,7 +225,13 @@ ENV MISE_DATA_DIR=/opt/mise \
 ARG GITHUB_TOKEN=""
 RUN --mount=type=secret,id=github_token set -eux; \
     export GITHUB_TOKEN="$(cat /run/secrets/github_token 2>/dev/null || printf '%s' "${GITHUB_TOKEN}")"; \
+    # gcc-c++: node-gyp toolchain for node-pty, the one allow_builds package of
+    # npm:t3 (no linux prebuild shipped). Build-time only — removed below so
+    # the image doesn't grow a C++ compiler. make/python3 are image packages.
+    dnf install -y gcc-c++; \
     mise install --yes; \
+    dnf remove -y gcc-c++; \
+    dnf clean all; \
     # Symlink installed binaries into /usr/local/bin so they're on PATH
     # for any user without shell activation. mise's per-tool layout is not
     # uniform (some use a bin/ subdir, most put the binary at the install

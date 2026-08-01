@@ -35,6 +35,15 @@ github_attestations = true
 # renovate: datasource=github-releases depName=aquaproj/aqua-registry
 registry_url = "https://github.com/aquaproj/aqua-registry"
 
+[tool_alias]
+# npm: backend tools (t3) declare a dependency on a tool literally named
+# `node` — mise builds the npm/node PATH for their install from that tool
+# alone (.full_env, not the ambient PATH), so a backend-prefixed
+# "aqua:nodejs/node" key is invisible to them and npm spawns fail with a
+# bare ENOENT. Aliasing keeps the aqua-registry install path (and its
+# lockfile pin) while exposing the tool under the name the npm backend needs.
+node = "aqua:nodejs/node"
+
 [tools]
 # Canary tool — proves the integration shape end-to-end before adding the rest.
 kubectl = "1.36.2"
@@ -48,16 +57,18 @@ kind = "0.32.0"
 act = "0.2.89"
 tekton-cli = "0.45.0"   # binary is `tkn`; mise registry key is tekton-cli
 # Pipelines-as-Code CLI (binary: tkn-pac). No short alias in mise's registry,
-# so use the explicit aqua: key form (same shape as aqua:nodejs/node below).
+# so use the explicit aqua: key form.
 "aqua:tektoncd/pipelines-as-code" = "0.48.0"
 rclone = "1.74.3"
 direnv = "2.37.1"
 age = "1.3.1"
 # node — `core:node` does not record per-platform checksums in mise.lock, so
-# `locked = true` rejects it. Using aqua-registry's nodejs/node entry instead;
-# upstream provides no SHASUMS in the aqua definition, so mise falls back to
-# blake3 TOFU (strictly better than the prior unverified `curl | tar`).
-"aqua:nodejs/node" = "26.3.1"
+# `locked = true` rejects it. Using aqua-registry's nodejs/node entry instead,
+# via the [tool_alias] mapping above so npm: backend tools resolve their
+# `node` dependency; upstream provides no SHASUMS in the aqua definition, so
+# mise falls back to blake3 TOFU (strictly better than the prior unverified
+# `curl | tar`).
+node = "26.3.1"
 
 # Task 2.2 — cosign-keyless-verified tools.
 flux2 = "2.8.8"
@@ -155,6 +166,28 @@ bin_path = "bin"
 [tools."http:code-server".platforms]
 linux-x64   = { url = "https://github.com/coder/code-server/releases/download/v{{ version }}/code-server-{{ version }}-linux-amd64.tar.gz", strip_components = 1 }
 linux-arm64 = { url = "https://github.com/coder/code-server/releases/download/v{{ version }}/code-server-{{ version }}-linux-arm64.tar.gz", strip_components = 1 }
+
+# t3 (T3 Code) — local web GUI for the coding-agent CLIs already in this image
+# (claude, codex, opencode, cursor-agent); served always-on by
+# .devcontainer/post-start.sh like code-server above. npm-only distribution
+# with runtime deps (incl. native node-pty), so the http-tarball form can't
+# work — the npm backend runs `npm install`, which verifies each package
+# against the registry's per-tarball sha512 integrity metadata. That
+# verification happens inside npm and is not recorded in mise.lock (the entry
+# is version+backend only, like core:), so the audit value is "npm" in
+# tests/mise-expected-verification.toml. `locked = true` still pins the exact
+# version fail-closed. Depends on `node` above (the [tool_alias] name is what
+# lets the npm backend find node/npm at resolve and install time).
+#
+# allow_builds: mise defaults npm installs to --ignore-scripts, but node-pty
+# (t3's terminal layer) ships no linux prebuild — its install script must run
+# node-gyp, or `t3 serve` dies at startup with NodePtyModuleLoadError. Scoped
+# to that one package; every other dependency's lifecycle scripts stay
+# blocked. The build needs gcc-c++/make/python3 (present in the Dockerfile
+# layer and the bin/run-pinned-mise bootstrap).
+[tools."npm:t3"]
+version = "0.0.31"
+allow_builds = ["node-pty"]
 
 # rustfs-cli — the `rc` admin/client CLI for RustFS S3 servers. Only the RustFS
 # *server* (github:rustfs/rustfs) is in aqua-registry; the CLI is not, so it
