@@ -1,0 +1,20 @@
+#!/bin/bash
+# Launch Claude Code with the AAP MCP server attached — opt-in, per
+# invocation. The MCP server is deliberately NOT in any always-on .mcp.json:
+# run this wrapper (or `use aap-mcp` first, then pass --mcp-config yourself)
+# when a session should be able to talk to AAP.
+#
+# Token: AAP_MCP_TOKEN from the environment if already set (e.g. via
+# `use aap-mcp`), otherwise resolved from 1Password on the fly. Never
+# written to disk.
+
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
+
+if [ -z "${AAP_MCP_TOKEN:-}" ]; then
+    AAP_MCP_TOKEN="$(op read "op://lab_aap/aap-mcp-token-igou/token")"
+    export AAP_MCP_TOKEN
+fi
+
+exec claude --mcp-config "${repo_root}/dotfiles/aap-mcp.json" "$@"
