@@ -22,6 +22,17 @@ minimum_release_age = "10d"
 # workspace-mounted malicious mise.toml at container runtime)
 trusted_config_paths = ["/etc/mise/mise.toml"]
 
+[settings.npm]
+# Shell out to real npm instead of mise's bundled aube resolver. aube (mise
+# >= 2026.7.11, still broken in 2026.8.0) fails with "failed to resolve
+# dependencies" on t3's dep @pierre/diffs: old published versions of that
+# package leaked pnpm `catalog:` specifiers into their packument, aube parses
+# the full packument strictly and dies, npm ignores the unrelated versions.
+# npm >= 11.16.0 (node 26 bundles 11.17) still honors allow_builds via
+# per-package script approvals, so the node-pty allow_builds scoping in
+# [tools."npm:t3"] keeps working. Verified: node-pty builds and spawns a PTY.
+package_manager = "npm"
+
 [settings.aqua]
 # Aqua-backend verification (defaults are true but pinned here for documentation
 # and audit trail). The audit test in tests/test-mise.sh asserts that each
