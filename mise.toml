@@ -57,7 +57,7 @@ age = "1.3.1"
 # `locked = true` rejects it. Using aqua-registry's nodejs/node entry instead;
 # upstream provides no SHASUMS in the aqua definition, so mise falls back to
 # blake3 TOFU (strictly better than the prior unverified `curl | tar`).
-"aqua:nodejs/node" = "26.3.1"
+"aqua:nodejs/node" = "26.4.0"
 
 # Task 2.2 — cosign-keyless-verified tools.
 flux2 = "2.8.8"
@@ -81,7 +81,7 @@ version = "4.2.2"
 postinstall = "/etc/mise/aqua-registry/helm-postinstall.sh"
 
 [tools.terraform]
-version = "1.15.6"
+version = "1.15.7"
 postinstall = "/etc/mise/aqua-registry/terraform-postinstall.sh"
 
 # Task 3.1 — off-registry tools via mise's http backend.
