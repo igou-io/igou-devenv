@@ -158,17 +158,19 @@ fi
 # image (claude/codex/opencode/cursor-agent), started always-on like
 # code-server above. State (device pairing credentials, thread history) lives
 # in ~/.t3, a persistent bind mount, so paired browsers survive container
-# rebuilds. Binds the tailnet IP when the host runs Tailscale (the container
-# is --network=host), falling back to loopback: unlike code-server there is
-# no password gate — a paired session executes arbitrary commands as this
-# user — so it must NEVER bind 0.0.0.0. The pairing URL + QR code land in
+# rebuilds. Binds all interfaces (the container is --network=host), so the
+# service is reachable on every network the host is on. Unlike code-server
+# there is no password gate — device pairing is the only barrier, and a
+# paired session executes arbitrary commands as this user — so anyone who
+# can reach the port can attempt pairing. Acceptable for this trusted
+# single-user homelab network; set T3CODE_HOST to a specific address (e.g.
+# the tailnet IP) to narrow exposure. The pairing URL + QR code land in
 # ~/.t3/serve.log on first start; manage/revoke devices with `t3 auth`.
 # Idempotent: skips if the port is already being served.
 # ---------------------------------------------------------------------------
 if command -v t3 >/dev/null 2>&1; then
     T3_PORT="${T3CODE_PORT:-3773}"
-    T3_HOST=$(ip -4 -o addr show tailscale0 2>/dev/null | awk '{split($4,a,"/"); print a[1]; exit}')
-    T3_HOST="${T3_HOST:-127.0.0.1}"
+    T3_HOST="${T3CODE_HOST:-0.0.0.0}"
     mkdir -p "$HOME/.t3"
     if ss -ltnH 2>/dev/null | awk '{print $4}' | grep -qE "[:.]${T3_PORT}\$"; then
         echo "==> t3 serve already listening on :${T3_PORT}"
