@@ -164,7 +164,7 @@ RUN rm -f /etc/pam.d/system-auth && \
 # Key UID (cross-checked at keys.openpgp.org and https://mise.jdx.dev/gpg-key.pub):
 # "mise releases <release@mise.jdx.dev>"
 # renovate: datasource=github-releases depName=jdx/mise
-ARG MISE_VERSION="v2026.6.13"
+ARG MISE_VERSION="v2026.7.12"
 ARG MISE_GPG_FPR="24853EC9F655CE80B48E6C3A8B81C9D17413A06D"
 ARG MISE_GPG_URL="https://mise.jdx.dev/gpg-key.pub"
 RUN set -eux; \
@@ -255,6 +255,28 @@ COPY .devcontainer/requirements.txt /tmp/requirements.txt
 RUN pip install --break-system-packages --ignore-installed -r /tmp/requirements.txt && \
     rm /tmp/requirements.txt
 
+# ---------------------------------------------------------------------------
+# ghapp — runtime-minted, repo-scoped GitHub App tokens (credential helper +
+# gh-app/git-app wrappers). Not published to PyPI (the name belongs to
+# upstream), so it installs from a pinned git tag. Renovate bumps GHAPP_VERSION
+# via the `# renovate:` custom manager (github-tags on the plugin repo). Config
+# lives per-user in ~/.config/ghapp/config.yaml (dotfiles/ghapp/config.yaml,
+# seeded by post-create.sh); the App private key is read from 1Password at mint
+# time, never baked here. See README "GitHub Authentication (ghapp)".
+# renovate: datasource=github-tags depName=david-igou/hermes_github_app_plugin
+ARG GHAPP_VERSION="v0.2.0"
+RUN pip install --break-system-packages \
+      "hermes-github-app-plugin @ git+https://github.com/david-igou/hermes_github_app_plugin@${GHAPP_VERSION}"
+
+# Wire the ghapp git credential helper for github.com at the SYSTEM scope: the
+# per-user ~/.gitconfig is bind-mounted read-only from the host, so per-user git
+# config isn't writable in-container. With this, plain HTTPS `git clone/fetch/push`
+# on github.com mints a repo-scoped token via ghapp (useHttpPath gives the helper
+# the OWNER/REPO). URLs that embed x-access-token creds bypass the helper, so this
+# never fights an explicitly-tokenized remote.
+RUN git config --system credential."https://github.com".helper ghapp && \
+    git config --system credential."https://github.com".useHttpPath true
+
 # Configure podman for rootless operation inside a container
 RUN mkdir -p /home/igou/.config/containers
 COPY .devcontainer/containers-storage.conf /home/igou/.config/containers/storage.conf
@@ -273,7 +295,7 @@ COPY .devcontainer/CLAUDE.md /etc/claude-code/CLAUDE.md
 # AND produce a colliding SHA-1 fingerprint (computationally infeasible).
 # Key UID (out-of-band-verified): "Anthropic Claude Code Release Signing <security@anthropic.com>"
 # renovate: datasource=github-releases depName=anthropics/claude-code
-ARG CLAUDE_CODE_VERSION="v2.1.143"
+ARG CLAUDE_CODE_VERSION="v2.1.220"
 ARG CLAUDE_CODE_PGP_FPR="31DDDE24DDFAB679F42D7BD2BAA929FF1A7ECACE"
 ARG CLAUDE_CODE_PGP_URL="https://downloads.claude.ai/keys/claude-code.asc"
 USER igou
@@ -311,13 +333,16 @@ RUN set -eux; \
     "$HOME/.local/bin/claude" --version
 USER root
 
-# Refuse to install unsigned upstream releases (Cursor, opencode) younger than
-# this many days. Defense-in-depth against compromised releases that haven't
-# been publicly noticed yet — mirrors `minimumReleaseAge: 10` in
-# renovate-base.json at the build layer, so it applies even if Renovate is
-# bypassed by a direct edit. Override at build time with:
+# Refuse to install unsigned upstream releases (Cursor, opencode, codex)
+# younger than this many days. Defense-in-depth against compromised releases
+# that haven't been publicly noticed yet — mirrors the coding-agent
+# `minimumReleaseAge: 3 days` packageRule in renovate.json at the build layer,
+# so it applies even if Renovate is bypassed by a direct edit. 3 days (not the
+# global 10): coding-agent CLIs ship harness fixes weekly and staleness has
+# real cost on the Hermes terminal backend; everything else keeps the 10-day
+# gate from renovate-base.json. Override at build time with:
 #   --build-arg MINIMUM_RELEASE_AGE_DAYS=0
-ARG MINIMUM_RELEASE_AGE_DAYS=10
+ARG MINIMUM_RELEASE_AGE_DAYS=3
 
 # Cursor agent CLI — pinned + SHA256-verified + release-age gated. No upstream
 # SHASUMS file is published; SHAs must be re-captured on version bumps.
@@ -365,14 +390,16 @@ USER root
 
 # opencode CLI — pinned + SHA256-verified + release-age gated from
 # anomalyco/opencode releases. No upstream SHASUMS file is published; SHAs must
-# be re-captured on version bumps. Manual update process:
+# be re-captured on version bumps. On Renovate bumps cli-sha-recapture.yaml
+# (bin/release-prepare-clis) recaptures these ARGs automatically; for a manual
+# bump:
 #   curl -sL https://github.com/anomalyco/opencode/releases/download/vX.Y.Z/opencode-linux-x64.tar.gz | sha256sum
 #   (repeat for arm64)
 # MINIMUM_RELEASE_AGE_DAYS is inherited from the ARG declared above the Cursor block.
 # renovate: datasource=github-releases depName=anomalyco/opencode
-ARG OPENCODE_VERSION="v1.15.1"
-ARG OPENCODE_SHA256_X64="f23bcabaf3f2fa9b66b8011813606501885aa6bfdf31030d4c061bd175e18300"
-ARG OPENCODE_SHA256_ARM64="58bdd72718817043f9e3328c9f78acc6c667dd26e5fd013a6cf3c03593de2374"
+ARG OPENCODE_VERSION="v1.18.10"
+ARG OPENCODE_SHA256_X64="6b1113da704253fb4da12b41e4236acecb9f2b62949c945f6eeacaa15111b976"
+ARG OPENCODE_SHA256_ARM64="41ae3041e91b894e4c0dc06a73a9a2796254bf390ffb99626a43af5e2912d170"
 # GITHUB_TOKEN authenticates the release-age API call below. Without it the
 # 60/hr unauthenticated quota gets exhausted on busy CI runners and the build
 # fails with HTTP 403. Provided via a BuildKit secret mount (see the mise block
@@ -426,16 +453,17 @@ USER root
 # (like the Claude block above) so the bind-mounted ~/.codex — which holds
 # config/auth/state — is never shadowed by an image-baked payload.
 # Per-asset SHA256s are published in the release's codex-package_SHA256SUMS;
-# re-capture them on version bumps:
+# cli-sha-recapture.yaml (bin/release-prepare-clis) re-captures them on
+# Renovate bumps; for a manual bump:
 #   V=0.137.0; curl -fsSL https://github.com/openai/codex/releases/download/rust-v$V/codex-package_SHA256SUMS | grep linux-musl
 # Tags are rust-vX.Y.Z, so extractVersion strips the prefix for Renovate.
 # MINIMUM_RELEASE_AGE_DAYS is inherited from the ARG declared above the Cursor block.
-# Pinned to a release that already clears the 10-day age gate (so `make build`
-# and CI build clean); Renovate advances it on the same 10-day lag thereafter.
+# Pinned to a release that already clears the age gate (so `make build` and CI
+# build clean); Renovate advances it on the same 3-day lag thereafter.
 # renovate: datasource=github-releases depName=openai/codex extractVersion=^rust-v(?<version>.+)$
-ARG CODEX_VERSION="0.137.0"
-ARG CODEX_SHA256_X64="b364488097efd12da3b5ffb1b0099cabd8b377b1f97043158f7f771b1456953f"
-ARG CODEX_SHA256_ARM64="8756c80ad058199676d058bbd919812466d796886e7574a57c4e007f766e707c"
+ARG CODEX_VERSION="0.146.0"
+ARG CODEX_SHA256_X64="3c89125af1d7c98abec8beb551292ef99daca52e204e5852a9139feae2c467e5"
+ARG CODEX_SHA256_ARM64="c6eb28ec19bb5615b60e6787165ef28482481c2ce2617da565b83e591bc44c13"
 # GITHUB_TOKEN authenticates the release-age API call below (see the opencode
 # block); provided via a BuildKit secret mount, empty in CI's published image.
 ARG GITHUB_TOKEN=""

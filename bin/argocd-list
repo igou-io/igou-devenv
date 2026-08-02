@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+# List Argo CD applications using an existing login or kubeconfig authentication.
+
+set -euo pipefail
+
+ARGOCD_NS=openshift-gitops
+APP_LIST_ARGS=()
+
+usage() {
+  cat <<EOF
+Usage: argocd-list [options] [--] [argocd app list options]
+
+List Argo CD applications. Uses the existing argocd login session if one
+exists; otherwise falls back to kubeconfig authentication (argocd --core)
+against the Argo CD namespace.
+
+Options:
+  -n, --namespace NS  Argo CD namespace for kubeconfig fallback (default: $ARGOCD_NS)
+  -h, --help          Show this help
+
+All other options are passed to "argocd app list". Use -- before an upstream
+-h or --help option.
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -n|--namespace)
+      if [[ $# -lt 2 ]]; then
+        echo "Option $1 requires a namespace." >&2
+        exit 2
+      fi
+      ARGOCD_NS=$2
+      shift 2
+      ;;
+    --namespace=*)
+      ARGOCD_NS=${1#*=}
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    --)
+      shift
+      APP_LIST_ARGS+=("$@")
+      break
+      ;;
+    *)
+      APP_LIST_ARGS+=("$1")
+      shift
+      ;;
+  esac
+done
+
+# Prefer an existing argocd login session; otherwise talk directly to the
+# cluster (--core) via a kubeconfig copy pinned to the Argo CD namespace.
+ARGOCD=(argocd)
+argocd_config=${ARGOCD_CONFIG:-$HOME/.config/argocd/config}
+if [[ -z "${ARGOCD_SERVER:-}" ]] && ! grep -q '^current-context: .' "$argocd_config" 2>/dev/null; then
+  tmpdir=$(mktemp -d)
+  trap 'rm -rf "$tmpdir"' EXIT
+
+  echo "No Argo CD login session; using kubeconfig auth (--core, namespace: $ARGOCD_NS)" >&2
+  oc config view --flatten > "$tmpdir/kubeconfig"
+  KUBECONFIG=$tmpdir/kubeconfig oc config set-context --current --namespace "$ARGOCD_NS" >/dev/null
+  export KUBECONFIG=$tmpdir/kubeconfig
+  ARGOCD+=(--core)
+fi
+
+"${ARGOCD[@]}" app list "${APP_LIST_ARGS[@]}"

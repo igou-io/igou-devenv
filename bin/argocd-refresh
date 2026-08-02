@@ -1,0 +1,157 @@
+#!/bin/bash
+# Hard-refresh ArgoCD applications (all by default, or a single named app)
+
+set -euo pipefail
+
+WAIT=false
+WAIT_TIMEOUT=300
+MAX_PARALLEL=10
+TARGET_APP=""
+ARGOCD_NS=openshift-gitops
+
+usage() {
+  cat <<EOF
+Usage: argocd-refresh [APP] [options]
+
+Hard-refresh ArgoCD applications. With no APP, refreshes all apps.
+
+Uses the existing argocd login session if one exists; otherwise falls back
+to kubeconfig authentication (argocd --core) against the ArgoCD namespace.
+
+Options:
+  -w, --wait          Wait for apps to reach Synced/Healthy after refreshing
+  -t, --timeout N     Wait timeout in seconds (default: $WAIT_TIMEOUT)
+  -p, --parallel N    Max concurrent refreshes (default: $MAX_PARALLEL)
+  -n, --namespace NS  ArgoCD namespace for kubeconfig fallback (default: $ARGOCD_NS)
+  -h, --help          Show this help
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -w|--wait) WAIT=true; shift ;;
+    -t|--timeout) WAIT_TIMEOUT="$2"; shift 2 ;;
+    -p|--parallel) MAX_PARALLEL="$2"; shift 2 ;;
+    -n|--namespace) ARGOCD_NS="$2"; shift 2 ;;
+    -h|--help) usage; exit 0 ;;
+    -*) echo "Unknown option: $1" >&2; usage >&2; exit 2 ;;
+    *)
+      if [[ -n "$TARGET_APP" ]]; then
+        echo "Only one application name may be given." >&2
+        exit 2
+      fi
+      TARGET_APP="$1"; shift ;;
+  esac
+done
+
+tmpdir=$(mktemp -d)
+trap 'rm -rf "$tmpdir"' EXIT
+
+# Prefer an existing argocd login session; otherwise talk directly to the
+# cluster (--core) via a kubeconfig copy pinned to the ArgoCD namespace.
+ARGOCD=(argocd)
+argocd_config=${ARGOCD_CONFIG:-$HOME/.config/argocd/config}
+if [[ -z "${ARGOCD_SERVER:-}" ]] && ! grep -q '^current-context: .' "$argocd_config" 2>/dev/null; then
+  echo "No ArgoCD login session; using kubeconfig auth (--core, namespace: $ARGOCD_NS)"
+  kubectl config view --flatten > "$tmpdir/kubeconfig"
+  KUBECONFIG=$tmpdir/kubeconfig kubectl config set-context --current --namespace "$ARGOCD_NS" > /dev/null
+  export KUBECONFIG=$tmpdir/kubeconfig
+  ARGOCD+=(--core)
+fi
+
+# Dump sync/health/condition/operation details for a failed app
+dump_app_info() {
+  local app=$1
+  echo ""
+  echo "==== Diagnostics: $app ===="
+  if command -v jq >/dev/null 2>&1; then
+    "${ARGOCD[@]}" app get "$app" -o json 2>/dev/null | jq -r '
+      "Sync status:   \(.status.sync.status // "unknown") (revision \(.status.sync.revision // "unknown"))",
+      "Health status: \(.status.health.status // "unknown")\(if .status.health.message then " - " + .status.health.message else "" end)",
+      (if .status.operationState then
+        "Operation:     \(.status.operationState.phase // "unknown")\(if .status.operationState.message then " - " + .status.operationState.message else "" end)"
+      else empty end),
+      (if (.status.conditions // []) | length > 0 then
+        "Conditions:",
+        (.status.conditions[] | "  [\(.type)] \(.message // "")")
+      else empty end),
+      (if .status.operationState.syncResult.resources then
+        ([.status.operationState.syncResult.resources[] | select(.status == "SyncFailed" or (.message // "" | test("error|fail"; "i")))]) as $bad
+        | if ($bad | length) > 0 then
+            "Failed resources:",
+            ($bad[] | "  \(.kind)/\(.name): \(.status // "") \(.message // "")")
+          else empty end
+      else empty end)
+    ' || "${ARGOCD[@]}" app get "$app" || true
+  else
+    "${ARGOCD[@]}" app get "$app" || true
+  fi
+}
+
+# Refresh (and optionally wait on) one app; output goes to the caller's redirect
+refresh_app() {
+  local app=$1
+  # Parallel core-mode port-forwards can collide on a local port; retry once
+  if ! "${ARGOCD[@]}" app get "$app" --hard-refresh > /dev/null; then
+    sleep 2
+    "${ARGOCD[@]}" app get "$app" --hard-refresh > /dev/null
+  fi
+  if $WAIT; then
+    "${ARGOCD[@]}" app wait "$app" --sync --health --timeout "$WAIT_TIMEOUT" > /dev/null
+  fi
+}
+
+if [[ -n "$TARGET_APP" ]]; then
+  apps=$TARGET_APP
+else
+  apps=$("${ARGOCD[@]}" app list -o name)
+  if [[ -z "$apps" ]]; then
+    echo "No ArgoCD apps found."
+    exit 0
+  fi
+fi
+
+total=$(wc -l <<< "$apps")
+echo "Refreshing $total app(s) (max $MAX_PARALLEL parallel${WAIT:+, wait=$WAIT})..."
+
+pids=()
+batch_apps=()
+failed=()
+
+wait_batch() {
+  local i
+  for i in "${!pids[@]}"; do
+    if ! wait "${pids[$i]}"; then
+      failed+=("${batch_apps[$i]}")
+    fi
+  done
+  pids=()
+  batch_apps=()
+}
+
+for app in $apps; do
+  refresh_app "$app" > "$tmpdir/${app//\//_}.log" 2>&1 &
+  pids+=($!)
+  batch_apps+=("$app")
+
+  if (( ${#pids[@]} >= MAX_PARALLEL )); then
+    wait_batch
+  fi
+done
+wait_batch
+
+if (( ${#failed[@]} > 0 )); then
+  echo ""
+  echo "FAILED: ${#failed[@]}/$total app(s): ${failed[*]}" >&2
+  for app in "${failed[@]}"; do
+    {
+      echo ""
+      echo "==== Error output: $app ===="
+      cat "$tmpdir/${app//\//_}.log"
+      dump_app_info "$app"
+    } >&2
+  done
+  exit 1
+fi
+
+echo "Done. Refreshed $total app(s)."

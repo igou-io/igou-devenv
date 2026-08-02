@@ -25,6 +25,19 @@ mkdir -p "$TESTDIR/bin"
 cp "$SCRIPT_DIR/mock-op.sh" "$TESTDIR/bin/op"
 export PATH="$TESTDIR/bin:$PATH"
 
+# Mock ghapp binary — ght() calls `ghapp token --repo OWNER/REPO [--permission ...]`.
+# The real ghapp mints via the GitHub App (network + 1Password); the mock just
+# returns a fixed token so we can test the shell plumbing offline.
+cat > "$TESTDIR/bin/ghapp" << 'GHAPP_EOF'
+#!/usr/bin/env bash
+if [ "$1" = "token" ]; then
+    echo "ghs_mockedtoken0123456789"
+    exit 0
+fi
+exit 1
+GHAPP_EOF
+chmod +x "$TESTDIR/bin/ghapp"
+
 # If use() is not already defined (not running inside devcontainer), extract
 # the function definitions from dotfiles/.bashrc and source them.
 if ! type -t use &>/dev/null; then
@@ -53,6 +66,8 @@ op://Homelab/aap/password=s3cret
 op://Homelab/aap/username=admin
 op://Homelab/test-cluster/token=sha256~fake-token-12345
 op://Homelab/test-cluster/api-host=https://api.test-cluster.example.com:6443
+op://Homelab/test-registry/username=robot+devenv
+op://Homelab/test-registry/password=hunter2
 EOF
 
 # Mock op call log for verifying invocations
@@ -97,6 +112,42 @@ cat > "$TESTDIR/envs/aap.env" << 'EOF'
 CONTROLLER_HOST=op://Homelab/aap/host
 CONTROLLER_PASSWORD=op://Homelab/aap/password
 CONTROLLER_USERNAME=op://Homelab/aap/username
+EOF
+
+cat > "$TESTDIR/envs/registry.env" << 'EOF'
+REGISTRY_HOST=registry.example.com
+REGISTRY_USERNAME=op://Homelab/test-registry/username
+REGISTRY_PASSWORD=op://Homelab/test-registry/password
+AWS_DEFAULT_REGION=ap-south-1
+EOF
+
+cat > "$TESTDIR/envs/registry-partial.env" << 'EOF'
+REGISTRY_HOST=registry.example.com
+REGISTRY_USERNAME=op://Homelab/test-registry/username
+EOF
+
+cat > "$TESTDIR/envs/bad-registry.env" << 'EOF'
+REGISTRY_HOST=registry.example.com
+REGISTRY_USERNAME=op://Homelab/missing/username
+REGISTRY_PASSWORD=op://Homelab/missing/password
+AWS_DEFAULT_REGION=ap-south-1
+EOF
+
+# Refs that don't exist in the mock secrets — resolution must fail loudly
+cat > "$TESTDIR/envs/bad-kubeconfig.env" << 'EOF'
+KUBECONFIG_DATA=op://Homelab/missing/kubeconfig
+AWS_DEFAULT_REGION=us-east-1
+EOF
+
+cat > "$TESTDIR/envs/bad-token.env" << 'EOF'
+KUBECONFIG_TOKEN=op://Homelab/missing/token
+KUBECONFIG_HOST=op://Homelab/test-cluster/api-host
+EOF
+
+# Plain (non-op://) host value containing '=' — must not be truncated
+cat > "$TESTDIR/envs/equals-host.env" << 'EOF'
+KUBECONFIG_TOKEN=op://Homelab/test-cluster/token
+KUBECONFIG_HOST=https://api.test-cluster.example.com:6443/?scope=admin
 EOF
 
 # Override the envdir used by use() for testing.
@@ -307,6 +358,192 @@ else
 fi
 
 # =========================================================================
+#  Tests: use() — env with REGISTRY_HOST/USERNAME/PASSWORD
+# =========================================================================
+echo ""
+echo "==> Testing use() — container registry env..."
+
+unset REGISTRY_AUTH_FILE DOCKER_CONFIG AWS_DEFAULT_REGION OP_ENV OP_ENV_LIST 2>/dev/null || true
+
+use registry > /dev/null 2>&1
+if [ -n "${REGISTRY_AUTH_FILE:-}" ] && [ -f "$REGISTRY_AUTH_FILE" ]; then
+    ok "registry auth file created"
+else
+    fail "registry auth file created (REGISTRY_AUTH_FILE=${REGISTRY_AUTH_FILE:-unset})"
+fi
+if [ "${DOCKER_CONFIG:-}" = "$(dirname "${REGISTRY_AUTH_FILE:-/nonexistent}")" ] && [ -f "${DOCKER_CONFIG:-/nonexistent}/config.json" ]; then
+    ok "DOCKER_CONFIG points at the auth file's directory"
+else
+    fail "DOCKER_CONFIG points at the auth file's directory (DOCKER_CONFIG=${DOCKER_CONFIG:-unset})"
+fi
+_expected_auth=$(printf '%s:%s' "robot+devenv" "hunter2" | base64 -w0)
+if grep -q "\"registry.example.com\"" "${REGISTRY_AUTH_FILE:-/nonexistent}" 2>/dev/null && \
+   grep -q "$_expected_auth" "${REGISTRY_AUTH_FILE:-/nonexistent}" 2>/dev/null; then
+    ok "auth file has host entry with base64(user:pass)"
+else
+    fail "auth file has host entry with base64(user:pass)"
+fi
+if [ "$(stat -c %a "${REGISTRY_AUTH_FILE:-/nonexistent}" 2>/dev/null)" = "600" ]; then
+    ok "auth file is mode 600"
+else
+    fail "auth file is mode 600 (got: $(stat -c %a "${REGISTRY_AUTH_FILE:-/nonexistent}" 2>/dev/null))"
+fi
+if [ "${AWS_DEFAULT_REGION:-}" = "ap-south-1" ]; then
+    ok "registry env also resolves other vars"
+else
+    fail "registry env also resolves other vars (got: ${AWS_DEFAULT_REGION:-unset})"
+fi
+
+# Re-using replaces the previous temp auth dir instead of leaking it
+_first_auth_dir="${DOCKER_CONFIG:-}"
+use registry > /dev/null 2>&1
+if [ ! -d "$_first_auth_dir" ] && [ -f "${REGISTRY_AUTH_FILE:-/nonexistent}" ]; then
+    ok "re-use replaces previous auth dir"
+else
+    fail "re-use replaces previous auth dir (old: $_first_auth_dir)"
+fi
+
+_saved_auth_dir="${DOCKER_CONFIG:-}"
+unuse registry > /dev/null 2>&1
+if [ -z "${REGISTRY_AUTH_FILE:-}" ] && [ -z "${DOCKER_CONFIG:-}" ]; then
+    ok "unuse clears REGISTRY_AUTH_FILE and DOCKER_CONFIG"
+else
+    fail "unuse clears REGISTRY_AUTH_FILE and DOCKER_CONFIG (still: ${REGISTRY_AUTH_FILE:-}/${DOCKER_CONFIG:-})"
+fi
+if [ ! -d "$_saved_auth_dir" ]; then
+    ok "unuse deletes temp auth dir"
+else
+    fail "unuse deletes temp auth dir (still exists: $_saved_auth_dir)"
+fi
+
+# =========================================================================
+#  Tests: use() — partial REGISTRY_* keys rejected
+# =========================================================================
+echo ""
+echo "==> Testing use() — partial registry keys rejected..."
+
+output=$(use registry-partial 2>&1)
+rc=$?
+if [ $rc -ne 0 ] && echo "$output" | grep -q "must have all of REGISTRY_HOST"; then
+    ok "partial registry keys rejected"
+else
+    fail "partial registry keys rejected (rc=$rc output: $output)"
+fi
+
+# =========================================================================
+#  Tests: use() — registry credential resolution failure is detected
+# =========================================================================
+# A failed op read must fail the whole use() call: nonzero rc, no
+# REGISTRY_AUTH_FILE/DOCKER_CONFIG export, rolled-back vars, no orphan dir.
+echo ""
+echo "==> Testing use() — registry resolution failure..."
+
+unset REGISTRY_AUTH_FILE DOCKER_CONFIG AWS_DEFAULT_REGION OP_ENV OP_ENV_LIST 2>/dev/null || true
+_pre_auth_count=$(compgen -G "/tmp/registry-auth.*" | wc -l)
+
+use bad-registry > "$TESTDIR/bad-registry-out" 2>&1
+rc=$?
+if [ $rc -ne 0 ]; then
+    ok "failed registry op read returns nonzero"
+else
+    fail "failed registry op read returns nonzero (rc=$rc)"
+fi
+if grep -q "Failed to resolve registry credentials" "$TESTDIR/bad-registry-out"; then
+    ok "failed registry op read reports error"
+else
+    fail "failed registry op read reports error (got: $(cat "$TESTDIR/bad-registry-out"))"
+fi
+if [ -z "${REGISTRY_AUTH_FILE:-}" ] && [ -z "${DOCKER_CONFIG:-}" ]; then
+    ok "failed registry use does not export auth vars"
+else
+    fail "failed registry use does not export auth vars (${REGISTRY_AUTH_FILE:-}/${DOCKER_CONFIG:-})"
+fi
+if [ -z "${AWS_DEFAULT_REGION:-}" ]; then
+    ok "failed registry use rolls back already-exported vars"
+else
+    fail "failed registry use rolls back already-exported vars (still: ${AWS_DEFAULT_REGION:-})"
+fi
+if [ -z "${OP_ENV:-}" ] && [ -z "${OP_ENV_LIST:-}" ]; then
+    ok "failed registry use does not mark env active"
+else
+    fail "failed registry use does not mark env active (OP_ENV=${OP_ENV:-} OP_ENV_LIST=${OP_ENV_LIST:-})"
+fi
+_post_auth_count=$(compgen -G "/tmp/registry-auth.*" | wc -l)
+if [ "$_pre_auth_count" = "$_post_auth_count" ]; then
+    ok "failed registry use leaves no orphan auth dir"
+else
+    fail "failed registry use leaves no orphan auth dir (before=$_pre_auth_count after=$_post_auth_count)"
+fi
+
+# =========================================================================
+#  Tests: registry use()/unuse() re-activation is owner-scoped (issue #98)
+# =========================================================================
+echo ""
+echo "==> Testing owner-scoped registry use()/unuse() in child shells (issue #98)..."
+
+unset REGISTRY_AUTH_FILE DOCKER_CONFIG OP_ENV OP_ENV_LIST 2>/dev/null || true
+
+use registry > /dev/null 2>&1
+_parent_auth_dir="$DOCKER_CONFIG"
+
+# Child re-activates the same env (subshell → distinct $BASHPID). It creates
+# its own temp dir (removed before exiting); the parent's must survive.
+( use registry > /dev/null 2>&1; rm -rf "$DOCKER_CONFIG" )
+if [ -f "$_parent_auth_dir/config.json" ]; then
+    ok "child use() preserves parent auth dir"
+else
+    fail "child use() preserves parent auth dir ($_parent_auth_dir)"
+fi
+
+# Child unuse of the same env must not delete the parent's dir either.
+( unuse registry > /dev/null 2>&1 )
+if [ -f "$_parent_auth_dir/config.json" ]; then
+    ok "child unuse() preserves parent auth dir"
+else
+    fail "child unuse() preserves parent auth dir ($_parent_auth_dir)"
+fi
+
+# The owning shell's unuse still deletes its own dir.
+unuse registry > /dev/null 2>&1
+if [ ! -d "$_parent_auth_dir" ]; then
+    ok "owner unuse() deletes its own auth dir"
+else
+    fail "owner unuse() deletes its own auth dir (still exists: $_parent_auth_dir)"
+fi
+
+# =========================================================================
+#  Tests: registry EXIT-trap cleanup is owner-scoped (issue #98)
+# =========================================================================
+echo ""
+echo "==> Testing owner-scoped EXIT cleanup — registry auth dir..."
+
+unset OP_ENV OP_ENV_LIST 2>/dev/null || true
+
+use registry > /dev/null 2>&1
+_owned_auth_dir="${DOCKER_CONFIG:-}"
+
+if [ "${_USE_TMPAUTH_OWNER_registry:-}" = "$BASHPID" ]; then
+    ok "owner PID recorded for created auth dir"
+else
+    fail "owner PID recorded (got: ${_USE_TMPAUTH_OWNER_registry:-unset}, BASHPID=$BASHPID)"
+fi
+
+( _use_cleanup_all ) # subshell → distinct $BASHPID, inherits exported vars
+if [ -d "$_owned_auth_dir" ]; then
+    ok "child-shell EXIT does not delete sibling auth dir"
+else
+    fail "child-shell EXIT deleted sibling auth dir ($_owned_auth_dir)"
+fi
+
+_use_cleanup_all
+if [ ! -d "$_owned_auth_dir" ]; then
+    ok "owner-shell EXIT deletes its own auth dir"
+else
+    fail "owner-shell EXIT deletes its own auth dir ($_owned_auth_dir)"
+fi
+unuse registry > /dev/null 2>&1
+
+# =========================================================================
 #  Tests: use() idempotent — calling twice doesn't error
 # =========================================================================
 echo ""
@@ -465,6 +702,114 @@ fi
 unuse with-kubeconfig > /dev/null 2>&1
 
 # =========================================================================
+#  Tests: use() — kubeconfig resolution failure is detected
+# =========================================================================
+# A failed `op read`/`op inject` must fail the whole use() call: nonzero rc,
+# no KUBECONFIG export, no half-activated env, no leftover temp file.
+echo ""
+echo "==> Testing use() — kubeconfig resolution failure..."
+
+unset KUBECONFIG AWS_DEFAULT_REGION OP_ENV OP_ENV_LIST 2>/dev/null || true
+_pre_tmp_count=$(compgen -G "/tmp/kubeconfig.*" | wc -l)
+
+use bad-kubeconfig > "$TESTDIR/bad-kube-out" 2>&1
+rc=$?
+if [ $rc -ne 0 ]; then
+    ok "failed op read returns nonzero"
+else
+    fail "failed op read returns nonzero (rc=$rc)"
+fi
+if grep -q "Failed to resolve kubeconfig" "$TESTDIR/bad-kube-out"; then
+    ok "failed op read reports error"
+else
+    fail "failed op read reports error (got: $(cat "$TESTDIR/bad-kube-out"))"
+fi
+if [ -z "${KUBECONFIG:-}" ]; then
+    ok "failed op read does not export KUBECONFIG"
+else
+    fail "failed op read does not export KUBECONFIG (got: ${KUBECONFIG:-})"
+fi
+if [ -z "${AWS_DEFAULT_REGION:-}" ]; then
+    ok "failed use rolls back already-exported vars"
+else
+    fail "failed use rolls back already-exported vars (still: ${AWS_DEFAULT_REGION:-})"
+fi
+if [ -z "${OP_ENV:-}" ] && [ -z "${OP_ENV_LIST:-}" ]; then
+    ok "failed use does not mark env active"
+else
+    fail "failed use does not mark env active (OP_ENV=${OP_ENV:-} OP_ENV_LIST=${OP_ENV_LIST:-})"
+fi
+_post_tmp_count=$(compgen -G "/tmp/kubeconfig.*" | wc -l)
+if [ "$_pre_tmp_count" = "$_post_tmp_count" ]; then
+    ok "failed use leaves no orphan temp kubeconfig"
+else
+    fail "failed use leaves no orphan temp kubeconfig (before=$_pre_tmp_count after=$_post_tmp_count)"
+fi
+
+use bad-token > /dev/null 2>&1
+rc=$?
+if [ $rc -ne 0 ] && [ -z "${KUBECONFIG:-}" ]; then
+    ok "failed token inject returns nonzero without KUBECONFIG"
+else
+    fail "failed token inject returns nonzero without KUBECONFIG (rc=$rc KUBECONFIG=${KUBECONFIG:-unset})"
+fi
+
+# =========================================================================
+#  Tests: use() — values containing '=' are not truncated
+# =========================================================================
+echo ""
+echo "==> Testing use() — values containing '='..."
+
+unset KUBECONFIG OP_ENV OP_ENV_LIST 2>/dev/null || true
+
+use equals-host > /dev/null 2>&1
+if [ -n "${KUBECONFIG:-}" ] && grep -q "scope=admin" "$KUBECONFIG" 2>/dev/null; then
+    ok "host value with '=' written unmodified"
+else
+    fail "host value with '=' written unmodified (KUBECONFIG=${KUBECONFIG:-unset})"
+fi
+unuse equals-host > /dev/null 2>&1
+
+# =========================================================================
+#  Tests: use()/unuse() re-activation is owner-scoped (issue #98)
+# =========================================================================
+# A child shell inherits exported _USE_TMPKUBE_* vars. Re-running use() for
+# the same env, or unuse(), in the child must NOT delete the kubeconfig file
+# a parent/sibling shell created and still points at.
+echo ""
+echo "==> Testing owner-scoped use()/unuse() in child shells (issue #98)..."
+
+unset KUBECONFIG OP_ENV OP_ENV_LIST 2>/dev/null || true
+
+use with-kubeconfig > /dev/null 2>&1
+_parent_kube="$KUBECONFIG"
+
+# Child re-activates the same env (subshell → distinct $BASHPID). It creates
+# its own temp file (removed before exiting); the parent's must survive.
+( use with-kubeconfig > /dev/null 2>&1; rm -f "$KUBECONFIG" )
+if [ -f "$_parent_kube" ]; then
+    ok "child use() preserves parent kubeconfig"
+else
+    fail "child use() preserves parent kubeconfig ($_parent_kube)"
+fi
+
+# Child unuse of the same env must not delete the parent's file either.
+( unuse with-kubeconfig > /dev/null 2>&1 )
+if [ -f "$_parent_kube" ]; then
+    ok "child unuse() preserves parent kubeconfig"
+else
+    fail "child unuse() preserves parent kubeconfig ($_parent_kube)"
+fi
+
+# The owning shell's unuse still deletes its own file.
+unuse with-kubeconfig > /dev/null 2>&1
+if [ ! -f "$_parent_kube" ]; then
+    ok "owner unuse() deletes its own kubeconfig"
+else
+    fail "owner unuse() deletes its own kubeconfig (still exists: $_parent_kube)"
+fi
+
+# =========================================================================
 #  Tests: k8s-unset
 # =========================================================================
 echo ""
@@ -491,6 +836,45 @@ if grep -q "op inject" "$MOCK_OP_LOG"; then
     ok "op inject called to resolve secrets"
 else
     fail "op inject called to resolve secrets"
+fi
+
+# =========================================================================
+#  Tests: ght() — GitHub App repo-scoped token export
+# =========================================================================
+echo ""
+echo "==> Testing ght() / ght-unset()..."
+if [ -n "$(type -t ght)" ]; then ok "ght() defined"; else fail "ght() defined"; fi
+if [ -n "$(type -t ght-unset)" ]; then ok "ght-unset() defined"; else fail "ght-unset() defined"; fi
+
+# No-arg usage: returns non-zero and prints usage.
+if type -t ght >/dev/null; then
+    ght_usage=$(ght 2>&1); ght_rc=$?
+    if [ "$ght_rc" -ne 0 ] && echo "$ght_usage" | grep -q "usage: ght"; then
+        ok "ght with no args shows usage and fails"
+    else
+        fail "ght with no args shows usage and fails"
+    fi
+
+    # Mint: exports a repo-scoped GH_TOKEN/GITHUB_TOKEN from the mocked ghapp.
+    unset GH_TOKEN GITHUB_TOKEN GHT_REPO 2>/dev/null || true
+    ght igou-io/igou-devenv > /dev/null 2>&1
+    if [ "${GH_TOKEN:-}" = "ghs_mockedtoken0123456789" ] \
+       && [ "${GITHUB_TOKEN:-}" = "ghs_mockedtoken0123456789" ] \
+       && [ "${GHT_REPO:-}" = "igou-io/igou-devenv" ]; then
+        ok "ght exports repo-scoped GH_TOKEN/GITHUB_TOKEN"
+    else
+        fail "ght exports repo-scoped GH_TOKEN/GITHUB_TOKEN"
+    fi
+
+    # ght-unset clears the exported token.
+    ght-unset > /dev/null 2>&1
+    if [ -z "${GH_TOKEN:-}" ] && [ -z "${GITHUB_TOKEN:-}" ] && [ -z "${GHT_REPO:-}" ]; then
+        ok "ght-unset clears GH_TOKEN"
+    else
+        fail "ght-unset clears GH_TOKEN"
+    fi
+else
+    fail "ght() available for token tests"
 fi
 
 # =========================================================================

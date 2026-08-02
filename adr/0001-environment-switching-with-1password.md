@@ -2,11 +2,12 @@
 
 ## Status
 
-Accepted (updated 2026-04-15 — documented KUBECONFIG_TOKEN/KUBECONFIG_HOST strategy)
+Accepted (updated 2026-07-10 — documented REGISTRY_* container-registry
+authentication strategy)
 
 ## Date
 
-2026-03-21 (updated 2026-03-22, 2026-03-30, 2026-04-15)
+2026-03-21 (updated 2026-03-22, 2026-03-30, 2026-04-15, 2026-07-10)
 
 ## Context
 
@@ -64,6 +65,27 @@ a temp file that `KUBECONFIG` points to; the relevant keys are stripped before
 
 Both keys present in the same `.env` file is an error. `KUBECONFIG_TOKEN` and
 `KUBECONFIG_HOST` must both be present if either is used.
+
+There is an analogous strategy for **container registry authentication**:
+
+3. **`REGISTRY_HOST` + `REGISTRY_USERNAME` + `REGISTRY_PASSWORD`** — writes a
+   temp `containers-auth.json` (the `auths` schema shared by docker's
+   `config.json`) with a `base64(user:pass)` entry for the host, then exports
+   `REGISTRY_AUTH_FILE` pointing at the file (read by podman, buildah, skopeo)
+   and `DOCKER_CONFIG` pointing at its directory (read by docker). All three
+   keys are required together; a subset is an error. `REGISTRY_HOST` may be a
+   plain hostname or an `op://` reference; the credentials are `op://`
+   references resolved via `op read`. `unuse` (or the shell exit trap,
+   owner-scoped per issue #98) deletes the temp directory — no login state
+   outlives the session, and nothing touches `~/.docker` or
+   `${XDG_RUNTIME_DIR}/containers`.
+
+```bash
+# Example: quay.env
+REGISTRY_HOST=quay.io
+REGISTRY_USERNAME=op://lab_container_registries/quay/username
+REGISTRY_PASSWORD=op://lab_container_registries/quay/password
+```
 
 ```bash
 # Example: k3s.env
@@ -209,3 +231,4 @@ rationale.
 - **2026-03-30**: Refactored to export variables in the current shell with `unuse` for cleanup (issue #11). Removed subshell spawning entirely.
 - **2026-04-15**: Documented `KUBECONFIG_TOKEN` + `KUBECONFIG_HOST` strategy for dynamically constructing kubeconfigs from service account tokens.
 - **2026-06-08**: Default `op` auth switched to 1Password Connect, with the service-account token kept as fallback (see [ADR-0003](0003-default-to-1password-connect.md)).
+- **2026-07-10**: Added `REGISTRY_HOST` + `REGISTRY_USERNAME` + `REGISTRY_PASSWORD` strategy — `use quay` authenticates podman/buildah/skopeo (`REGISTRY_AUTH_FILE`) and docker (`DOCKER_CONFIG`) via a temp auth file cleaned up by `unuse` or the exit trap.

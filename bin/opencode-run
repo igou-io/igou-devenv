@@ -7,8 +7,8 @@
 #
 # Usage:
 #   opencode-run                          # launch opencode with workspace mounted
-#   opencode-run -e ocp-hub               # resolve ocp-hub secrets, pass as env vars
-#   opencode-run -e ocp-hub -e ansible    # stack multiple environments
+#   opencode-run -e ocp                   # resolve ocp secrets, pass as env vars
+#   opencode-run -e ocp -e ansible        # stack multiple environments
 #   opencode-run --shell                  # drop to bash instead of opencode
 #   opencode-run --dry-run -e aws         # print podman command without running
 #   opencode-run -e aws -- run "fix lint" # pass flags through to opencode
@@ -64,7 +64,7 @@ while [[ $# -gt 0 ]]; do
             echo "Examples:"
             echo "  opencode-run                          # launch opencode"
             echo "  opencode-run -e ocp-rosa              # with cluster credentials"
-            echo "  opencode-run -e ocp-hub -e ansible    # stack environments"
+            echo "  opencode-run -e ocp -e ansible        # stack environments"
             echo "  opencode-run --dev                    # use the dev image (pip + uv installable)"
             echo "  opencode-run --image localhost/opencode:test  # use a local image"
             echo "  opencode-run --shell                  # interactive bash"

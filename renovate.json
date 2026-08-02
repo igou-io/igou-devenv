@@ -43,6 +43,24 @@
     },
     {
       "matchManagers": ["custom.regex"],
+      "matchPackageNames": ["anthropics/claude-code"],
+      "groupName": "claude code",
+      "description": "Coding-agent harness, ungrouped from the SHA-pinned agent CLIs: the Dockerfile verifies it via PGP against the release signature (no *_SHA256_* ARGs), so a version bump is self-contained and safe to automerge on a green build. 3-day age gate instead of the global 10: harness releases ship protocol/feature fixes weekly and staleness has real operational cost on the Hermes terminal backend.",
+      "minimumReleaseAge": "3 days",
+      "schedule": ["at any time"],
+      "automerge": true
+    },
+    {
+      "matchManagers": ["custom.regex"],
+      "matchPackageNames": ["anomalyco/opencode", "openai/codex"],
+      "groupName": "coding agent clis",
+      "description": "automerge:false — cli-sha-recapture.yaml owns merging this PR (it recaptures the per-arch *_SHA256_* ARGs the version bump invalidates, pushes the fixup, then enables GitHub auto-merge), mirroring the release-prepare/mise.lock pattern. Never push manual commits to this branch outside that workflow: an edited branch freezes Renovate. The 3-day age gate matches MINIMUM_RELEASE_AGE_DAYS in the Dockerfile.",
+      "minimumReleaseAge": "3 days",
+      "schedule": ["at any time"],
+      "automerge": false
+    },
+    {
+      "matchManagers": ["custom.regex"],
       "matchPackageNames": ["jdx/mise"],
       "groupName": "mise itself (trust anchor)"
     },

@@ -82,58 +82,24 @@ launchers run podman inside the devcontainer).
 
 ## SSH
 
-- **SSH key pair** registered with GitHub (ed25519 or RSA).
-- **SSH agent** running on the host with the key loaded (`ssh-add`).
-- The Makefile dynamically bind-mounts `$SSH_AUTH_SOCK` into the container. If the socket does not exist, the mount is skipped gracefully.
+SSH keys are **not** kept on the host or forwarded into the container. The
+devcontainer runs its own ssh-agent (started empty by `bin/ensure-ssh-agent`)
+and keys are pulled from 1Password on demand with `ssh-use` — see
+[adr/0004](../adr/0004-ssh-keys-from-1password.md).
 
-### Playbook: SSH key and agent setup
+The host only needs:
 
-```yaml
----
-- name: SSH key and agent setup
-  hosts: localhost
-  connection: local
-  vars:
-    ssh_key_path: "{{ ansible_env.HOME }}/.ssh/id_ed25519"
-    ssh_key_comment: "{{ ansible_user_id }}@{{ ansible_hostname }}"
-  tasks:
-    - name: Ensure ~/.ssh directory exists
-      ansible.builtin.file:
-        path: "{{ ansible_env.HOME }}/.ssh"
-        state: directory
-        mode: "0700"
+- `~/.ssh/config` and `~/.ssh/known_hosts` — bind-mounted read-only into the
+  container. No private key on disk, no host ssh-agent, no agent forwarding.
+- Your SSH keys stored in the 1Password `lab_ssh` vault, resolved in-container
+  via the 1Password CLI (see the [1Password CLI](#1password-cli) section below).
 
-    - name: Generate ed25519 SSH key pair
-      community.crypto.openssh_keypair:
-        path: "{{ ssh_key_path }}"
-        type: ed25519
-        comment: "{{ ssh_key_comment }}"
-      register: ssh_key
+Inside the container:
 
-    - name: Ensure SSH agent is running
-      ansible.builtin.shell: |
-        eval "$(ssh-agent -s)"
-        echo "$SSH_AUTH_SOCK"
-      args:
-        executable: /bin/bash
-      environment:
-        SSH_AUTH_SOCK: "{{ ansible_env.SSH_AUTH_SOCK | default('') }}"
-      register: ssh_agent
-      changed_when: false
-      when: ansible_env.SSH_AUTH_SOCK is not defined or ansible_env.SSH_AUTH_SOCK == ""
-
-    - name: Add key to SSH agent
-      ansible.builtin.shell: ssh-add {{ ssh_key_path }}
-      args:
-        executable: /bin/bash
-      changed_when: false
-
-    - name: Show public key for GitHub registration
-      ansible.builtin.debug:
-        msg: >-
-          Add this public key to GitHub (Settings → SSH and GPG keys):
-          {{ lookup('file', ssh_key_path + '.pub') }}
-      when: ssh_key.changed
+```bash
+ssh-use            # load the default key (op://lab_ssh/github)
+ssh-use lab-nodes  # load a specific key
+ssh-unuse          # drop all loaded keys
 ```
 
 ## 1Password CLI

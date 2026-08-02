@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "aap": {
+      "type": "http",
+      "url": "https://aap-mcp-ansible-automation-platform.apps.ocp.igou.systems/mcp",
+      "headers": {
+        "Authorization": "Bearer ${AAP_MCP_TOKEN}"
+      }
+    }
+  }
+}

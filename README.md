@@ -1,8 +1,9 @@
 # igou-io devenv
 
 Reproducible development environment for homelab infrastructure work.
-Runs as a devcontainer via Cursor or the `devcontainer` CLI, with SSH agent
-forwarding.
+Runs as a devcontainer via Cursor or the `devcontainer` CLI. SSH keys are
+loaded on demand from 1Password into a container-local agent (no host agent
+forwarding — see [ADR-0004](adr/0004-ssh-keys-from-1password.md)).
 
 ## Execution Models
 
@@ -78,12 +79,9 @@ mechanism. See [AGENTS.md](AGENTS.md) for the per-layer Renovate strategy.
    sudo systemctl enable --now docker
    sudo usermod -aG docker "$USER"   # then re-login so `docker` works without sudo
    ```
-2. **SSH agent running with your key loaded** (for operations that need SSH
-   access inside the container):
-   ```bash
-   eval "$(ssh-agent -s)"
-   ssh-add ~/.ssh/id_ed25519   # or whichever key has GitHub access
-   ```
+2. **1Password credentials on the host** (see item 5 below) — SSH keys are
+   pulled from 1Password inside the container with `ssh-use`; no host
+   ssh-agent or on-disk private key is needed.
 3. **Repos pre-cloned on the host** at `~/workspace/`:
    ```bash
    mkdir -p ~/workspace
@@ -96,7 +94,8 @@ mechanism. See [AGENTS.md](AGENTS.md) for the per-layer Renovate strategy.
    npm install -g @devcontainers/cli
    ```
 5. Your credentials in the standard locations:
-   - `~/.ssh/` — SSH keys and config
+   - `~/.ssh/` — SSH config and known_hosts (no private keys; keys live in
+     1Password and are loaded per-session with `ssh-use`)
    - `~/.kube/` — Kubernetes configs
    - `~/.gitconfig` — Git identity (mounted read-only)
    - `~/.config/argocd/` — ArgoCD CLI config
@@ -125,9 +124,6 @@ make up      # build and start the devcontainer
 make shell   # open a shell inside
 make down    # stop and remove the container
 ```
-
-The Makefile automatically forwards your SSH agent if `SSH_AUTH_SOCK` is set
-and the socket exists.
 
 `make up` is not a from-scratch build: `devcontainer.json` sets
 `cacheFrom: ghcr.io/igou-io/igou-devenv`, so it pulls the published image and
@@ -159,7 +155,7 @@ This is a lightweight, **ephemeral** path: code-server settings/extensions and
 the password are not persisted. It also does not imply the same privileged
 runtime, lifecycle hooks, host config mounts, Docker socket, `/dev` bind mount,
 or nested Podman/buildah capability as the full devcontainer. For the full,
-persistent environment (always-on code-server, SSH agent, 1Password, kubeconfig,
+persistent environment (always-on code-server, 1Password, kubeconfig,
 nested Podman/buildah, libvirt) use `make up` or Cursor. Pin a `:YYYY.MM.DD` tag
 for reproducibility; `:latest` tracks the most recent green build on `main`.
 
@@ -197,16 +193,78 @@ for full details.
 
 ```bash
 use                     # list available environments
-use ocp-hub             # activate OpenShift hub in the current shell
+use ocp                 # activate the OpenShift cluster in the current shell
 use ansible             # stack Ansible vault on top
 unuse ansible           # remove Ansible vault environment
-unuse ocp-hub           # back to clean shell
+unuse ocp               # back to clean shell
+
+use quay                # authenticate podman/docker to quay.io
+podman pull quay.io/igou/some-private-image
+unuse quay              # deletes the temp auth file
 
 k8s-unset               # clear KUBECONFIG and K8S_AUTH_* vars
 ```
 
 Environment files live in `envs/` and contain only `op://` references — no
 secrets are stored in the repo.
+
+Env files with `REGISTRY_HOST`, `REGISTRY_USERNAME`, and `REGISTRY_PASSWORD`
+write a temp `containers-auth.json` and export `REGISTRY_AUTH_FILE` (podman,
+buildah, skopeo) plus `DOCKER_CONFIG` (docker), so container CLIs are
+authenticated for the shell session without `podman login` state on disk.
+See `envs/quay.env` for the shape.
+
+## GitHub Authentication (ghapp)
+
+GitHub auth uses **runtime-minted, repo-scoped GitHub App tokens** (`ghapp`)
+rather than static Personal Access Tokens. Every token is bound to a **single
+repository**, carries only the permissions the operation needs, expires within
+an hour, and is never written to disk — the App private key is read from
+1Password (`op read`) at mint time.
+
+This replaces the old `use claude-david-igou-github-token` / `use
+claude-igou-io-github-token` PAT flow. Those env files still exist but are
+**deprecated** (kept only as a fallback for gaps the App's permission ceiling
+can't cover, e.g. writing Actions secrets).
+
+The App (`igou-dev`) is installed on both accounts; the owner half of
+`OWNER/REPO` picks the installation, so `david-igou/*` and `igou-io/*` both work
+from one config (`~/.config/ghapp/config.yaml`, seeded by `post-create.sh`).
+
+Three ways to authenticate:
+
+```bash
+# 1. Plain git over HTTPS — just works. The ghapp credential helper (baked into
+#    /etc/gitconfig) mints a contents:write token for exactly the repo pushed.
+git clone https://github.com/igou-io/igou-ansible.git
+git -C igou-ansible push
+
+# 2. gh, scoped to one repo — nothing exported into your shell:
+gh-app --repo igou-io/igou-devenv -- pr list
+gh-app --repo david-igou/ansible-collection-devhost --permission contents=read -- release list
+
+# 3. Export a fresh repo-scoped GH_TOKEN into the current shell (for tools that
+#    read GH_TOKEN and can't use gh-app), then clear it:
+ght igou-io/igou-ansible          # default permissions
+ght david-igou/hermes contents=read
+ght-unset
+```
+
+Other entry points from the same identity: `git-app --repo OWNER/REPO -- push
+...` (askpass variant, no helper needed), `ghapp token --repo OWNER/REPO
+[--permission NAME=LEVEL]` (print a raw token), `ghapp api /repos/OWNER/REPO/...`,
+and `ghapp doctor --repo OWNER/REPO` (diagnostics). `--repo` is required
+anywhere a token is minted — tokens are per-repository by design, so there is no
+org-wide token.
+
+> SSH remotes bypass the App identity — use HTTPS remotes for App-authenticated
+> (bot) work. `op` must be authenticated in the shell (it is by default via the
+> bind-mounted `~/.config/op`), since the private key is fetched from 1Password
+> on every mint.
+
+The host side of this (the devenv VM / physical devhost) installs the same
+`ghapp` CLI and credential helper via the `david_igou.devhost.ghapp` role in
+`igou-ansible`'s `playbooks/devenv/bootstrap.yml`.
 
 ## Makefile Targets
 
@@ -259,7 +317,7 @@ wires Hermes to call them and verifies that path.
 ```bash
 claude-run                          # launch claude with current directory mounted
 claude-run -e ocp-rosa              # resolve ocp-rosa secrets, inject as env vars
-claude-run -e ocp-hub -e ansible    # stack multiple environments
+claude-run -e ocp -e ansible        # stack multiple environments
 claude-run --shell                  # drop to bash instead of claude
 claude-run -e aws -- --resume       # pass flags through to claude
 
@@ -333,23 +391,28 @@ oc patch inferenceservice qwen3-35b-a3b -n llmkube-system \
 See `applications/llmkube/README.md` in `igou-openshift` for the full server-side
 tuning rationale (flash attention, q8 KV cache, jinja chat template, etc.).
 
-## SSH Agent Forwarding
+## SSH Keys from 1Password
 
-**Via Cursor:** The devcontainer bind-mounts `SSH_AUTH_SOCK` from the host into
-the container at `/tmp/ssh-agent.sock`. Cursor handles this when you have
-`ForwardAgent yes` in your SSH config.
+There is no host SSH agent forwarding and no private key on disk (see
+[ADR-0004](adr/0004-ssh-keys-from-1password.md)). `post-start.sh` starts an
+**empty** container-local ssh-agent on `/tmp/ssh-agent.sock` (the fixed path
+`devcontainer.json` exports as `SSH_AUTH_SOCK`); every terminal shares it.
+Keys are stored as native SSH Key items in 1Password and loaded on demand:
 
-**Via Makefile:** The `make up`/`make rebuild` commands detect your
-`SSH_AUTH_SOCK` and pass it via `--mount` and `--remote-env`. If the socket
-doesn't exist (stale agent, different terminal), it's silently skipped.
+```bash
+ssh-use                  # load the default key (op://lab_ssh/github)
+ssh-use lab-nodes        # load a different item from the vault
+SSH_USE_TTL=1h ssh-use   # override the default 12h agent lifetime
+ssh-add -l               # audit what's loaded
+ssh-unuse github         # remove one key
+ssh-unuse                # remove all keys
+```
 
-**For the forwarding chain to work:**
-1. Your local machine has `ssh-agent` running with your key
-2. Your SSH config for the remote host has `ForwardAgent yes`
-3. The host's `sshd_config` has `AllowAgentForwarding yes` (default on most distros)
-
-The shell prompt auto-heals stale SSH agent sockets on every prompt via
-`_fix_ssh_auth_sock` in PROMPT_COMMAND.
+The private key is piped from `op read` straight into agent memory — it never
+touches a file — and expires from the agent after the TTL. Editor reconnects
+have no effect on SSH, and headless/tmux sessions work without an editor
+attached. `~/.ssh` remains bind-mounted for `config`, `known_hosts`, and
+`authorized_keys` only.
 
 ## Container Tooling
 
@@ -495,9 +558,11 @@ Use the `use` function for environment switching — see
 
 ### Secrets Management
 
-Credentials are bind-mounted from the host. SSH keys and `.gitconfig` are
-read-only; kubeconfig is read-write for context switching. The container
-never stores secrets in its image layers.
+Credentials are bind-mounted from the host. `.gitconfig` and `~/.config/op`
+are read-only; kubeconfig is read-write for context switching. SSH private
+keys are not on disk at all — they live in 1Password and are loaded into the
+container-local agent per-session (ADR-0004). The container never stores
+secrets in its image layers.
 
 ## Reprovisioning the Host
 
@@ -519,27 +584,21 @@ echo "Host ready. Clone devenv and open with: cursor ~/igou-devenv"
 
 ## Troubleshooting
 
-### SSH Agent Forwarding
+### SSH
 
 **SSH operations fail with "Permission denied (publickey)":**
 ```bash
-# Inside the container:
-ssh-add -l
-echo $SSH_AUTH_SOCK
-ls -la /tmp/ssh-agent.sock
+ssh-add -l          # what does the agent hold?
+ssh-use             # (re)load the key — it may have hit its TTL
 ```
-If the socket doesn't exist, the agent wasn't forwarded. Check that:
-- Your local `ssh-agent` is running and has keys (`ssh-add -l` locally)
-- Your SSH config for the host has `ForwardAgent yes`
-- You started Cursor *after* starting the agent
 
-**Stale SSH_AUTH_SOCK in another terminal:**
-The Makefile validates the socket exists before mounting. If `SSH_AUTH_SOCK`
-points to a dead socket, re-start your agent:
+**"Could not open a connection to your authentication agent" / dead socket:**
 ```bash
-eval "$(ssh-agent -s)"
-ssh-add ~/.ssh/id_ed25519
+ensure-ssh-agent    # restart the container-local agent, then ssh-use again
 ```
+
+**`ssh-use` fails to resolve the key:** check 1Password auth (`op vault list`)
+and that the item exists: `op read "op://lab_ssh/github/public key"`.
 
 ### Docker
 
@@ -562,5 +621,5 @@ docker info
 **`use` hangs:** Set `BASHRC_DEBUG=1` before the `use` call to trace shell
 startup and identify which `.bashrc` section is blocking:
 ```bash
-BASHRC_DEBUG=1 use ocp-hub
+BASHRC_DEBUG=1 use ocp
 ```

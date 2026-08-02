@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+# Finish the open Renovate coding-agent CLI PR so it can merge: recapture the
+# per-arch *_SHA256_* Dockerfile ARGs that the version bump invalidated, push
+# the fixup (a PAT push re-triggers CI), then enable GitHub native auto-merge —
+# the PR squash-merges automatically once the required `build` check passes.
+# Hosted Renovate cannot update the SHA ARGs itself; the coding-agent group has
+# automerge:false in renovate.json, so this job is its sole merger. Mirrors
+# bin/release-prepare-mise (the mise.lock variant of the same pattern).
+#
+# SHA sources:
+#   opencode — no upstream SHASUMS file; download each arch tarball and hash it
+#              (same TOFU capture the manual process performed, done by CI).
+#   codex    — upstream publishes codex-package_SHA256SUMS in the release; take
+#              the linux-musl entries from there.
+# The Dockerfile's MINIMUM_RELEASE_AGE_DAYS gate still applies at build time,
+# so a recaptured-but-too-young release cannot ship.
+#
+# Requires (set by the workflow):
+#   GH_TOKEN      a token that re-triggers workflows + can merge (RELEASE_PAT)
+# Also requires: curl, gh, git; repo "Allow auto-merge" enabled and a branch
+# ruleset requiring the `build` check.
+set -euo pipefail
+
+REPO="igou-io/igou-devenv"
+BRANCH="renovate/coding-agent-clis"
+DOCKERFILE=".devcontainer/Dockerfile"
+
+pr="$(gh pr list --repo "$REPO" --state open --head "$BRANCH" --json number --jq '.[0].number // empty')"
+if [ -z "$pr" ]; then
+  echo "No open coding-agent CLI PR ($BRANCH) — nothing to prepare."
+  exit 0
+fi
+echo "Preparing coding-agent CLI PR #$pr"
+
+gh pr checkout "$pr" --repo "$REPO"
+
+get_arg() {
+  grep -oE "^ARG $1=\"[^\"]+\"" "$DOCKERFILE" \
+    | sed -E "s/^ARG $1=\"([^\"]+)\"/\1/" \
+    | head -1
+}
+
+set_sha_arg() {
+  # Refuse to write anything that is not a 64-char hex SHA256 — a truncated
+  # download or an HTML error page must fail loudly, never land in the pin.
+  local name="$1" sha="$2"
+  if ! printf '%s' "$sha" | grep -qE '^[0-9a-f]{64}$'; then
+    echo "::error::refusing to set $name: '$sha' is not a sha256" >&2
+    exit 1
+  fi
+  sed -i -E "s|^ARG $name=\"[^\"]+\"|ARG $name=\"$sha\"|" "$DOCKERFILE"
+}
+
+# opencode — hash the release tarballs directly.
+OPENCODE_VERSION="$(get_arg OPENCODE_VERSION)"
+echo "Recapturing opencode ${OPENCODE_VERSION} SHAs..."
+for pair in "x64:OPENCODE_SHA256_X64" "arm64:OPENCODE_SHA256_ARM64"; do
+  arch="${pair%%:*}"
+  var="${pair#*:}"
+  url="https://github.com/anomalyco/opencode/releases/download/${OPENCODE_VERSION}/opencode-linux-${arch}.tar.gz"
+  sha="$(curl -fsSL --retry 3 "$url" | sha256sum | awk '{print $1}')"
+  set_sha_arg "$var" "$sha"
+done
+
+# codex — take the published SHASUMS entries for the linux-musl package assets.
+CODEX_VERSION="$(get_arg CODEX_VERSION)"
+echo "Recapturing codex ${CODEX_VERSION} SHAs..."
+sums="$(curl -fsSL --retry 3 "https://github.com/openai/codex/releases/download/rust-v${CODEX_VERSION}/codex-package_SHA256SUMS")"
+for pair in "x86_64:CODEX_SHA256_X64" "aarch64:CODEX_SHA256_ARM64"; do
+  triple="${pair%%:*}-unknown-linux-musl"
+  var="${pair#*:}"
+  sha="$(printf '%s\n' "$sums" | grep -F "codex-package-${triple}.tar.gz" | head -1 | awk '{print $1}')"
+  set_sha_arg "$var" "$sha"
+done
+
+if git diff --quiet -- "$DOCKERFILE"; then
+  echo "SHA ARGs already in sync; no commit needed."
+else
+  git config user.name "github-actions[bot]"
+  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+  git commit -am "chore(clis): recapture coding-agent CLI SHA256 pins"
+  git push
+fi
+
+# Enable auto-merge: GitHub squash-merges once the required `build` check is
+# green. If the PR is already green, --auto fails with "clean status" — fall
+# back to an immediate merge in that case.
+if ! gh pr merge "$pr" --repo "$REPO" --squash --auto --delete-branch; then
+  state="$(gh pr view "$pr" --repo "$REPO" --json state --jq .state 2>/dev/null || echo UNKNOWN)"
+  if [ "$state" = "MERGED" ]; then
+    echo "PR #$pr already merged."
+  elif gh pr merge "$pr" --repo "$REPO" --squash --delete-branch; then
+    echo "PR #$pr was already green — merged directly."
+  else
+    echo "::error::could not enable auto-merge on PR #$pr (state=$state)"
+    exit 1
+  fi
+fi
+echo "Auto-merge enabled on PR #$pr — it merges when build passes."

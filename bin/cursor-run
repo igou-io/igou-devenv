@@ -7,8 +7,8 @@
 #
 # Usage:
 #   cursor-run                        # launch agent with workspace mounted
-#   cursor-run -e ocp-hub             # resolve ocp-hub secrets, pass as env vars
-#   cursor-run -e ocp-hub -e ansible  # stack multiple environments
+#   cursor-run -e ocp                 # resolve ocp secrets, pass as env vars
+#   cursor-run -e ocp -e ansible      # stack multiple environments
 #   cursor-run --shell                # drop to bash instead of agent
 #   cursor-run --dry-run -e aws       # print podman command without running
 #   cursor-run -e aws -- --resume     # pass flags through to agent
@@ -59,7 +59,7 @@ while [[ $# -gt 0 ]]; do
             echo "Examples:"
             echo "  cursor-run                          # launch agent"
             echo "  cursor-run -e ocp-rosa              # with cluster credentials"
-            echo "  cursor-run -e ocp-hub -e ansible    # stack environments"
+            echo "  cursor-run -e ocp -e ansible        # stack environments"
             echo "  cursor-run --image cursor-agent     # use a local image"
             echo "  cursor-run --shell                  # interactive bash"
             echo "  cursor-run --dry-run -e aws         # preview the command"

@@ -7,8 +7,8 @@
 #
 # Usage:
 #   claude-run                        # launch claude with workspace mounted
-#   claude-run -e ocp-hub             # resolve ocp-hub secrets, pass as env vars
-#   claude-run -e ocp-hub -e ansible  # stack multiple environments
+#   claude-run -e ocp                 # resolve ocp secrets, pass as env vars
+#   claude-run -e ocp -e ansible      # stack multiple environments
 #   claude-run --shell                # drop to bash instead of claude
 #   claude-run --dry-run -e aws       # print podman command without running
 #   claude-run -e aws -- --resume     # pass flags through to claude
@@ -64,7 +64,7 @@ while [[ $# -gt 0 ]]; do
             echo "Examples:"
             echo "  claude-run                          # launch claude"
             echo "  claude-run -e ocp-rosa              # with cluster credentials"
-            echo "  claude-run -e ocp-hub -e ansible    # stack environments"
+            echo "  claude-run -e ocp -e ansible        # stack environments"
             echo "  claude-run --image claude-devenv    # use a local image"
             echo "  claude-run --shell                  # interactive bash"
             echo "  claude-run --dry-run -e aws         # preview the command"
