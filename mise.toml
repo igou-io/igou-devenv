@@ -176,3 +176,22 @@ version = "0.1.25"
 [tools."http:rustfs-cli".platforms]
 linux-x64   = { url = "https://github.com/rustfs/cli/releases/download/v{{ version }}/rustfs-cli-linux-amd64-gnu-v{{ version }}.tar.gz" }
 linux-arm64 = { url = "https://github.com/rustfs/cli/releases/download/v{{ version }}/rustfs-cli-linux-arm64-gnu-v{{ version }}.tar.gz" }
+
+# gws — Google Workspace CLI (googleworkspace/cli). Not in aqua-registry, so it
+# uses the http backend like the other off-registry tools above. Upstream ships
+# per-asset .sha256 files and GitHub artifact attestations (checked 2026-07
+# against v0.22.5), but the http backend consumes neither — the blake3 TOFU pin
+# in mise.lock is the floor, same as virtctl/kube-burner/rustfs-cli. The global
+# minimum_release_age = "10d" gate still applies.
+#
+# The gnu (glibc) artifacts match the CentOS Stream 10 devcontainer. The tarball
+# is a flat archive whose single binary is named `gws`, so no strip_components/
+# bin_path is needed; the launch check in tests/mise-expected-verification.toml
+# runs `gws` directly.
+# renovate: datasource=github-releases depName=googleworkspace/cli
+[tools."http:gws"]
+version = "0.22.5"
+
+[tools."http:gws".platforms]
+linux-x64   = { url = "https://github.com/googleworkspace/cli/releases/download/v{{ version }}/google-workspace-cli-x86_64-unknown-linux-gnu.tar.gz" }
+linux-arm64 = { url = "https://github.com/googleworkspace/cli/releases/download/v{{ version }}/google-workspace-cli-aarch64-unknown-linux-gnu.tar.gz" }
