@@ -7,6 +7,26 @@ if [ -n "${CI:-}" ]; then
     exit 0
 fi
 
+# Poll until a background service is listening on its port (up to 15s).
+# Long-lived services (code-server, t3) are forked near the end of this
+# script; when it runs as a devcontainer-CLI postStart exec, the exec
+# session is torn down as soon as the script exits and can reap a child
+# that is still mid-startup. Waiting for the listen socket keeps the
+# script alive past that window and makes a failed start loud instead of
+# silent. Non-fatal: a WARN never blocks the rest of post-start.
+wait_for_listen() {
+    port=$1 svc=$2 log=$3
+    for _ in $(seq 1 30); do
+        if ss -ltnH 2>/dev/null | awk '{print $4}' | grep -qE "[:.]${port}\$"; then
+            echo "    ${svc} listening on :${port}"
+            return 0
+        fi
+        sleep 0.5
+    done
+    echo "    WARNING (non-fatal): ${svc} not listening on :${port} after 15s (see ${log})"
+    return 0
+}
+
 # ---------------------------------------------------------------------------
 # Container-local SSH agent (adr/0004)
 # No host agent forwarding: a dedicated agent listens on the fixed socket
@@ -148,8 +168,15 @@ if command -v code-server >/dev/null 2>&1; then
         echo "==> code-server already listening on :${CS_PORT}"
     else
         echo "==> Starting code-server on 0.0.0.0:${CS_PORT} (password in ${CS_CONFIG})..."
-        nohup code-server /workspace >> "$HOME/.local/share/code-server/code-server.log" 2>&1 &
+        # setsid detaches into a fresh session: when this script runs as a
+        # devcontainer-CLI postStart exec (the AAP bootstrap path), the exec
+        # session is torn down milliseconds after the script exits, and a
+        # freshly-forked nohup child can be reaped before it finishes
+        # starting. wait_for_listen below keeps the script alive past that
+        # window and turns a silent startup failure into a visible warning.
+        setsid nohup code-server /workspace >> "$HOME/.local/share/code-server/code-server.log" 2>&1 < /dev/null &
         disown || true
+        wait_for_listen "$CS_PORT" code-server "$HOME/.local/share/code-server/code-server.log"
     fi
 fi
 
@@ -176,8 +203,13 @@ if command -v t3 >/dev/null 2>&1; then
         echo "==> t3 serve already listening on :${T3_PORT}"
     else
         echo "==> Starting t3 serve on ${T3_HOST}:${T3_PORT} (pairing info: ~/.t3/serve.log)..."
-        nohup t3 serve --host "$T3_HOST" >> "$HOME/.t3/serve.log" 2>&1 &
+        # setsid + wait_for_listen: same teardown-race hardening as
+        # code-server above. t3 is the last service this script starts, so
+        # under the AAP bootstrap's postStart exec it sat closest to the
+        # session teardown and was reliably reaped mid-startup.
+        setsid nohup t3 serve --host "$T3_HOST" >> "$HOME/.t3/serve.log" 2>&1 < /dev/null &
         disown || true
+        wait_for_listen "$T3_PORT" "t3 serve" "$HOME/.t3/serve.log"
     fi
 fi
 
