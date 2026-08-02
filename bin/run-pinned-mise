@@ -53,7 +53,12 @@ fi
     -s -- "$@" <<'EOF'
 set -euo pipefail
 
-dnf install -y ca-certificates curl findutils gnupg2 gzip tar xz >/dev/null
+# libatomic: node links against libatomic.so.1, which the minimal stream10
+# image lacks — the npm: backend (t3) spawns node/npm during resolve+install.
+# gcc-c++/make/python3: node-gyp toolchain for node-pty (t3's allow_builds
+# package), which ships no linux prebuild.
+dnf install -y ca-certificates curl findutils gcc-c++ gnupg2 gzip libatomic \
+    make python3 tar xz >/dev/null
 
 ARCH_RAW="$(uname -m)"
 case "$ARCH_RAW" in

@@ -112,9 +112,12 @@ for tool in "${!EXPECTED_MAP[@]}"; do
         *)               section_open="[[tools.${tool}]";      section_dot="[tools.${tool}.";;
     esac
 
-    if [ "$expected" = "core" ]; then
+    # "core" and "npm" backends verify inside the backend tool itself (mise
+    # built-in / npm registry sha512 integrity) and record no checksum in
+    # mise.lock — the audit asserts lockfile presence only.
+    if [ "$expected" = "core" ] || [ "$expected" = "npm" ]; then
         if grep -qF "$section_open" "$LOCK"; then
-            ok "${tool} verified via core backend (mise built-in; no lockfile checksum)"
+            ok "${tool} verified via ${expected} backend (no lockfile checksum; verification inside backend)"
         else
             fail "${tool}: no ${section_open}] section found in ${LOCK}"
         fi

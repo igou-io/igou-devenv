@@ -291,6 +291,24 @@ checksum = "sha256:029a7f0f4e1932c52a0476cf02a0fd855c0bb85694b82c338fc648dcb53a8
 url = "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/v5.8.1/kustomize_v5.8.1_linux_amd64.tar.gz"
 url_api = "https://api.github.com/repos/kubernetes-sigs/kustomize/releases/assets/353160972"
 
+[[tools.node]]
+version = "26.4.0"
+backend = "aqua:nodejs/node"
+
+[tools.node."platforms.linux-arm64"]
+url = "https://nodejs.org/dist/v26.4.0/node-v26.4.0-linux-arm64.tar.gz"
+
+[tools.node."platforms.linux-x64"]
+checksum = "blake3:8cf53a872032634dcb93885f156bbe1af1630ec701b6bf050ceb015e1c180ba3"
+url = "https://nodejs.org/dist/v26.4.0/node-v26.4.0-linux-x64.tar.gz"
+
+[[tools."npm:t3"]]
+version = "0.0.31"
+backend = "npm:t3"
+
+[tools."npm:t3".options]
+allow_builds = '["node-pty"]'
+
 [[tools.rclone]]
 version = "1.74.3"
 backend = "aqua:rclone/rclone"

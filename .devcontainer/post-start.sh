@@ -154,6 +154,32 @@ if command -v code-server >/dev/null 2>&1; then
 fi
 
 # ---------------------------------------------------------------------------
+# t3 serve — T3 Code, a headless web GUI for the coding-agent CLIs in this
+# image (claude/codex/opencode/cursor-agent), started always-on like
+# code-server above. State (device pairing credentials, thread history) lives
+# in ~/.t3, a persistent bind mount, so paired browsers survive container
+# rebuilds. Binds the tailnet IP when the host runs Tailscale (the container
+# is --network=host), falling back to loopback: unlike code-server there is
+# no password gate — a paired session executes arbitrary commands as this
+# user — so it must NEVER bind 0.0.0.0. The pairing URL + QR code land in
+# ~/.t3/serve.log on first start; manage/revoke devices with `t3 auth`.
+# Idempotent: skips if the port is already being served.
+# ---------------------------------------------------------------------------
+if command -v t3 >/dev/null 2>&1; then
+    T3_PORT="${T3CODE_PORT:-3773}"
+    T3_HOST=$(ip -4 -o addr show tailscale0 2>/dev/null | awk '{split($4,a,"/"); print a[1]; exit}')
+    T3_HOST="${T3_HOST:-127.0.0.1}"
+    mkdir -p "$HOME/.t3"
+    if ss -ltnH 2>/dev/null | awk '{print $4}' | grep -qE "[:.]${T3_PORT}\$"; then
+        echo "==> t3 serve already listening on :${T3_PORT}"
+    else
+        echo "==> Starting t3 serve on ${T3_HOST}:${T3_PORT} (pairing info: ~/.t3/serve.log)..."
+        nohup t3 serve --host "$T3_HOST" >> "$HOME/.t3/serve.log" 2>&1 &
+        disown || true
+    fi
+fi
+
+# ---------------------------------------------------------------------------
 # Restore Claude Code config if missing (backup lives in mounted ~/.claude/)
 # ---------------------------------------------------------------------------
 if [ ! -f "$HOME/.claude.json" ] && [ -d "$HOME/.claude/backups" ]; then
