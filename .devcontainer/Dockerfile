@@ -164,7 +164,7 @@ RUN rm -f /etc/pam.d/system-auth && \
 # Key UID (cross-checked at keys.openpgp.org and https://mise.jdx.dev/gpg-key.pub):
 # "mise releases <release@mise.jdx.dev>"
 # renovate: datasource=github-releases depName=jdx/mise
-ARG MISE_VERSION="v2026.7.7"
+ARG MISE_VERSION="v2026.7.12"
 ARG MISE_GPG_FPR="24853EC9F655CE80B48E6C3A8B81C9D17413A06D"
 ARG MISE_GPG_URL="https://mise.jdx.dev/gpg-key.pub"
 RUN set -eux; \
@@ -403,9 +403,9 @@ USER root
 #   (repeat for arm64)
 # MINIMUM_RELEASE_AGE_DAYS is inherited from the ARG declared above the Cursor block.
 # renovate: datasource=github-releases depName=anomalyco/opencode
-ARG OPENCODE_VERSION="v1.18.9"
-ARG OPENCODE_SHA256_X64="a0fa4b7b8bdacbd013e79a5f69d4220d36b545cd3ea296ba765f3016fa501b5b"
-ARG OPENCODE_SHA256_ARM64="b16bd7593ea960a25d9c6849b3023bcd9b9244a6f51675341fd2052043b0670f"
+ARG OPENCODE_VERSION="v1.18.10"
+ARG OPENCODE_SHA256_X64="6b1113da704253fb4da12b41e4236acecb9f2b62949c945f6eeacaa15111b976"
+ARG OPENCODE_SHA256_ARM64="41ae3041e91b894e4c0dc06a73a9a2796254bf390ffb99626a43af5e2912d170"
 # GITHUB_TOKEN authenticates the release-age API call below. Without it the
 # 60/hr unauthenticated quota gets exhausted on busy CI runners and the build
 # fails with HTTP 403. Provided via a BuildKit secret mount (see the mise block

@@ -116,3 +116,9 @@ argocd = "sha256+slsa"
 # version+backend only — so the audit asserts lockfile presence, not a
 # checksum prefix. `locked = true` still pins the exact version fail-closed.
 "npm:t3" = "npm"   # binary: t3
+
+# gws (Google Workspace CLI). Not in aqua-registry; the http backend pins a
+# blake3 TOFU floor in mise.lock. Upstream ships per-asset .sha256 files and
+# GitHub artifact attestations, but the http backend consumes neither, so
+# blake3 is the strongest available floor (same as the http: tools above).
+"http:gws" = "blake3"   # binary: gws

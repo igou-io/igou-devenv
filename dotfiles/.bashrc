@@ -11,6 +11,17 @@ if [ -n "${CURSOR_AGENT:-}" ]; then
     unset SSH_AUTH_SOCK
 fi
 
+# The VS Code Dev Containers extension injects its own forwarded agent socket
+# (/tmp/vscode-ssh-auth-*.sock) into shells, overriding the container-local
+# agent devcontainer.json exports (adr/0004). The forward goes stale on editor
+# reconnect — it can still list keys but fails to sign, and the resulting auth
+# failures trip sshd per-source penalties on targets. Pin back to the
+# container-local socket. Before the interactive check: agent tool calls and
+# scripts inherit the injected value too.
+case "${SSH_AUTH_SOCK:-}" in
+    /tmp/vscode-ssh-auth-*) export SSH_AUTH_SOCK=/tmp/ssh-agent.sock ;;
+esac
+
 export PATH=$PATH:/home/igou/.local/bin:/home/igou/bin
 
 # GitHub App runtime tokens (ghapp). Point the CLI + git credential helper at the
