@@ -542,4 +542,22 @@ RUN bash /tmp/code-server-sync.sh /tmp/devcontainer.json "$HOME/.local/share/cod
     && rm -f /tmp/code-server-sync.sh /tmp/devcontainer.json
 USER root
 
+# Make the igou home traversable by other UIDs.
+#
+# useradd gives /home/igou mode 0700, which is right for a devcontainer where
+# you ARE igou. It is wrong for every runtime that assigns a UID of its own:
+# OpenShift runs containers as an arbitrary UID in group 0, and Kubernetes
+# pods may set any runAsUser. Those processes cannot traverse a 0700 home, so
+# the whole user-installed toolchain under ~/.local/bin — claude, codex,
+# opencode, cursor-agent, agent — is unreachable no matter what PATH says.
+# The binaries are already world-executable; only the home's search bit is in
+# the way.
+#
+# 0755 grants traverse+read, not write: another UID can RUN the tools but
+# cannot modify them, and secrets are never baked here (~/.codex, ~/.claude
+# and friends are bind-mounted or injected at runtime). Consumers that need a
+# writable home should point HOME (or CODEX_HOME, CLAUDE_CONFIG_DIR, ...) at
+# their own writable path.
+RUN chmod 0755 /home/igou
+
 WORKDIR /workspace

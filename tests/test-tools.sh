@@ -102,6 +102,17 @@ else
     fail "home dir owned by current UID (dir=$(stat -c %u /home/igou), user=$(id -u))"
 fi
 
+# The home must stay traversable by OTHER UIDs. useradd defaults it to 0700,
+# which makes the whole ~/.local/bin toolchain (claude, codex, opencode,
+# cursor-agent, agent) unreachable for any runtime that assigns its own UID —
+# OpenShift runs containers as an arbitrary UID in group 0. The binaries are
+# world-executable; only the home's search bit stands in the way.
+home_mode="$(stat -c %a /home/igou)"
+case "$home_mode" in
+    ?5?|?7?) ok "home dir traversable by other UIDs (mode $home_mode)" ;;
+    *) fail "home dir traversable by other UIDs (mode $home_mode; needs group+other execute)" ;;
+esac
+
 if sudo -n true 2>/dev/null; then
     ok "passwordless sudo"
 else
