@@ -2,7 +2,7 @@
 ansible-core==2.21.2
 ansible-navigator==26.6.0
 ansible-builder==3.1.1
-ansible-rulebook==1.3.0
+ansible-rulebook==1.3.1
 ansible-runner==2.4.3
 ansible-lint==26.6.0
 ansible-creator==26.6.1
@@ -13,4 +13,4 @@ kubernetes==36.0.3
 jmespath==1.1.0
 lxml==6.1.1
 paramiko==5.0.0
-scp==0.16.0
+scp==0.16.1
