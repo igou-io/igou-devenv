@@ -110,19 +110,19 @@ url_api = "https://api.github.com/repos/fluxcd/flux2/releases/assets/487338171"
 url = "https://github.com/fluxcd/flux2/releases/download/v2.9.3/provenance.intoto.jsonl"
 
 [[tools.gh]]
-version = "2.96.0"
+version = "2.97.0"
 backend = "aqua:cli/cli"
 
 [tools.gh."platforms.linux-arm64"]
-checksum = "sha256:06f86ec7103d41993b76cd78072f43595c34aaa56506d971d9860e67140bf909"
-url = "https://github.com/cli/cli/releases/download/v2.96.0/gh_2.96.0_linux_arm64.tar.gz"
-url_api = "https://api.github.com/repos/cli/cli/releases/assets/464728549"
+checksum = "sha256:73ea440ecad9c9e284429997ee6f93577bc6f7bc6fba357ef62c53ad8fb641a5"
+url = "https://github.com/cli/cli/releases/download/v2.97.0/gh_2.97.0_linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/cli/cli/releases/assets/496108278"
 provenance = "github-attestations"
 
 [tools.gh."platforms.linux-x64"]
-checksum = "sha256:83d5c2ccad5498f58bf6368acb1ab32588cf43ab3a4b1c301bf36328b1c8bd60"
-url = "https://github.com/cli/cli/releases/download/v2.96.0/gh_2.96.0_linux_amd64.tar.gz"
-url_api = "https://api.github.com/repos/cli/cli/releases/assets/464728543"
+checksum = "sha256:a2c9b8497e1f85b1ad0dfcb78b5a622e098801b8e461e459e88e1ee12f018112"
+url = "https://github.com/cli/cli/releases/download/v2.97.0/gh_2.97.0_linux_amd64.tar.gz"
+url_api = "https://api.github.com/repos/cli/cli/releases/assets/496108269"
 provenance = "github-attestations"
 
 [[tools.helm]]
@@ -292,15 +292,14 @@ url = "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/
 url_api = "https://api.github.com/repos/kubernetes-sigs/kustomize/releases/assets/353160972"
 
 [[tools.node]]
-version = "26.5.0"
+version = "26.5.1"
 backend = "aqua:nodejs/node"
 
 [tools.node."platforms.linux-arm64"]
-url = "https://nodejs.org/dist/v26.5.0/node-v26.5.0-linux-arm64.tar.gz"
+url = "https://nodejs.org/dist/v26.5.1/node-v26.5.1-linux-arm64.tar.gz"
 
 [tools.node."platforms.linux-x64"]
-checksum = "blake3:f7739eaa0f160c57577fbe5cdaca2f09343a101f0cf715a1693f49e831de058a"
-url = "https://nodejs.org/dist/v26.5.0/node-v26.5.0-linux-x64.tar.gz"
+url = "https://nodejs.org/dist/v26.5.1/node-v26.5.1-linux-x64.tar.gz"
 
 [[tools."npm:t3"]]
 version = "0.0.31"
@@ -344,18 +343,18 @@ url_api = "https://api.github.com/repos/getsops/sops/releases/assets/486808201"
 url = "https://github.com/getsops/sops/releases/download/v3.13.3/sops-v3.13.3.intoto.jsonl"
 
 [[tools.tekton-cli]]
-version = "0.45.0"
+version = "0.45.1"
 backend = "aqua:tektoncd/cli"
 
 [tools.tekton-cli."platforms.linux-arm64"]
-checksum = "sha256:f11bc2f834a2ab845b24f40dc01faf4b41dfc3af142062bf38e44f3fb5358456"
-url = "https://github.com/tektoncd/cli/releases/download/v0.45.0/tkn_0.45.0_Linux_aarch64.tar.gz"
-url_api = "https://api.github.com/repos/tektoncd/cli/releases/assets/418344643"
+checksum = "sha256:c2bb823ca2901fb4c8054c52720efa1aeb2cfb6904a595649c8d204901f81d92"
+url = "https://github.com/tektoncd/cli/releases/download/v0.45.1/tkn_0.45.1_Linux_aarch64.tar.gz"
+url_api = "https://api.github.com/repos/tektoncd/cli/releases/assets/490983754"
 
 [tools.tekton-cli."platforms.linux-x64"]
-checksum = "sha256:c32a60b97388eb14e1ed2155b10bd7202aaf2e0a67ca7594b08fb96c1b94454b"
-url = "https://github.com/tektoncd/cli/releases/download/v0.45.0/tkn_0.45.0_Linux_x86_64.tar.gz"
-url_api = "https://api.github.com/repos/tektoncd/cli/releases/assets/418344648"
+checksum = "sha256:12852f80c1b169cf77230b680763b4915cd032a16d028b30fca852cfb1788371"
+url = "https://github.com/tektoncd/cli/releases/download/v0.45.1/tkn_0.45.1_Linux_x86_64.tar.gz"
+url_api = "https://api.github.com/repos/tektoncd/cli/releases/assets/490983761"
 
 [[tools.terraform]]
 version = "1.15.8"
