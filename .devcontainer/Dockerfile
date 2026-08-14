@@ -270,7 +270,7 @@ RUN pip install --break-system-packages --ignore-installed -r /tmp/requirements.
 # seeded by post-create.sh); the App private key is read from 1Password at mint
 # time, never baked here. See README "GitHub Authentication (ghapp)".
 # renovate: datasource=github-tags depName=david-igou/hermes_github_app_plugin
-ARG GHAPP_VERSION="v0.2.0"
+ARG GHAPP_VERSION="v0.3.0"
 RUN pip install --break-system-packages \
       "hermes-github-app-plugin @ git+https://github.com/david-igou/hermes_github_app_plugin@${GHAPP_VERSION}"
 
