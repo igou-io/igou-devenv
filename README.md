@@ -504,10 +504,12 @@ What carries over, and how:
   automatically; no kubeconfig mount.
 - **Repos**: cloned under `/projects` on your per-user PVC (the plain-HTTPS
   ghapp credential helper is baked into the image), not the host `/workspace`.
-- **Nested podman**: the CheCluster runs workspaces under the `container-build`
-  SCC, so rootless buildah/podman image builds work — but there is **no**
-  `--privileged`, host network, Docker socket, or `/dev` passthrough:
-  libvirt/qemu-kvm molecule scenarios do not run here. Agent CLI auth state
+- **Nested podman**: partial. Workspaces run under the `container-build` SCC;
+  with the env recipe in igou-devenv#209, image pulls, COPY-only builds, and
+  push work — but `RUN` steps and `podman run` are blocked by the SCC (masked
+  `/proc`, no DAC_OVERRIDE, setgroups-deny). There is **no** `--privileged`,
+  host network, Docker socket, or `/dev` passthrough: libvirt/qemu-kvm
+  molecule scenarios do not run here. Agent CLI auth state
   starts fresh (no host bind mounts) and then persists on the PVC. See
   [docs/execution-models.md](docs/execution-models.md).
 
