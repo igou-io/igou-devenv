@@ -1,0 +1,34 @@
+---
+# OpenShift Dev Spaces workspace definition for the devenv image. Open via:
+#   https://devspaces.apps.ocp.igou.systems
+#     /#https://github.com/igou-io/igou-devenv
+# Uses the published image as the workspace container; Dev Spaces injects its
+# own che-code editor (the image's code-server is simply unused). 1Password
+# Connect credentials arrive as env vars from the auto-mounted per-user
+# `op-connect` secret (igou-openshift devspaces-users chart), and `oc` is
+# logged in as the Dev Spaces user automatically. See README "OpenShift Dev
+# Spaces" for what does and doesn't carry over from the devcontainer.
+schemaVersion: 2.2.2
+metadata:
+  name: igou-devenv
+components:
+  - name: dev
+    container:
+      image: ghcr.io/igou-io/igou-devenv:latest
+      memoryRequest: 1Gi
+      memoryLimit: 8Gi
+      cpuRequest: 500m
+      cpuLimit: '4'
+      env:
+        - name: SSH_AUTH_SOCK
+          value: /tmp/ssh-agent.sock
+      mountSources: true
+commands:
+  - id: bootstrap
+    exec:
+      component: dev
+      commandLine: bash .devcontainer/devspaces-bootstrap.sh
+      workingDir: ${PROJECT_SOURCE}
+events:
+  postStart:
+    - bootstrap

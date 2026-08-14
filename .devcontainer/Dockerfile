@@ -560,4 +560,18 @@ USER root
 # their own writable path.
 RUN chmod 0755 /home/igou
 
+# ---------------------------------------------------------------------------
+# OpenShift Dev Spaces compatibility (see devfile.yaml): workspace pods run
+# with an arbitrary UID in the root group (restricted SCC), not as igou/1000.
+# Root-group ownership + group-write on the home tree lets that UID use HOME;
+# a writable /etc/passwd lets devspaces-bootstrap.sh register the runtime UID
+# (as "igou", so igou's /etc/subuid ranges keep rootless podman working).
+# No-op for the docker/devcontainer path, which still runs as igou. The
+# chgrp/chmod rewrites the touched files into this layer — an accepted image
+# size cost, kept last so it never invalidates earlier layers.
+# ---------------------------------------------------------------------------
+ENV HOME=/home/igou
+RUN chgrp -R 0 /home/igou /etc/passwd /etc/group && \
+    chmod -R g=u /home/igou /etc/passwd /etc/group
+
 WORKDIR /workspace
