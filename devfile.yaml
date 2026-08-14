@@ -15,6 +15,15 @@ components:
   - name: dev
     container:
       image: ghcr.io/igou-io/igou-devenv:latest
+      # REQUIRED keep-alive: the image's default command is /bin/bash, which
+      # exits immediately with no stdin. DWO runs the image command as the
+      # container's main process (che-code starts from the postStart hook),
+      # so without this the container dies mid-postStart and the workspace
+      # fails with FailedPostStartHook.
+      command:
+        - tail
+        - -f
+        - /dev/null
       memoryRequest: 1Gi
       memoryLimit: 8Gi
       cpuRequest: 500m
