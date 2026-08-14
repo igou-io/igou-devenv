@@ -14,6 +14,7 @@ This repo has multiple execution models with different capabilities:
 - local wrapper-launched agent containers via `claude-run`, `cursor-run`, and
   `opencode-run`
 - Hermes docker-terminal containers
+- OpenShift Dev Spaces workspace on the ocp cluster via `devfile.yaml`
 - CI/build containers
 
 Do not assume those models share privilege, persistence, nested Podman, Docker
@@ -475,6 +476,40 @@ and restart.
 Microsoft's marketplace, so the set available in the browser differs from
 Cursor/VS Code (Red Hat Ansible and HashiCorp Terraform are on Open VSX;
 some Microsoft-owned extensions are not).
+
+## OpenShift Dev Spaces
+
+The published image can also be opened as an [OpenShift Dev
+Spaces](https://devspaces.apps.ocp.igou.systems) workspace on the ocp
+cluster — a browser IDE with no local docker at all:
+
+```
+https://devspaces.apps.ocp.igou.systems/#https://github.com/igou-io/igou-devenv
+```
+
+[`devfile.yaml`](devfile.yaml) defines the workspace: the container is the
+published image, Dev Spaces injects its own che-code editor (the baked
+code-server is unused), and
+[`.devcontainer/devspaces-bootstrap.sh`](.devcontainer/devspaces-bootstrap.sh)
+replaces the devcontainer lifecycle hooks (dotfiles, ghapp config, ssh-agent).
+
+What carries over, and how:
+
+- **1Password**: `OP_CONNECT_HOST`/`OP_CONNECT_TOKEN` are auto-mounted into
+  the workspace from a per-user secret managed in igou-openshift
+  (`components/devspaces/chart/devspaces-users`), so `op read`/`op inject` —
+  and everything layered on them: `use`/`unuse`, `ssh-use`, ghapp token
+  minting — work with no host mounts (ADR-0003 Connect mode).
+- **Cluster access**: Dev Spaces logs `oc` in as your OpenShift user
+  automatically; no kubeconfig mount.
+- **Repos**: cloned under `/projects` on your per-user PVC (the plain-HTTPS
+  ghapp credential helper is baked into the image), not the host `/workspace`.
+- **Nested podman**: the CheCluster runs workspaces under the `container-build`
+  SCC, so rootless buildah/podman image builds work — but there is **no**
+  `--privileged`, host network, Docker socket, or `/dev` passthrough:
+  libvirt/qemu-kvm molecule scenarios do not run here. Agent CLI auth state
+  starts fresh (no host bind mounts) and then persists on the PVC. See
+  [docs/execution-models.md](docs/execution-models.md).
 
 ## Dependency Management (Renovate)
 
