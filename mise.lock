@@ -299,6 +299,7 @@ backend = "aqua:nodejs/node"
 url = "https://nodejs.org/dist/v26.7.0/node-v26.7.0-linux-arm64.tar.gz"
 
 [tools.node."platforms.linux-x64"]
+checksum = "blake3:76d39898ba9e11470426c31bdea3447af93d81e8d156df9e4263e7af5ce8a7fa"
 url = "https://nodejs.org/dist/v26.7.0/node-v26.7.0-linux-x64.tar.gz"
 
 [[tools."npm:t3"]]
