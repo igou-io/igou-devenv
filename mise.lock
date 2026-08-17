@@ -42,38 +42,38 @@ checksum = "blake3:8cf53a872032634dcb93885f156bbe1af1630ec701b6bf050ceb015e1c180
 url = "https://nodejs.org/dist/v26.4.0/node-v26.4.0-linux-x64.tar.gz"
 
 [[tools."aqua:tektoncd/pipelines-as-code"]]
-version = "0.49.0"
+version = "0.50.0"
 backend = "aqua:tektoncd/pipelines-as-code"
 
 [tools."aqua:tektoncd/pipelines-as-code"."platforms.linux-arm64"]
-checksum = "sha256:212a2e70ab7fb7760cdbc1a6ba2573b958a553c7a84b7d445f4f3167077e221f"
-url = "https://github.com/tektoncd/pipelines-as-code/releases/download/v0.49.0/tkn-pac_0.49.0_linux_arm64.tar.gz"
-url_api = "https://api.github.com/repos/tektoncd/pipelines-as-code/releases/assets/468080406"
+checksum = "sha256:065de14c222bc116190d8b626a50e98c9ae6a1304f35748745989083ec67e626"
+url = "https://github.com/tektoncd/pipelines-as-code/releases/download/v0.50.0/tkn-pac_0.50.0_linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/tektoncd/pipelines-as-code/releases/assets/502697946"
 
 [tools."aqua:tektoncd/pipelines-as-code"."platforms.linux-x64"]
-checksum = "sha256:9eb3cca69a1b3d6875ffde2db35cae7cb9a3cb8a7bd85ad5d80f0317e85807f4"
-url = "https://github.com/tektoncd/pipelines-as-code/releases/download/v0.49.0/tkn-pac_0.49.0_linux_x86_64.tar.gz"
-url_api = "https://api.github.com/repos/tektoncd/pipelines-as-code/releases/assets/468080403"
+checksum = "sha256:1a5e60379a38224fc583051b9a2ae99c9586069fd2cdb92aff8c7cf97723f037"
+url = "https://github.com/tektoncd/pipelines-as-code/releases/download/v0.50.0/tkn-pac_0.50.0_linux_x86_64.tar.gz"
+url_api = "https://api.github.com/repos/tektoncd/pipelines-as-code/releases/assets/502697975"
 
 [[tools.argocd]]
-version = "3.4.5"
+version = "3.5.0"
 backend = "aqua:argoproj/argo-cd"
 
 [tools.argocd."platforms.linux-arm64"]
-checksum = "sha256:f6c1baa8f10d12d8a7c61b81c8e8632a84cba0def0dcbc5082d8a45efa241168"
-url = "https://github.com/argoproj/argo-cd/releases/download/v3.4.5/argocd-linux-arm64"
-url_api = "https://api.github.com/repos/argoproj/argo-cd/releases/assets/471546527"
+checksum = "sha256:8192c7bffdadb6e17711146e602837f9d2a75abd005ddea20b322208d32a1086"
+url = "https://github.com/argoproj/argo-cd/releases/download/v3.5.0/argocd-linux-arm64"
+url_api = "https://api.github.com/repos/argoproj/argo-cd/releases/assets/501097806"
 
 [tools.argocd."platforms.linux-arm64".provenance.slsa]
-url = "https://github.com/argoproj/argo-cd/releases/download/v3.4.5/argocd-cli.intoto.jsonl"
+url = "https://github.com/argoproj/argo-cd/releases/download/v3.5.0/argocd-cli.intoto.jsonl"
 
 [tools.argocd."platforms.linux-x64"]
-checksum = "sha256:23303f05a58c1e041324d5645b0f9d6ea338b16bbf32f4a24508f388fcf9f9c0"
-url = "https://github.com/argoproj/argo-cd/releases/download/v3.4.5/argocd-linux-amd64"
-url_api = "https://api.github.com/repos/argoproj/argo-cd/releases/assets/471546735"
+checksum = "sha256:82f2ffe3f3df32baed1229963f0866e9a8a3c74e136e9e5f36646d9004332cc5"
+url = "https://github.com/argoproj/argo-cd/releases/download/v3.5.0/argocd-linux-amd64"
+url_api = "https://api.github.com/repos/argoproj/argo-cd/releases/assets/501097954"
 
 [tools.argocd."platforms.linux-x64".provenance.slsa]
-url = "https://github.com/argoproj/argo-cd/releases/download/v3.4.5/argocd-cli.intoto.jsonl"
+url = "https://github.com/argoproj/argo-cd/releases/download/v3.5.0/argocd-cli.intoto.jsonl"
 
 [[tools.direnv]]
 version = "2.37.1"
@@ -292,36 +292,36 @@ url = "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/
 url_api = "https://api.github.com/repos/kubernetes-sigs/kustomize/releases/assets/353160972"
 
 [[tools.node]]
-version = "26.5.1"
+version = "26.7.0"
 backend = "aqua:nodejs/node"
 
 [tools.node."platforms.linux-arm64"]
-url = "https://nodejs.org/dist/v26.5.1/node-v26.5.1-linux-arm64.tar.gz"
+url = "https://nodejs.org/dist/v26.7.0/node-v26.7.0-linux-arm64.tar.gz"
 
 [tools.node."platforms.linux-x64"]
-checksum = "blake3:0372e4689795326f1c753b19040fd46d3b61e54c10c45a506c67902676fdffea"
-url = "https://nodejs.org/dist/v26.5.1/node-v26.5.1-linux-x64.tar.gz"
+checksum = "blake3:76d39898ba9e11470426c31bdea3447af93d81e8d156df9e4263e7af5ce8a7fa"
+url = "https://nodejs.org/dist/v26.7.0/node-v26.7.0-linux-x64.tar.gz"
 
 [[tools."npm:t3"]]
-version = "0.0.31"
+version = "0.0.33"
 backend = "npm:t3"
 
 [tools."npm:t3".options]
 allow_builds = '["node-pty"]'
 
 [[tools.rclone]]
-version = "1.74.4"
+version = "1.75.0"
 backend = "aqua:rclone/rclone"
 
 [tools.rclone."platforms.linux-arm64"]
-checksum = "sha256:97685285c9ad6a0cf17d5844115d2a67245af6444db672187074bd9c358de419"
-url = "https://github.com/rclone/rclone/releases/download/v1.74.4/rclone-v1.74.4-linux-arm64.zip"
-url_api = "https://api.github.com/repos/rclone/rclone/releases/assets/470550100"
+checksum = "sha256:d0ad88ba4c8e285b7c9efa591e0ab643280a91741e13c27f3a9c0957ccfa5203"
+url = "https://github.com/rclone/rclone/releases/download/v1.75.0/rclone-v1.75.0-linux-arm64.zip"
+url_api = "https://api.github.com/repos/rclone/rclone/releases/assets/496933638"
 
 [tools.rclone."platforms.linux-x64"]
-checksum = "sha256:fe435e0c36228e7c2f116a8701f01127bb1f694005fc11d1f27186c8bca4115d"
-url = "https://github.com/rclone/rclone/releases/download/v1.74.4/rclone-v1.74.4-linux-amd64.zip"
-url_api = "https://api.github.com/repos/rclone/rclone/releases/assets/470549540"
+checksum = "sha256:aa2804e08f48250e71009c727124b6341cd0288465804a9a09d14663cabafbaa"
+url = "https://github.com/rclone/rclone/releases/download/v1.75.0/rclone-v1.75.0-linux-amd64.zip"
+url_api = "https://api.github.com/repos/rclone/rclone/releases/assets/496932792"
 
 [[tools.sops]]
 version = "3.13.3"
@@ -344,18 +344,18 @@ url_api = "https://api.github.com/repos/getsops/sops/releases/assets/486808201"
 url = "https://github.com/getsops/sops/releases/download/v3.13.3/sops-v3.13.3.intoto.jsonl"
 
 [[tools.tekton-cli]]
-version = "0.45.1"
+version = "0.46.0"
 backend = "aqua:tektoncd/cli"
 
 [tools.tekton-cli."platforms.linux-arm64"]
-checksum = "sha256:c2bb823ca2901fb4c8054c52720efa1aeb2cfb6904a595649c8d204901f81d92"
-url = "https://github.com/tektoncd/cli/releases/download/v0.45.1/tkn_0.45.1_Linux_aarch64.tar.gz"
-url_api = "https://api.github.com/repos/tektoncd/cli/releases/assets/490983754"
+checksum = "sha256:1aecaf783da733feccaab84240581529a62f91df11596ab536717d92a0a9c8a2"
+url = "https://github.com/tektoncd/cli/releases/download/v0.46.0/tkn_0.46.0_Linux_aarch64.tar.gz"
+url_api = "https://api.github.com/repos/tektoncd/cli/releases/assets/502223563"
 
 [tools.tekton-cli."platforms.linux-x64"]
-checksum = "sha256:12852f80c1b169cf77230b680763b4915cd032a16d028b30fca852cfb1788371"
-url = "https://github.com/tektoncd/cli/releases/download/v0.45.1/tkn_0.45.1_Linux_x86_64.tar.gz"
-url_api = "https://api.github.com/repos/tektoncd/cli/releases/assets/490983761"
+checksum = "sha256:4a69c3884b40a370bf6faff620ee719adb3a4b4c1820c2edba93520e54268419"
+url = "https://github.com/tektoncd/cli/releases/download/v0.46.0/tkn_0.46.0_Linux_x86_64.tar.gz"
+url_api = "https://api.github.com/repos/tektoncd/cli/releases/assets/502223564"
 
 [[tools.terraform]]
 version = "1.15.8"
