@@ -468,8 +468,8 @@ USER root
 # build clean); Renovate advances it on the same 3-day lag thereafter.
 # renovate: datasource=github-releases depName=openai/codex extractVersion=^rust-v(?<version>.+)$
 ARG CODEX_VERSION="0.148.0"
-ARG CODEX_SHA256_X64="bd758d53d56e41dc65e045f4589df79a038ed197a011adcb52a258e6ad64cfda"
-ARG CODEX_SHA256_ARM64="89cbf79bd5ae6f9c58da47e8079f311c84219350c9c43c070d42f3e9b2a81401"
+ARG CODEX_SHA256_X64="8c790500af2ba6e74ce4948fe26c651ac1f77f6dbb005b47c8d26ff711146262"
+ARG CODEX_SHA256_ARM64="580db3c7411f5852b550876f185c30b61b674e01b948fd5030f2cd7a30db110a"
 # GITHUB_TOKEN authenticates the release-age API call below (see the opencode
 # block); provided via a BuildKit secret mount, empty in CI's published image.
 ARG GITHUB_TOKEN=""
