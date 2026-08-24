@@ -403,7 +403,7 @@ USER root
 #   (repeat for arm64)
 # MINIMUM_RELEASE_AGE_DAYS is inherited from the ARG declared above the Cursor block.
 # renovate: datasource=github-releases depName=anomalyco/opencode
-ARG OPENCODE_VERSION="v1.18.19"
+ARG OPENCODE_VERSION="v1.18.21"
 ARG OPENCODE_SHA256_X64="7bb35487c55f9957f5d91ae60be6fa49fc8f74629c210c1719ed75fdbf7e2bd9"
 ARG OPENCODE_SHA256_ARM64="506f98a1f618551f1f6fc5dcf591f824bef9d6819d40b27928ad7febcb7c363b"
 # GITHUB_TOKEN authenticates the release-age API call below. Without it the
