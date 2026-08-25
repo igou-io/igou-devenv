@@ -110,6 +110,10 @@ test-tools:
 test-sandbox-primitives:
 	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) /workspace/igou-devenv/tests/test-sandbox-primitives.sh
 
+## Verify the opencode 1Password sandbox shim is wired and effective (adr/0005)
+test-opencode-sandbox:
+	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) /workspace/igou-devenv/tests/test-opencode-sandbox.sh
+
 ## Test podman pull, run, and build inside the devcontainer
 test-podman:
 	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) /workspace/igou-devenv/tests/test-podman.sh
