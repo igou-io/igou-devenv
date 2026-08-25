@@ -114,6 +114,10 @@ test-sandbox-primitives:
 test-opencode-sandbox:
 	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) /workspace/igou-devenv/tests/test-opencode-sandbox.sh
 
+## Verify the credential-injecting opencode container launcher (adr/0005)
+test-opencode-instance:
+	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) /workspace/igou-devenv/tests/test-opencode-instance.sh
+
 ## Test podman pull, run, and build inside the devcontainer
 test-podman:
 	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) /workspace/igou-devenv/tests/test-podman.sh

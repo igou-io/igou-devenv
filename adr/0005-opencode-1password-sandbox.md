@@ -12,9 +12,10 @@ Accepted
 
 opencode runs coding agents that execute arbitrary shell commands. In this
 devcontainer those agents are driven headlessly by t3 (the always-on
-`t3 serve`), which spawns one `opencode serve` per project and connects to it.
-Nothing between the model and the shell prevents an agent from reading the
-host's 1Password credentials and exfiltrating secrets.
+`t3 serve`), which spawns an `opencode serve` process (via the provider's
+`binaryPath`) and connects to it. Nothing between the model and the shell
+prevents an agent from reading the host's 1Password credentials and
+exfiltrating secrets.
 
 `op` on this host runs in **1Password Connect mode** (adr/0003). The Connect
 token is not in the environment; it lives only in `~/.config/op/`
@@ -70,17 +71,74 @@ change. The real binary stays at `~/.opencode/bin/opencode`.
   not permit user namespaces and the shim is fail-closed. The shim is exercised
   at runtime by `tests/test-opencode-sandbox.sh`.
 
+## Additional provider: credential-injecting container instance
+
+The namespace shim above makes the **default** opencode safe (no 1Password). On
+top of that we add an **opt-in** way to give a t3 opencode session a specific,
+static credential set — for example a read-only cluster kubeconfig — without ever
+exposing the 1Password token.
+
+t3 supports multiple **provider instances** (`providerInstances` in its
+settings): each instance has its own `driver`, `config` (including `binaryPath`),
+and natively-injected `environment`. A new instance is fully independent of the
+default opencode provider, which is untouched.
+
+We add an instance (driver `opencode`) whose `binaryPath` is
+`~/.local/bin/opencode-sandbox-launch` (`.devcontainer/opencode-sandbox-launch`, baked into
+the image). When t3 spawns it (`serve …`, or the `--version`/`agent list` probes)
+the launcher:
+
+- resolves the profile named by the instance's `OPENCODE_SANDBOX_PROFILE`
+  environment variable (an `envs/<profile>.env` file) via `op inject` **on the
+  host**, exactly like `bin/opencode-run`;
+- runs opencode in a hardened rootless container (`--cap-drop=ALL`,
+  `--userns=keep-id`, `--security-opt no-new-privileges`, tmpfs, resource limits)
+  with `--network=host` so t3 reaches the `serve` listener, the workspace and
+  opencode config/state mounted, and **`~/.config/op` never mounted**;
+- injects only the resolved credentials as `-e KEY=VALUE` (+ a read-only
+  kubeconfig temp mount). Secrets are resolved at launch and never stored in t3.
+
+Because credentials are resolved on the host and the token directory is not
+mounted, the agent gets exactly the profile's credentials and no path back to
+1Password. Diagnostics go to stderr so t3's stdout parsing (version string, the
+`opencode server listening on <url>` ready line) is unaffected.
+
+Example instance to add in t3 (Settings → Providers), leaving the default
+opencode as-is:
+
+```jsonc
+// providerInstances["opencode-ro"]
+{
+  "driver": "opencode",
+  "displayName": "opencode ▸ readonly cluster",
+  "config": { "binaryPath": "/home/igou/.local/bin/opencode-sandbox-launch" },
+  "environment": [
+    { "name": "OPENCODE_SANDBOX_PROFILE", "value": "ocp-cluster-reader" }
+  ]
+}
+```
+
+Any `envs/*.env` becomes a profile; `OPENCODE_SANDBOX_PROFILE=none` (or unset)
+injects nothing. Provider instances live in t3's `~/.t3` state (runtime user
+config, like pairing tokens), so this one line of setup is not image-declarative;
+the launcher, image wiring, and test are.
+
 ## Alternatives considered
 
 - **opencode permission globs** — rejected as a boundary; leaky matcher (see
   Context). Still useful as defense-in-depth / a tripwire.
-- **Rootless podman with `--userns keep-id` and no `~/.config/op` mount** —
-  stronger (preserves uid, allows a real network boundary), but needs an image
-  with the full toolchain and careful mounts/env. Deferred; the namespace shim
-  achieves the token-isolation goal with far less machinery.
+- **Overriding the default opencode `binaryPath`** with the container launcher —
+  rejected: it would containerize *all* opencode (t3 runs one shared opencode
+  server keyed by `binaryPath`) and couple every session to podman + a pullable
+  image. An additional provider instance keeps the default fast and unchanged.
+- **Injecting credentials via t3's native per-instance `environment`** instead of
+  `op inject` at launch — rejected for secrets: it would store the kubeconfig/
+  token in t3's `~/.t3` state. We use `environment` only for the non-secret
+  profile *selector* (`OPENCODE_SANDBOX_PROFILE`).
 
 ## References
 
 - adr/0003 — Default to 1Password Connect
-- `.devcontainer/opencode-1password-sandbox`, `.devcontainer/Dockerfile`
-  (opencode block), `tests/test-opencode-sandbox.sh`
+- `.devcontainer/opencode-1password-sandbox`, `.devcontainer/opencode-sandbox-launch`,
+  `.devcontainer/Dockerfile` (opencode block), `envs/*.env`,
+  `tests/test-opencode-sandbox.sh`, `tests/test-opencode-instance.sh`
