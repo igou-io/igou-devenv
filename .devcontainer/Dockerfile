@@ -412,6 +412,15 @@ ARG OPENCODE_SHA256_ARM64="d30d2cba74617f4e7b96e25563c9572ffe453f9eae70fc0df1628
 # above); the ARG is only the local-build fallback and is left empty in CI so the
 # published image carries no token.
 ARG GITHUB_TOKEN=""
+# opencode 1Password sandbox shim (see adr/0005-opencode-1password-sandbox.md).
+# Installed as the ~/.local/bin/opencode symlink target in the RUN below, so
+# every opencode invocation — including the servers t3 spawns — runs the real
+# binary inside a mount namespace that masks ~/.config/op.
+COPY --chown=igou:igou .devcontainer/opencode-1password-sandbox /home/igou/.local/bin/opencode-sandbox
+# Container launcher backing the ADDITIONAL, credential-injecting t3 opencode
+# provider instance (does not replace the default opencode). Referenced by the
+# instance's binaryPath; see adr/0005-opencode-1password-sandbox.md.
+COPY --chown=igou:igou .devcontainer/opencode-sandbox-launch /home/igou/.local/bin/opencode-sandbox-launch
 USER igou
 RUN --mount=type=secret,id=github_token set -eux; \
     ARCH_RAW=$(uname -m); \
@@ -447,9 +456,13 @@ RUN --mount=type=secret,id=github_token set -eux; \
     mkdir -p "$DEST" "$HOME/.local/bin"; \
     tar -xzf "$TARBALL" -C "$DEST"; \
     chmod +x "$DEST/opencode"; \
-    ln -sfn "$DEST/opencode" "$HOME/.local/bin/opencode"; \
+    chmod +x "$HOME/.local/bin/opencode-sandbox" "$HOME/.local/bin/opencode-sandbox-launch"; \
+    ln -sfn "$HOME/.local/bin/opencode-sandbox" "$HOME/.local/bin/opencode"; \
     cd / && rm -rf "$WORK"; \
-    "$HOME/.local/bin/opencode" --version
+    # Verify the real binary directly: the build environment may not permit user
+    # namespaces, and the sandbox shim is fail-closed. The shim is exercised at
+    # runtime by tests/test-opencode-sandbox.sh.
+    "$DEST/opencode" --version
 USER root
 
 # codex CLI (OpenAI) — pinned + SHA256-verified + release-age gated from the

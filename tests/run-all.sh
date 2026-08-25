@@ -12,6 +12,18 @@ echo "========================================="
 
 echo ""
 echo "========================================="
+echo "  test-opencode-sandbox"
+echo "========================================="
+"$DIR/test-opencode-sandbox.sh"
+
+echo ""
+echo "========================================="
+echo "  test-opencode-instance"
+echo "========================================="
+"$DIR/test-opencode-instance.sh"
+
+echo ""
+echo "========================================="
 echo "  test-podman"
 echo "========================================="
 "$DIR/test-podman.sh"
