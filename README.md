@@ -588,6 +588,11 @@ The 1Password CLI authenticates via **1Password Connect**
 `OP_SERVICE_ACCOUNT_TOKEN` (`~/.config/op/service-account-token`) when the
 Connect creds are absent. Connect reads hit the self-hosted server, so
 they aren't subject to the 1password.com service-account API rate limit.
+The export happens before `.bashrc`'s interactive-shell check, so
+non-interactive shells (agent tool calls, scripts) get it too — `ghapp`
+reads the GitHub App key from 1Password at mint time, so without it
+`gh-app` and git's credential helper fail with "No accounts configured for
+use with 1Password CLI".
 
 Use the `use` function for environment switching — see
 [ADR-0001](adr/0001-environment-switching-with-1password.md) and
