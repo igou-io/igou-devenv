@@ -32,21 +32,28 @@ export PATH=$PATH:/home/igou/.local/bin:/home/igou/bin
 # and expire within the hour. See README "GitHub Authentication (ghapp)".
 export GHAPP_CONFIG="$HOME/.config/ghapp/config.yaml"
 
+# 1Password auth. Prefer Connect (self-hosted, no service-account API rate
+# limit); fall back to the service-account token when Connect creds are absent.
+# All files are bind-mounted read-only from the host's ~/.config/op.
+# Exported before the interactive check: ghapp resolves the App private key
+# from 1Password at mint time, so gh-app, ghapp and git's credential helper
+# fail in non-interactive shells (agent tool calls, scripts) with "No accounts
+# configured for use with 1Password CLI" if these are only set for interactive
+# shells. Skipped in Cursor agent shells to keep the secret-strip above intact.
+if [ -z "${CURSOR_AGENT:-}" ]; then
+    if [ -f ~/.config/op/connect-host ] && [ -f ~/.config/op/connect-token ]; then
+        export OP_CONNECT_HOST=$(cat ~/.config/op/connect-host)
+        export OP_CONNECT_TOKEN=$(cat ~/.config/op/connect-token)
+    elif [ -f ~/.config/op/service-account-token ]; then
+        export OP_SERVICE_ACCOUNT_TOKEN=$(cat ~/.config/op/service-account-token)
+    fi
+fi
+
 # If not running interactively, don't do anything
 case $- in
     *i*) ;;
       *) return;;
 esac
-
-# 1Password auth. Prefer Connect (self-hosted, no service-account API rate
-# limit); fall back to the service-account token when Connect creds are absent.
-# All files are bind-mounted read-only from the host's ~/.config/op.
-if [ -f ~/.config/op/connect-host ] && [ -f ~/.config/op/connect-token ]; then
-    export OP_CONNECT_HOST=$(cat ~/.config/op/connect-host)
-    export OP_CONNECT_TOKEN=$(cat ~/.config/op/connect-token)
-elif [ -f ~/.config/op/service-account-token ]; then
-    export OP_SERVICE_ACCOUNT_TOKEN=$(cat ~/.config/op/service-account-token)
-fi
 
 # don't put duplicate lines or lines starting with space in the history.
 # See bash(1) for more options
