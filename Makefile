@@ -3,7 +3,7 @@ WORKSPACE    = $(CURDIR)
 
 .DEFAULT_GOAL := help
 
-.PHONY: build up up-release down restart exec shell run test test-all test-tools test-sandbox-primitives test-podman test-env test-mise test-ssh test-mise-lockfile test-qemu clean rebuild help renovate-validate renovate-dry-run sbom sbom-devcontainer e2e opencode-build mise-lock release release-dry-run release-prepare release-prepare-clis release-watch
+.PHONY: link-skills build up up-release down restart exec shell run test test-all test-tools test-sandbox-primitives test-podman test-env test-mise test-ssh test-mise-lockfile test-qemu clean rebuild help renovate-validate renovate-dry-run sbom sbom-devcontainer e2e opencode-build mise-lock release release-dry-run release-prepare release-prepare-clis release-watch
 
 
 ## Build the devcontainer image (with cache)
@@ -43,6 +43,10 @@ down:
 ## Open a shell in the running devcontainer
 shell:
 	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) bash
+
+## Re-point ~/.claude/skills and ~/.agents/skills at /workspace/igou-skills inside the running devcontainer
+link-skills:
+	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) /workspace/igou-devenv/bin/link-skills
 
 ## Run a command in the running devcontainer (usage: make exec CMD="kubectl version")
 exec:

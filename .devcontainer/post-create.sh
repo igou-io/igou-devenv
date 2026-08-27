@@ -63,11 +63,11 @@ EOF
 ln -sfn /workspace/igou-devenv/bin /home/igou/bin
 
 # ---------------------------------------------------------------------------
-# Expose the shared Claude skills to other agents that look in ~/.agents/skills.
-# ~/.claude persists (bind mount → host ~/.claude-container), but ~/.agents is
-# on the ephemeral container fs, so the symlink must be recreated each build.
+# Point every harness (Claude Code, Codex, OpenCode, Cursor) at the central
+# skills repo in /workspace/igou-skills. ~/.agents is on the ephemeral
+# container fs, so this must run on every build; ~/.claude persists but the
+# script is idempotent.
 # ---------------------------------------------------------------------------
-mkdir -p /home/igou/.agents
-ln -sfn /home/igou/.claude/skills /home/igou/.agents/skills
+/workspace/igou-devenv/bin/link-skills
 
 echo "==> Setup complete!"
