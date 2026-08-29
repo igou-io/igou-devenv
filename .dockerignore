@@ -18,3 +18,8 @@ CLAUDE.md
 Makefile
 renovate.json
 renovate-base.json
+
+# Baked into the image for non-devcontainer consumers (Hermes session pods):
+!bin/resolve-profile
+!dotfiles/.bashrc
+!dotfiles/.bashrc.d/
