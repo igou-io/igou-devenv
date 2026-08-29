@@ -874,6 +874,22 @@ else
 fi
 
 # =========================================================================
+#  Real env catalog hygiene: every envs/*.env ends with a newline and has one
+#  KEY=VALUE per line (a missing trailing newline once glued an appended
+#  PERMISSIONS= onto KUBECONFIG_HOST and broke the synthesized kubeconfig).
+# =========================================================================
+echo ""
+echo "==> Testing envs/*.env hygiene..."
+_bad=""
+for _f in "$REPO_DIR"/envs/*.env; do
+    [ -n "$(tail -c1 "$_f")" ] && _bad="$_bad $(basename "$_f"):no-trailing-newline"
+    if grep -qE '[^[:space:]](KUBECONFIG_[A-Z]+|REGISTRY_[A-Z]+|PERMISSIONS|SSH_KEYS)=' "$_f"; then
+        _bad="$_bad $(basename "$_f"):glued-key"
+    fi
+done
+if [ -z "$_bad" ]; then ok "envs/*.env end with newline, one key per line"; else fail "envs/*.env hygiene:$_bad"; fi
+
+# =========================================================================
 #  Non-interactive availability (~/.bashrc.d sourced before the interactive
 #  check, so `bash -c 'use ...'` from agent tool calls and scripts works)
 # =========================================================================
