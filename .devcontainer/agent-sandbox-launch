@@ -235,8 +235,13 @@ case "$DRIVER" in
     opencode)
         OPENCODE_CONFIG="${OPENCODE_CONFIG:-$HOME/.config/opencode}"
         OPENCODE_STATE="${OPENCODE_STATE:-$HOME/.local/share/opencode}"
-        mkdir -p "$OPENCODE_CONFIG" "$OPENCODE_STATE"
-        HOME_ARGS+=(-v "$OPENCODE_CONFIG:/home/igou/.config/opencode:Z" -v "$OPENCODE_STATE:/home/igou/.local/share/opencode:Z")
+        # ~/.cache/opencode holds the refreshed models.dev catalog (models.json);
+        # without it the container falls back to the image's bundled snapshot
+        # and newer models are missing from t3's picker (same mount as
+        # bin/opencode-run).
+        OPENCODE_CACHE="${OPENCODE_CACHE:-$HOME/.cache/opencode}"
+        mkdir -p "$OPENCODE_CONFIG" "$OPENCODE_STATE" "$OPENCODE_CACHE"
+        HOME_ARGS+=(-v "$OPENCODE_CONFIG:/home/igou/.config/opencode:Z" -v "$OPENCODE_STATE:/home/igou/.local/share/opencode:Z" -v "$OPENCODE_CACHE:/home/igou/.cache/opencode:Z")
         if [ "$SCOPE" != "none" ]; then
             # opencode has no per-scope home; the scope note rides in as an extra
             # instructions file and the permission layer via OPENCODE_CONFIG_CONTENT.

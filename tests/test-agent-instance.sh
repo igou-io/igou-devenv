@@ -115,6 +115,7 @@ echo "==> opencode: inferred from serve, host network, config content"
 out=$(run_dry ocp-cluster-reader serve --hostname=127.0.0.1 --port=5000)
 assert_has  "--network=host"          "$out" "host network"
 assert_has  "--name opencode-instance-ocp-cluster-reader" "$out" "fixed server name"
+assert_has  ".cache/opencode:/home/igou/.cache/opencode:Z" "$out" "models.dev cache mounted (fresh model catalog)"
 assert_has  "opencode serve --hostname=127.0.0.1 --port=5000" "$out" "forwards serve args"
 assert_has  "OPENCODE_CONFIG_CONTENT=" "$out" "config content injected"
 assert_has  '/etc/agent/scope.md'     "$out" "scope note mounted + referenced"
