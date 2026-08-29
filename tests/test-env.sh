@@ -914,6 +914,14 @@ if [ "$(stat -c %a "$_ic/cache.env" 2>/dev/null)" = "600" ]; then ok "hook cache
 grep -oE '/tmp/kubeconfig\.[A-Za-z0-9]+' "$_ic/cache.env" | xargs rm -f 2>/dev/null
 _hook2=$(env -i PATH="/usr/bin:/bin" HOME="$_ic" bash -c "source '$REPO_DIR/dotfiles/.bashrc.d/05-agent-profile.sh'; echo \"\${AGENT_PROFILE_ACTIVE:-none}\"")
 if [ "$_hook2" = "none" ]; then ok "hook is a no-op without AGENT_PROFILE"; else fail "hook is a no-op without AGENT_PROFILE"; fi
+# BASH_ENV=~/.bashrc (how Hermes session pods run): the resolver is itself a
+# bash script and must not re-enter the hook (regression: infinite recursion).
+mkdir -p "$_ic/home/.local/bin" "$_ic/home/.bashrc.d"
+cp "$REPO_DIR/dotfiles/.bashrc" "$_ic/home/.bashrc"; cp "$REPO_DIR"/dotfiles/.bashrc.d/*.sh "$_ic/home/.bashrc.d/"; cp "$REPO_DIR/bin/resolve-profile" "$_ic/home/.local/bin/"
+_hook3=$(timeout 20 env -i PATH="/usr/bin:/bin" HOME="$_ic/home" BASH_ENV="$_ic/home/.bashrc" AGENT_PROFILE=read-only AGENT_PROFILE_ENVDIR="$_ic/envs" AGENT_PROFILE_CACHE="$_ic/cache2.env" \
+    bash -c 'bash -c "echo nested=\$AGENT_PROFILE_ACTIVE"'; echo "rc=$?")
+if [ "$_hook3" = $'nested=1\nrc=0' ]; then ok "hook does not recurse under BASH_ENV=~/.bashrc"; else fail "hook does not recurse under BASH_ENV=~/.bashrc (got: $_hook3)"; fi
+grep -oE '/tmp/kubeconfig\.[A-Za-z0-9]+' "$_ic/cache2.env" 2>/dev/null | xargs rm -f 2>/dev/null
 rm -rf "$_ic"
 
 # =========================================================================
