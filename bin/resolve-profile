@@ -68,12 +68,19 @@ fail() {
     exit 1
 }
 
-# op:// via op read, plain values unchanged.
+# op:// via op read, plain values unchanged. Env files rendered in-cluster
+# (ExternalSecret -> /etc/agent/envs) carry literal values and no op://
+# references, so a catalog without any op:// line never needs the op binary.
 resolve_value() {
     case "$1" in
         op://*) op read "$1" ;;
         *)      printf '%s\n' "$1" ;;
     esac
+}
+# stdin -> stdout: op inject when any op:// ref is present, passthrough otherwise.
+inject() {
+    local buf; buf=$(cat)
+    if grep -q 'op://' <<< "$buf"; then printf '%s\n' "$buf" | op inject; else printf '%s\n' "$buf"; fi
 }
 
 field() { grep -m1 "^${2}=" "$1" | cut -d= -f2- || true; }
@@ -122,7 +129,7 @@ resolve_one() {
     local remaining resolved line
     remaining=$(grep -v '^KUBECONFIG_DATA=\|^KUBECONFIG_TOKEN=\|^KUBECONFIG_HOST=\|^REGISTRY_HOST=\|^REGISTRY_USERNAME=\|^REGISTRY_PASSWORD=\|^INCLUDE=' "$envfile" || true)
     if [ -n "$remaining" ]; then
-        resolved=$(echo "$remaining" | op inject) || fail "Failed to resolve secrets for ${name}"
+        resolved=$(echo "$remaining" | inject) || fail "Failed to resolve secrets for ${name}"
         while IFS= read -r line; do
             [[ -z "$line" || "$line" == \#* ]] && continue
             OUT+=("$line")
@@ -138,10 +145,10 @@ resolve_one() {
                 fail "Failed to resolve kubeconfig for ${name}"
             fi
         else
-            if ! kube_token=$(echo "$kube_token_ref" | op inject) || [ -z "$kube_token" ]; then
+            if ! kube_token=$(echo "$kube_token_ref" | inject) || [ -z "$kube_token" ]; then
                 fail "Failed to resolve kubeconfig for ${name}"
             fi
-            if ! kube_host=$(echo "$kube_host_ref" | op inject) || [ -z "$kube_host" ]; then
+            if ! kube_host=$(echo "$kube_host_ref" | inject) || [ -z "$kube_host" ]; then
                 fail "Failed to resolve kubeconfig for ${name}"
             fi
             # Names carry the profile so several kubeconfigs merge cleanly
