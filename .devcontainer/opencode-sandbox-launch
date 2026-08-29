@@ -1,147 +1,28 @@
 #!/usr/bin/env bash
-# shellcheck disable=SC2054
-# Launch opencode inside a hardened rootless podman container for use as an
-# ADDITIONAL t3 provider instance (it does NOT replace the default opencode).
-#
-# t3 invokes this as the instance's binaryPath, e.g.
-#   opencode-sandbox-launch serve --hostname=127.0.0.1 --port=NNNN
-# and also for probes (--version, agent list, models --verbose). Every opencode
-# argument is forwarded verbatim to opencode inside the container.
-#
-# Credentials: the container never mounts ~/.config/op (no 1Password). Instead,
-# the profile named by $OPENCODE_SANDBOX_PROFILE (an envs/<profile>.env file) is
-# resolved on the host via `op inject` at launch and injected as -e KEY=VALUE.
-# The t3 provider instance selects the profile through its own `environment`,
-# e.g. OPENCODE_SANDBOX_PROFILE=ocp-cluster-reader for a read-only kubeconfig.
-# Default profile "none" injects nothing.
-#
-# All diagnostics go to stderr so t3's stdout parsing (version string and the
-# "opencode server listening on <url>" ready line) stays clean.
-#
-# See adr/0005-opencode-1password-sandbox.md.
+# Back-compat shim: the opencode t3 provider instance historically pointed its
+# binaryPath here (adr/0005). The launcher is now driver-agnostic —
+# agent-sandbox-launch (adr/0006) — and this just maps the old env names.
+#   OPENCODE_SANDBOX_PROFILE   -> AGENT_SANDBOX_PROFILES
+#   OPENCODE_SANDBOX_IMAGE     -> AGENT_SANDBOX_IMAGE
+#   OPENCODE_SANDBOX_ENVDIR    -> AGENT_SANDBOX_ENVDIR
+#   OPENCODE_SANDBOX_WORKSPACE -> AGENT_SANDBOX_WORKSPACE
 set -euo pipefail
+HERE="$(dirname "$(readlink -f "$0")")"
+for c in "$HERE/agent-sandbox-launch" /workspace/igou-devenv/.devcontainer/agent-sandbox-launch; do
+    [ -x "$c" ] && { LAUNCH="$c"; break; }
+done
+[ -n "${LAUNCH:-}" ] || { echo "opencode-sandbox-launch: agent-sandbox-launch not found" >&2; exit 1; }
 
-log() { echo "opencode-sandbox-launch: $*" >&2; }
+export AGENT_SANDBOX_PROFILES="${AGENT_SANDBOX_PROFILES:-${OPENCODE_SANDBOX_PROFILE:-none}}"
+[ -n "${OPENCODE_SANDBOX_IMAGE:-}" ]     && export AGENT_SANDBOX_IMAGE="${AGENT_SANDBOX_IMAGE:-$OPENCODE_SANDBOX_IMAGE}"
+[ -n "${OPENCODE_SANDBOX_ENVDIR:-}" ]    && export AGENT_SANDBOX_ENVDIR="${AGENT_SANDBOX_ENVDIR:-$OPENCODE_SANDBOX_ENVDIR}"
+[ -n "${OPENCODE_SANDBOX_WORKSPACE:-}" ] && export AGENT_SANDBOX_WORKSPACE="${AGENT_SANDBOX_WORKSPACE:-$OPENCODE_SANDBOX_WORKSPACE}"
 
-IMAGE="${OPENCODE_SANDBOX_IMAGE:-ghcr.io/igou-io/opencode:latest}"
-ENVDIR="${OPENCODE_SANDBOX_ENVDIR:-/workspace/igou-devenv/envs}"
-PROFILE="${OPENCODE_SANDBOX_PROFILE:-none}"
-WORKSPACE_MOUNT="${OPENCODE_SANDBOX_WORKSPACE:-/workspace}"
-DRY_RUN=false
-
-# Leading launcher-only flags; everything else is forwarded to opencode.
-OPENCODE_ARGS=()
+ARGS=()
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --dry-run) DRY_RUN=true; shift ;;
-        --profile) PROFILE="$2"; shift 2 ;;
-        --) shift; OPENCODE_ARGS+=("$@"); break ;;
-        *)  OPENCODE_ARGS+=("$1"); shift ;;
+        --profile) export AGENT_SANDBOX_PROFILES="$2"; shift 2 ;;
+        *) ARGS+=("$1"); shift ;;
     esac
 done
-
-# ---------------------------------------------------------------------------
-# Resolve the profile's credentials on the host (op stays out of the container)
-# via bin/resolve-profile — the single shared resolver (adr/0001). Baked copies
-# of this launcher live in ~/.local/bin; the resolver comes from the workspace
-# checkout (or RESOLVE_PROFILE / PATH).
-# ---------------------------------------------------------------------------
-resolve_profile_bin() {
-    if [ -n "${RESOLVE_PROFILE:-}" ]; then echo "$RESOLVE_PROFILE"; return; fi
-    local here; here="$(dirname "$(readlink -f "$0")")"
-    for c in "$here/resolve-profile" "$here/../bin/resolve-profile" /workspace/igou-devenv/bin/resolve-profile; do
-        [ -x "$c" ] && { echo "$c"; return; }
-    done
-    command -v resolve-profile
-}
-
-ENV_ARGS=()
-TMPFILES=()
-MOUNT_KUBE=""
-MOUNT_AUTH=""
-cleanup() { for f in "${TMPFILES[@]:-}"; do [ -n "$f" ] && rm -rf "$f"; done; }
-trap cleanup EXIT
-
-if [ "$PROFILE" != "none" ] && [ -n "$PROFILE" ]; then
-    RESOLVER=$(resolve_profile_bin) || { log "resolve-profile not found"; exit 1; }
-    # Comma-separated PROFILE stacks several env files (later wins).
-    IFS=, read -r -a PROFILES <<< "$PROFILE"
-    if ! resolved=$(IGOU_ENVDIR="$ENVDIR" "$RESOLVER" "${PROFILES[@]}" 2> >(sed 's/^/opencode-sandbox-launch: /' >&2)); then
-        exit 1
-    fi
-    while IFS= read -r line; do
-        [ -z "$line" ] && continue
-        case "$line" in
-            KUBECONFIG=*)
-                MOUNT_KUBE="${line#KUBECONFIG=}"; TMPFILES+=("$MOUNT_KUBE")
-                ENV_ARGS+=("-e" "KUBECONFIG=/tmp/kubeconfig") ;;
-            REGISTRY_AUTH_FILE=*)
-                ENV_ARGS+=("-e" "REGISTRY_AUTH_FILE=/tmp/registry-auth/config.json") ;;
-            DOCKER_CONFIG=*)
-                MOUNT_AUTH="${line#DOCKER_CONFIG=}"; TMPFILES+=("$MOUNT_AUTH")
-                ENV_ARGS+=("-e" "DOCKER_CONFIG=/tmp/registry-auth") ;;
-            *)  ENV_ARGS+=("-e" "$line") ;;
-        esac
-    done <<< "$resolved"
-fi
-
-# ---------------------------------------------------------------------------
-# Build the hardened podman run arguments (mirrors bin/opencode-run)
-# ---------------------------------------------------------------------------
-RUN_ARGS=(
-    --rm
-    --replace
-    --name "opencode-instance-${PROFILE}"
-    --userns=keep-id
-    # Host networking so opencode's `serve` listener is reachable by t3 at the
-    # 127.0.0.1:PORT it prints, with no port-publish plumbing.
-    --network=host
-    --cap-drop=ALL
-    --security-opt no-new-privileges:true
-    --tmpfs /tmp:rw,noexec,nosuid,size=256m
-    --tmpfs /run:rw,noexec,nosuid,size=64m
-    --cpus=2
-    --pids-limit=512
-    --ulimit nofile=1024:2048
-    --ulimit nproc=512:512
-    --ulimit core=0
-)
-if command -v catatonit &>/dev/null || [ -x /usr/libexec/podman/catatonit ]; then
-    RUN_ARGS+=(--init)
-fi
-
-# Workspace at the same absolute path so opencode's path-keyed project state
-# matches devcontainer sessions. NO ~/.config/op mount — that is the point.
-RUN_ARGS+=(-v "${WORKSPACE_MOUNT}:${WORKSPACE_MOUNT}:Z" -w "${WORKSPACE_MOUNT}")
-
-OPENCODE_CONFIG="${OPENCODE_CONFIG:-$HOME/.config/opencode}"
-OPENCODE_STATE="${OPENCODE_STATE:-$HOME/.local/share/opencode}"
-mkdir -p "$OPENCODE_CONFIG" "$OPENCODE_STATE"
-RUN_ARGS+=(-v "$OPENCODE_CONFIG:/home/igou/.config/opencode:Z")
-RUN_ARGS+=(-v "$OPENCODE_STATE:/home/igou/.local/share/opencode:Z")
-
-[ -n "$MOUNT_KUBE" ] && RUN_ARGS+=(-v "$MOUNT_KUBE:/tmp/kubeconfig:ro,Z")
-[ -n "$MOUNT_AUTH" ] && RUN_ARGS+=(-v "$MOUNT_AUTH:/tmp/registry-auth:ro,Z")
-if [ ${#ENV_ARGS[@]} -gt 0 ]; then
-    RUN_ARGS+=("${ENV_ARGS[@]}")
-fi
-
-CMD=("$IMAGE" opencode "${OPENCODE_ARGS[@]:-}")
-
-# ---------------------------------------------------------------------------
-# Launch (or print, for tests). Only opencode's own output reaches stdout.
-# ---------------------------------------------------------------------------
-if $DRY_RUN; then
-    printf "podman run"
-    printf " %q" "${RUN_ARGS[@]}"
-    printf " %q" "${CMD[@]}"
-    echo
-    exit 0
-fi
-
-if ! podman image exists "$IMAGE" 2>/dev/null; then
-    log "pulling $IMAGE ..."
-    podman pull "$IMAGE" >&2 || { log "failed to pull $IMAGE"; exit 1; }
-fi
-
-exec podman run "${RUN_ARGS[@]}" "${CMD[@]}"
+exec "$LAUNCH" --driver opencode "${ARGS[@]}"

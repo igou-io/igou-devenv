@@ -419,6 +419,49 @@ oc patch inferenceservice qwen3-35b-a3b -n llmkube-system \
 See `applications/llmkube/README.md` in `igou-openshift` for the full server-side
 tuning rationale (flash attention, q8 KV cache, jinja chat template, etc.).
 
+## Scoped Agent Sessions for t3 (profiles)
+
+`agent-sandbox-launch` (`.devcontainer/`, baked to `~/.local/bin`, also on PATH via
+`bin/`) runs **claude, codex or opencode** in the hardened rootless container with a
+credential scope fixed at launch — see [ADR-0006](adr/0006-scoped-agent-sessions.md).
+t3 provider instances point `binaryPath` at it and pick the scope through the
+instance environment:
+
+```jsonc
+// ~/.t3/userdata/settings.json → providerInstances (Settings → Providers → Add)
+"claude-ocp-ro": {
+  "driver": "claudeAgent",
+  "displayName": "Claude ▸ OCP read-only",
+  "config": { "binaryPath": "/home/igou/.local/bin/agent-sandbox-launch" },
+  "environment": [{ "name": "AGENT_SANDBOX_PROFILES", "value": "ocp-cluster-reader", "sensitive": false }]
+},
+"codex-ocp-ro":      { "driver": "codex", "displayName": "Codex ▸ OCP read-only", /* same binaryPath + env */ },
+"claude-rk8s-admin": { "driver": "claudeAgent", "displayName": "Claude ▸ rk8s admin + ansible",
+                       "config": { "binaryPath": "/home/igou/.local/bin/agent-sandbox-launch" },
+                       "environment": [{ "name": "AGENT_SANDBOX_PROFILES", "value": "rk8s,ansible", "sensitive": false }] }
+```
+
+opencode instances need one binary per profile (t3 keeps one shared server per
+`binaryPath`): `agent-sandbox-launch --install-shim ocp-cluster-reader` writes
+`~/.local/bin/agent-sandbox-launch-ocp-cluster-reader` to use as `binaryPath`.
+
+Inside the session `oc`/`kubectl` work for exactly that identity, `op`/`use`/`ssh-use`
+do not exist, `AGENT_PROFILE` names the scope, and a scope note in the agent's
+instructions tells it to ask for a different session rather than escalate.
+
+Profile keys the launcher interprets (on top of the ones `resolve-profile` handles):
+
+| key | effect |
+|-----|--------|
+| `SSH_KEYS=ansible,other` | keys read from `op://lab_ssh/<item>` into a **per-session** `ssh-agent` inside the container |
+| `PERMISSIONS=readonly\|guarded` | per-driver tool-permission layer from `envs/permissions/<level>/` (deny vs. ask on cluster-mutating commands) |
+
+```bash
+agent-sandbox-launch --profiles ocp-cluster-reader --shell          # poke around inside the scope
+agent-sandbox-launch --profiles rk8s,ansible --dry-run                # print the podman command
+AGENT_SANDBOX_PROFILES=ocp-cluster-reader agent-sandbox-launch serve  # what t3 does for opencode
+```
+
 ## SSH Keys from 1Password
 
 There is no host SSH agent forwarding and no private key on disk (see
