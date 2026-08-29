@@ -101,7 +101,7 @@ anyway.
 ├── post-start.sh        # SSH agent bootstrap, libvirt/dbus, code-server sync/start
 ├── code-server-sync.sh  # applies devcontainer.json VS Code customizations to code-server
 └── requirements.txt     # pinned Python packages
-dotfiles/                # .bashrc, tmux, code-server config, workspace file
+dotfiles/                # .bashrc, .bashrc.d/ (shell functions, sourced non-interactively too), tmux, code-server config, workspace file
 bin/                     # local helper scripts and wrapper launchers
 envs/                    # 1Password env files with op:// references only
 tests/                   # devcontainer and helper-script tests
@@ -245,5 +245,5 @@ Manual release targets are `make release`, `make release-dry-run`, and
 ## Linting
 
 ```bash
-shellcheck .devcontainer/post-create.sh .devcontainer/post-start.sh .devcontainer/init.sh dotfiles/.bashrc tests/*.sh bin/claude-run bin/cursor-run bin/opencode-run bin/ensure-ssh-agent
+shellcheck .devcontainer/post-create.sh .devcontainer/post-start.sh .devcontainer/init.sh dotfiles/.bashrc dotfiles/.bashrc.d/*.sh tests/*.sh bin/claude-run bin/cursor-run bin/opencode-run bin/ensure-ssh-agent
 ```

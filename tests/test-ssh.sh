@@ -3,7 +3,7 @@
 # container-local agent bootstrap (bin/ensure-ssh-agent).
 # Uses mock-op.sh to intercept 1Password CLI calls and a real ssh-agent on a
 # test-private socket. Runs standalone and in CI (no interactive shell needed
-# — functions are extracted from dotfiles/.bashrc like test-env.sh does).
+# — functions are sourced from dotfiles/.bashrc.d like test-env.sh does).
 # No set -e or pipefail — test pass/fail is tracked via PASS/FAIL counters.
 set -u
 
@@ -31,13 +31,13 @@ cp "$SCRIPT_DIR/mock-op.sh" "$TESTDIR/bin/op"
 export PATH="$TESTDIR/bin:$PATH"
 
 # If ssh-use is not already defined (not running in an interactive devcontainer
-# shell), extract the function definitions from dotfiles/.bashrc.
+# shell), source the function files from dotfiles/.bashrc.d directly.
 if ! type -t ssh-use &>/dev/null; then
-    _bashrc_funcs="$TESTDIR/bashrc-funcs.sh"
-    sed -n '/^# Environment switching via 1Password/,/^# Cursor\/VS Code/{/^# Cursor\/VS Code/!p}' \
-        "$REPO_DIR/dotfiles/.bashrc" > "$_bashrc_funcs"
-    # shellcheck disable=SC1090
-    source "$_bashrc_funcs"
+    for _rc in "$REPO_DIR"/dotfiles/.bashrc.d/*.sh; do
+        # shellcheck disable=SC1090
+        source "$_rc"
+    done
+    unset _rc
 fi
 
 # Throwaway keypairs served through the mock via file: indirection (SSH keys

@@ -163,7 +163,7 @@ for reproducibility; `:latest` tracks the most recent green build on `main`.
 ### After First Build
 
 The `post-create.sh` script automatically:
-- Configures `.bashrc` with prompt, environment switching, aliases, and direnv
+- Configures `.bashrc` (prompt, aliases, direnv) and installs `~/.bashrc.d/` (`use`/`unuse`, `ssh-use`/`ssh-unuse`, `ght`) — sourced for every shell, interactive or not
 - Symlinks `bin/` into `~/bin` (on PATH) for custom scripts
 - Creates a `homelab.code-workspace` file
 
@@ -214,6 +214,21 @@ write a temp `containers-auth.json` and export `REGISTRY_AUTH_FILE` (podman,
 buildah, skopeo) plus `DOCKER_CONFIG` (docker), so container CLIs are
 authenticated for the shell session without `podman login` state on disk.
 See `envs/quay.env` for the shape.
+
+### Non-interactive shells (agents and scripts)
+
+The shell functions (`use`, `unuse`, `ssh-use`, `ssh-unuse`, `ght`, `k8s-unset`,
+`ansible-unset`) live in `dotfiles/.bashrc.d/*.sh`, installed to `~/.bashrc.d/` by
+`post-create.sh`. `.bashrc` sources that directory *before* its interactive-only
+early return, so agent tool calls and scripts get them without `bash -i`:
+
+```bash
+bash -c 'use ocp-cluster-reader && oc get nodes'   # one call; the env dies with the shell
+bash -c 'ssh-use ansible'                          # persists: the key lives in the shared agent
+```
+
+`use` env vars only last for the shell that ran them; `ssh-use` has a durable side
+effect because it loads into the container-local agent on `$SSH_AUTH_SOCK`.
 
 ## GitHub Authentication (ghapp)
 
