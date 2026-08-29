@@ -16,6 +16,8 @@ fi
 
 echo "==> Configuring shell..."
 cp "$REPO/dotfiles/.bashrc" /home/igou/.bashrc
+mkdir -p /home/igou/.bashrc.d
+cp "$REPO/dotfiles/.bashrc.d"/*.sh /home/igou/.bashrc.d/
 cp "$REPO/dotfiles/tmux.conf" /home/igou/.tmux.conf
 
 # ghapp config: seed only if absent, mirroring post-create.sh (non-secret —

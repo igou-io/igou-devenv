@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Test environment switching shell functions (use, unuse, k8s-unset, prompt).
 # Run with bash -i (interactive) inside the devcontainer so .bashrc is sourced,
-# or standalone — the script extracts functions from post-create.sh as a fallback.
+# or standalone — the script sources dotfiles/.bashrc.d/*.sh as a fallback.
 # Uses mock-op.sh to intercept 1Password CLI calls.
 # No set -e or pipefail — test pass/fail is tracked via PASS/FAIL counters.
 set -u
@@ -38,16 +38,14 @@ exit 1
 GHAPP_EOF
 chmod +x "$TESTDIR/bin/ghapp"
 
-# If use() is not already defined (not running inside devcontainer), extract
-# the function definitions from dotfiles/.bashrc and source them.
+# If use() is not already defined (not running inside devcontainer), source
+# the function files from dotfiles/.bashrc.d directly.
 if ! type -t use &>/dev/null; then
-    _bashrc_funcs="$TESTDIR/bashrc-funcs.sh"
-    # Extract environment switching functions from dotfiles/.bashrc.
-    # Grabs from "Environment switching" through the "Cursor/VS Code" comment (exclusive).
-    sed -n '/^# Environment switching via 1Password/,/^# Cursor\/VS Code/{/^# Cursor\/VS Code/!p}' \
-        "$REPO_DIR/dotfiles/.bashrc" > "$_bashrc_funcs"
-    # shellcheck disable=SC1090
-    source "$_bashrc_funcs"
+    for _rc in "$REPO_DIR"/dotfiles/.bashrc.d/*.sh; do
+        # shellcheck disable=SC1090
+        source "$_rc"
+    done
+    unset _rc
     # Provide a minimal __prompt_command and PROMPT_COMMAND for function-existence tests
     if ! type -t __prompt_command &>/dev/null; then
         __prompt_command() { :; }
@@ -876,6 +874,35 @@ if type -t ght >/dev/null; then
 else
     fail "ght() available for token tests"
 fi
+
+# =========================================================================
+#  Non-interactive availability (~/.bashrc.d sourced before the interactive
+#  check, so `bash -c 'use ...'` from agent tool calls and scripts works)
+# =========================================================================
+echo ""
+echo "==> Testing non-interactive availability of ~/.bashrc.d functions..."
+
+_ni_home=$(mktemp -d)
+cp "$REPO_DIR/dotfiles/.bashrc" "$_ni_home/.bashrc"
+mkdir -p "$_ni_home/.bashrc.d"
+cp "$REPO_DIR"/dotfiles/.bashrc.d/*.sh "$_ni_home/.bashrc.d/"
+# Non-interactive bash reads $BASH_ENV, not ~/.bashrc; point both at the copy.
+_ni_out=$(env -i HOME="$_ni_home" PATH="$PATH" BASH_ENV="$_ni_home/.bashrc" \
+    bash -c 'type -t use unuse ssh-use ssh-unuse ght k8s-unset ansible-unset 2>&1' | sort -u | tr '\n' ' ')
+if [ "$_ni_out" = "function " ]; then
+    ok "use/unuse/ssh-use/ssh-unuse/ght available in a non-interactive shell"
+else
+    fail "use/unuse/ssh-use/ssh-unuse/ght available in a non-interactive shell (got: $_ni_out)"
+fi
+# The interactive-only tail (prompt, aliases, direnv) must NOT run non-interactively.
+_ni_out=$(env -i HOME="$_ni_home" PATH="$PATH" BASH_ENV="$_ni_home/.bashrc" \
+    bash -c 'type -t __prompt_command 2>/dev/null; echo "rc=$?"')
+if [ "$_ni_out" = "rc=1" ]; then
+    ok "interactive-only .bashrc tail is skipped in a non-interactive shell"
+else
+    fail "interactive-only .bashrc tail is skipped in a non-interactive shell (got: $_ni_out)"
+fi
+rm -rf "$_ni_home"
 
 # =========================================================================
 #  Results

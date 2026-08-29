@@ -226,16 +226,16 @@ for script_name in claude-run cursor-run; do
     # Since the script's EXIT trap cleaned up, we verify the content was correct by
     # generating the kubeconfig ourselves with the same mock op and comparing structure.
     # The dry-run output already proved KUBECONFIG=/tmp/kubeconfig is set and TOKEN/HOST
-    # are stripped. The kubeconfig template is identical to dotfiles/.bashrc which is
+    # are stripped. The kubeconfig template is identical to dotfiles/.bashrc.d/10-use.sh which is
     # tested by test-env.sh. Verify the template is consistent between the two.
     # shellcheck disable=SC2016
     kube_template_run=$(sed -n '/cat > "\$tmpkube" << KUBECFG/,/^KUBECFG$/p' "$SCRIPT" | sed 's/^[[:space:]]*//')
     # shellcheck disable=SC2016
-    kube_template_bashrc=$(sed -n '/cat > "\$tmpkube" << KUBECFG/,/^KUBECFG$/p' "$REPO_DIR/dotfiles/.bashrc" | sed 's/^[[:space:]]*//')
+    kube_template_bashrc=$(sed -n '/cat > "\$tmpkube" << KUBECFG/,/^KUBECFG$/p' "$REPO_DIR/dotfiles/.bashrc.d/10-use.sh" | sed 's/^[[:space:]]*//')
     if [ "$kube_template_run" = "$kube_template_bashrc" ]; then
-        ok "$script_name: kubeconfig template matches dotfiles/.bashrc"
+        ok "$script_name: kubeconfig template matches dotfiles/.bashrc.d/10-use.sh"
     else
-        fail "$script_name: kubeconfig template matches dotfiles/.bashrc"
+        fail "$script_name: kubeconfig template matches dotfiles/.bashrc.d/10-use.sh"
     fi
 done
 
