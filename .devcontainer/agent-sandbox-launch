@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# shellcheck disable=SC2016,SC2054
+# shellcheck disable=SC2016,SC2054,SC2317
 # Launch an agent CLI (claude, codex or opencode) inside a hardened rootless
 # podman container with a FIXED credential scope: one or more envs/*.env
 # profiles resolved on the host by bin/resolve-profile and injected as env
@@ -187,6 +187,7 @@ perm_file() { # driver-file-name -> path (empty when no PERMISSIONS); rc 1 = fai
 # the shared default homes (same as bin/*-run with no -e).
 # ---------------------------------------------------------------------------
 HOME_ARGS=()
+CRED_SEEDED=""
 case "$DRIVER" in
     claude)
         if [ "$SCOPE" = "none" ]; then CLAUDE_HOME="$HOME/.claude"; else CLAUDE_HOME="$HOME/.claude-${SCOPE_SLUG}"; fi
@@ -195,6 +196,14 @@ case "$DRIVER" in
         # the image entrypoint seeds it from this snapshot.
         [ -f "$HOME/.claude.json" ] && cp "$HOME/.claude.json" "$CLAUDE_HOME/.claude-state.json"
         if [ "$SCOPE" != "none" ]; then
+            # Claude Max OAuth lives in ~/.claude/.credentials.json; seed the
+            # per-scope home from it (refreshed tokens are copied back on exit,
+            # see the end of this script) so scoped sessions are logged in.
+            if [ -f "$HOME/.claude/.credentials.json" ]; then
+                cp "$HOME/.claude/.credentials.json" "$CLAUDE_HOME/.credentials.json"
+                chmod 600 "$CLAUDE_HOME/.credentials.json"
+                CRED_SEEDED="$CLAUDE_HOME/.credentials.json"
+            fi
             { scope_note; [ -s "$HOME/.claude/CLAUDE.md" ] && { echo; cat "$HOME/.claude/CLAUDE.md"; }; } > "$CLAUDE_HOME/CLAUDE.md"
             pf=$(perm_file claude.json) || exit 1
             if [ -n "$pf" ]; then
@@ -333,4 +342,12 @@ if ! podman image exists "$IMAGE" 2>/dev/null; then
     podman pull "$IMAGE" >&2 || { log "failed to pull $IMAGE"; exit 1; }
 fi
 
-exec podman run "${RUN_ARGS[@]}" "${CMD[@]}"
+podman run "${RUN_ARGS[@]}" "${CMD[@]}"
+rc=$?
+# A scoped session may have refreshed the OAuth token; propagate it back so the
+# real home (and the next scoped session) keep working. Newer file wins.
+if [ -n "$CRED_SEEDED" ] && [ "$CRED_SEEDED" -nt "$HOME/.claude/.credentials.json" ]; then
+    cp "$CRED_SEEDED" "$HOME/.claude/.credentials.json"
+    chmod 600 "$HOME/.claude/.credentials.json"
+fi
+exit "$rc"

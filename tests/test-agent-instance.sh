@@ -35,6 +35,7 @@ export HOME="$TESTDIR/home"
 mkdir -p "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" "$HOME/.t3/userdata/attachments"
 echo '{"model":"opus","permissions":{"allow":["Bash(ls*)"]}}' > "$HOME/.claude/settings.json"
 echo '{"oauthAccount":"x"}' > "$HOME/.claude.json"
+echo '{"claudeAiOauth":{"accessToken":"x"}}' > "$HOME/.claude/.credentials.json"
 printf 'model_reasoning_effort = "high"\n' > "$HOME/.codex/config.toml"
 echo '{"tokens":"x"}' > "$HOME/.codex/auth.json"
 
@@ -97,6 +98,7 @@ else
     fail "settings.json = host settings merged with readonly fragment"
 fi
 [ -f "$CH/.claude-state.json" ] && ok "claude.json snapshot seeded" || fail "claude.json snapshot seeded"
+if [ -f "$CH/.credentials.json" ] && [ "$(stat -c %a "$CH/.credentials.json")" = "600" ]; then ok "OAuth credentials seeded into scoped home (0600)"; else fail "OAuth credentials seeded into scoped home (0600)"; fi
 
 echo "==> codex: inferred from app-server, CODEX_HOME, config overlay"
 out=$(run_dry ocp-cluster-reader app-server --listen stdio://)
