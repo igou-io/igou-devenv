@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# shellcheck disable=SC2002,SC2011,SC2054
+# shellcheck disable=SC2002,SC2054
 # Launch a rootless Claude Code container with selective credential injection.
 # Local full-devcontainer wrapper. Not the Hermes execution path.
 # This script assumes it is run from the privileged local devcontainer or another
@@ -54,7 +54,7 @@ while [[ $# -gt 0 ]]; do
             echo "Usage: claude-run [-e ENV]... [--image IMG] [--claude-home DIR] [--shell] [--dry-run] [-- CLAUDE_ARGS...]"
             echo ""
             echo "Options:"
-            echo "  -e, --env ENV       Resolve secrets from envs/ENV.env via op inject"
+            echo "  -e, --env ENV       Resolve secrets from envs/ENV.env (bin/resolve-profile)"
             echo "  --claude-home DIR   Use DIR as Claude home (default: ~/.claude, or ~/.claude-<envs> with -e)"
             echo "  --image IMG         Use a custom container image (default: ghcr.io/igou-io/claude-code:latest)"
             echo "  --shell         Drop to bash instead of launching claude"
@@ -91,88 +91,47 @@ if ! podman image exists "$IMAGE" 2>/dev/null; then
 fi
 
 # ---------------------------------------------------------------------------
-# Resolve environments via op inject
+# Resolve environments via bin/resolve-profile (the single shared resolver;
+# also used by the `use` shell function and the t3 sandbox launchers)
 # ---------------------------------------------------------------------------
-ENVDIR="/workspace/igou-devenv/envs"
+RESOLVE_PROFILE="${RESOLVE_PROFILE:-$(dirname "$(readlink -f "$0")")/resolve-profile}"
 ENV_ARGS=()
 TMPFILES=()
+MOUNT_KUBE=""
+MOUNT_AUTH=""
 
 cleanup() {
     for f in "${TMPFILES[@]}"; do
-        rm -f "$f"
+        rm -rf "$f"
     done
 }
 trap cleanup EXIT
 
-for envname in "${ENVS[@]}"; do
-    envfile="${ENVDIR}/${envname}.env"
-    if [ ! -f "$envfile" ]; then
-        echo "Environment file not found: $envfile" >&2
-        echo "Available: $(ls "${ENVDIR}"/*.env 2>/dev/null | xargs -n1 basename | sed 's/\.env$//' | tr '\n' ' ')" >&2
-        exit 1
-    fi
-
-    # Parse kubeconfig strategy from env file (two mutually exclusive approaches)
-    kubeconfig_ref=$(grep '^KUBECONFIG_DATA=' "$envfile" | head -1 | cut -d= -f2- || true)
-    kubeconfig_token_ref=$(grep '^KUBECONFIG_TOKEN=' "$envfile" | head -1 | cut -d= -f2- || true)
-    kubeconfig_host_ref=$(grep '^KUBECONFIG_HOST=' "$envfile" | head -1 | cut -d= -f2- || true)
-
-    if [ -n "$kubeconfig_ref" ] && { [ -n "$kubeconfig_token_ref" ] || [ -n "$kubeconfig_host_ref" ]; }; then
-        echo "Error: ${envname}.env has both KUBECONFIG_DATA and KUBECONFIG_TOKEN/KUBECONFIG_HOST — use one or the other" >&2
-        exit 1
-    fi
-    if { [ -n "$kubeconfig_token_ref" ] && [ -z "$kubeconfig_host_ref" ]; } || \
-       { [ -z "$kubeconfig_token_ref" ] && [ -n "$kubeconfig_host_ref" ]; }; then
-        echo "Error: ${envname}.env must have both KUBECONFIG_TOKEN and KUBECONFIG_HOST (found only one)" >&2
-        exit 1
-    fi
-
-    # Resolve remaining vars via op inject (strip kubeconfig keys first)
-    remaining=$(grep -v '^KUBECONFIG_DATA=\|^KUBECONFIG_TOKEN=\|^KUBECONFIG_HOST=' "$envfile" || true)
-    if [ -n "$remaining" ]; then
-        resolved=$(echo "$remaining" | op inject) || {
-            echo "Failed to resolve secrets for ${envname}" >&2
-            exit 1
-        }
-        while IFS= read -r line; do
-            [[ -z "$line" || "$line" == \#* ]] && continue
-            ENV_ARGS+=("-e" "$line")
-        done <<< "$resolved"
-    fi
-
-    # Handle kubeconfig — either full base64-encoded or constructed from token+host
-    if [ -n "$kubeconfig_ref" ]; then
-        tmpkube=$(mktemp /tmp/kubeconfig.XXXXXX)
-        TMPFILES+=("$tmpkube")
-        op read "$kubeconfig_ref" | base64 -d > "$tmpkube"
-        ENV_ARGS+=("-e" "KUBECONFIG=/tmp/kubeconfig")
-    elif [ -n "$kubeconfig_token_ref" ]; then
-        tmpkube=$(mktemp /tmp/kubeconfig.XXXXXX)
-        TMPFILES+=("$tmpkube")
-        kube_token=$(echo "$kubeconfig_token_ref" | op inject)
-        kube_host=$(echo "$kubeconfig_host_ref" | op inject)
-        cat > "$tmpkube" << KUBECFG
-apiVersion: v1
-kind: Config
-clusters:
-- cluster:
-    server: ${kube_host}
-    insecure-skip-tls-verify: true
-  name: cluster
-contexts:
-- context:
-    cluster: cluster
-    user: user
-  name: context
-current-context: context
-users:
-- name: user
-  user:
-    token: ${kube_token}
-KUBECFG
-        ENV_ARGS+=("-e" "KUBECONFIG=/tmp/kubeconfig")
-    fi
-done
+if [ ${#ENVS[@]} -gt 0 ]; then
+    resolved=$("$RESOLVE_PROFILE" "${ENVS[@]}") || exit 1
+    while IFS= read -r line; do
+        [ -z "$line" ] && continue
+        case "$line" in
+            KUBECONFIG=*)
+                # Temp kubeconfig on the host -> read-only mount at a fixed path
+                MOUNT_KUBE="${line#KUBECONFIG=}"
+                TMPFILES+=("$MOUNT_KUBE")
+                ENV_ARGS+=("-e" "KUBECONFIG=/tmp/kubeconfig")
+                ;;
+            REGISTRY_AUTH_FILE=*)
+                ENV_ARGS+=("-e" "REGISTRY_AUTH_FILE=/tmp/registry-auth/config.json")
+                ;;
+            DOCKER_CONFIG=*)
+                MOUNT_AUTH="${line#DOCKER_CONFIG=}"
+                TMPFILES+=("$MOUNT_AUTH")
+                ENV_ARGS+=("-e" "DOCKER_CONFIG=/tmp/registry-auth")
+                ;;
+            *)
+                ENV_ARGS+=("-e" "$line")
+                ;;
+        esac
+    done <<< "$resolved"
+fi
 
 # ---------------------------------------------------------------------------
 # Build podman run arguments
@@ -254,9 +213,8 @@ mkdir -p "$CLAUDE_HOME"
 [ -f "$HOME/.claude.json" ] && cp "$HOME/.claude.json" "$CLAUDE_HOME/.claude-state.json"
 RUN_ARGS+=(-v "$CLAUDE_HOME:/home/igou/.claude:Z")
 
-for f in "${TMPFILES[@]}"; do
-    RUN_ARGS+=(-v "$f:/tmp/kubeconfig:ro,Z")
-done
+[ -n "$MOUNT_KUBE" ] && RUN_ARGS+=(-v "$MOUNT_KUBE:/tmp/kubeconfig:ro,Z")
+[ -n "$MOUNT_AUTH" ] && RUN_ARGS+=(-v "$MOUNT_AUTH:/tmp/registry-auth:ro,Z")
 
 # --- Environment variables from resolved envs ---
 if [ ${#ENV_ARGS[@]} -gt 0 ]; then

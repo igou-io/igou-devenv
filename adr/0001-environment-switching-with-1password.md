@@ -231,4 +231,5 @@ rationale.
 - **2026-03-30**: Refactored to export variables in the current shell with `unuse` for cleanup (issue #11). Removed subshell spawning entirely.
 - **2026-04-15**: Documented `KUBECONFIG_TOKEN` + `KUBECONFIG_HOST` strategy for dynamically constructing kubeconfigs from service account tokens.
 - **2026-06-08**: Default `op` auth switched to 1Password Connect, with the service-account token kept as fallback (see [ADR-0003](0003-default-to-1password-connect.md)).
+- **2026-08-29**: Resolution factored into `bin/resolve-profile`, the single implementation shared by `use()` (now only exports + tracks the result), `bin/*-run` and the t3 sandbox launchers, which previously each carried a drifting copy of the kubeconfig/registry logic. Resolution is atomic (no output and no temp files on failure). `IGOU_ENVDIR` / `IGOU_DEVENV` override the env directory and checkout path (tests).
 - **2026-07-10**: Added `REGISTRY_HOST` + `REGISTRY_USERNAME` + `REGISTRY_PASSWORD` strategy — `use quay` authenticates podman/buildah/skopeo (`REGISTRY_AUTH_FILE`) and docker (`DOCKER_CONFIG`) via a temp auth file cleaned up by `unuse` or the exit trap.
