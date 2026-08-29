@@ -277,11 +277,16 @@ RUN_ARGS=(
 if command -v catatonit &>/dev/null || [ -x /usr/libexec/podman/catatonit ]; then
     RUN_ARGS+=(--init)
 fi
+# Host networking for every driver: opencode's `serve` must be reachable by t3
+# at the 127.0.0.1:PORT it prints, and t3 hands claude/codex an MCP endpoint on
+# 127.0.0.1:3773 (the t3-code preview tools) that must resolve to the host too.
+# Isolation still comes from cap-drop/userns/no-new-privileges and the absence
+# of ~/.config/op, not from the network namespace.
+RUN_ARGS+=(--network=host)
 case "$DRIVER" in
     opencode)
-        # One shared server per binaryPath: host networking so t3 reaches the
-        # 127.0.0.1:PORT it prints; a fixed name so a restart replaces it.
-        RUN_ARGS+=(--network=host --replace --name "opencode-instance-${SCOPE_SLUG}") ;;
+        # One shared server per binaryPath; a fixed name so a restart replaces it.
+        RUN_ARGS+=(--replace --name "opencode-instance-${SCOPE_SLUG}") ;;
     *)
         # stdio protocol; several sessions of one instance may run at once.
         if $SHELL_MODE; then RUN_ARGS+=(-it); else RUN_ARGS+=(-i); fi ;;
@@ -291,6 +296,10 @@ $SHELL_MODE && [ "$DRIVER" = opencode ] && RUN_ARGS+=(-it)
 # Workspace at the same absolute path so path-keyed project state matches
 # devcontainer sessions. NO ~/.config/op mount — that is the point.
 RUN_ARGS+=(-v "${WORKSPACE_MOUNT}:${WORKSPACE_MOUNT}:Z" -w "${WORKSPACE_MOUNT}")
+# t3 passes `--add-dir ~/.t3/userdata/attachments` (pasted files) to claude;
+# the path must exist in the container or the CLI refuses to start.
+T3_ATTACH="${AGENT_SANDBOX_T3_ATTACHMENTS:-$HOME/.t3/userdata/attachments}"
+[ -d "$T3_ATTACH" ] && RUN_ARGS+=(-v "$T3_ATTACH:$T3_ATTACH:ro,Z")
 RUN_ARGS+=("${HOME_ARGS[@]}")
 [ -n "$MOUNT_KUBE" ] && RUN_ARGS+=(-v "$MOUNT_KUBE:/tmp/kubeconfig:ro,Z")
 [ -n "$MOUNT_AUTH" ] && RUN_ARGS+=(-v "$MOUNT_AUTH:/tmp/registry-auth:ro,Z")
