@@ -245,5 +245,5 @@ Manual release targets are `make release`, `make release-dry-run`, and
 ## Linting
 
 ```bash
-shellcheck .devcontainer/post-create.sh .devcontainer/post-start.sh .devcontainer/init.sh dotfiles/.bashrc dotfiles/.bashrc.d/*.sh tests/*.sh bin/claude-run bin/cursor-run bin/opencode-run bin/ensure-ssh-agent
+shellcheck .devcontainer/post-create.sh .devcontainer/post-start.sh .devcontainer/init.sh dotfiles/.bashrc dotfiles/.bashrc.d/*.sh tests/*.sh bin/resolve-profile bin/claude-run bin/cursor-run bin/opencode-run bin/ensure-ssh-agent .devcontainer/opencode-sandbox-launch
 ```

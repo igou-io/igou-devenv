@@ -222,20 +222,17 @@ for script_name in claude-run cursor-run; do
     verify_dir="$TESTDIR/verify-kubeconfig"
     mkdir -p "$verify_dir"
     # Run the script, capture output, then immediately copy any kubeconfig temp files
-    output=$(run_dry "$SCRIPT" -e test-kubetoken)
-    # Since the script's EXIT trap cleaned up, we verify the content was correct by
-    # generating the kubeconfig ourselves with the same mock op and comparing structure.
-    # The dry-run output already proved KUBECONFIG=/tmp/kubeconfig is set and TOKEN/HOST
-    # are stripped. The kubeconfig template is identical to dotfiles/.bashrc.d/10-use.sh which is
-    # tested by test-env.sh. Verify the template is consistent between the two.
-    # shellcheck disable=SC2016
-    kube_template_run=$(sed -n '/cat > "\$tmpkube" << KUBECFG/,/^KUBECFG$/p' "$SCRIPT" | sed 's/^[[:space:]]*//')
-    # shellcheck disable=SC2016
-    kube_template_bashrc=$(sed -n '/cat > "\$tmpkube" << KUBECFG/,/^KUBECFG$/p' "$REPO_DIR/dotfiles/.bashrc.d/10-use.sh" | sed 's/^[[:space:]]*//')
-    if [ "$kube_template_run" = "$kube_template_bashrc" ]; then
-        ok "$script_name: kubeconfig template matches dotfiles/.bashrc.d/10-use.sh"
+    # The kubeconfig template lives ONLY in bin/resolve-profile now (shared by
+    # use() and every launcher); a launcher must not carry its own copy.
+    if grep -q 'KUBECFG' "$SCRIPT"; then
+        fail "$script_name: no private kubeconfig template (uses resolve-profile)"
     else
-        fail "$script_name: kubeconfig template matches dotfiles/.bashrc.d/10-use.sh"
+        ok "$script_name: no private kubeconfig template (uses resolve-profile)"
+    fi
+    if grep -q 'op inject' "$SCRIPT"; then
+        fail "$script_name: no direct op calls (uses resolve-profile)"
+    else
+        ok "$script_name: no direct op calls (uses resolve-profile)"
     fi
 done
 

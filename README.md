@@ -209,6 +209,18 @@ k8s-unset               # clear KUBECONFIG and K8S_AUTH_* vars
 Environment files live in `envs/` and contain only `op://` references — no
 secrets are stored in the repo.
 
+Resolution is implemented once, in `bin/resolve-profile`, and shared by `use`,
+the `bin/*-run` launchers and the t3 sandbox launchers. It prints `KEY=VALUE`
+lines (plus temp-file paths for `KUBECONFIG` / `REGISTRY_AUTH_FILE`) and is
+atomic: on any failure nothing is printed and no temp files remain.
+
+```bash
+resolve-profile --list                    # same as `use` with no args
+resolve-profile ocp-cluster-reader        # KEY=VALUE lines; KUBECONFIG=/tmp/kubeconfig.XXXX
+resolve-profile rk8s ansible              # stack profiles (later wins)
+IGOU_ENVDIR=/other/envs resolve-profile x # alternate env directory (tests use this)
+```
+
 Env files with `REGISTRY_HOST`, `REGISTRY_USERNAME`, and `REGISTRY_PASSWORD`
 write a temp `containers-auth.json` and export `REGISTRY_AUTH_FILE` (podman,
 buildah, skopeo) plus `DOCKER_CONFIG` (docker), so container CLIs are

@@ -1,0 +1,182 @@
+#!/usr/bin/env bash
+# shellcheck disable=SC2011
+# Resolve one or more envs/<name>.env profiles into KEY=VALUE lines (adr/0001).
+#
+# This is the single implementation of profile resolution shared by the `use`
+# shell function (dotfiles/.bashrc.d/10-use.sh) and every container launcher
+# (bin/*-run, .devcontainer/*-sandbox-launch). It never exports anything and
+# never mutates the caller's shell: it prints resolved lines to stdout and the
+# caller decides what to do with them (export, `-e` into podman, ...).
+#
+# Usage:
+#   resolve-profile NAME [NAME...]     resolve and print KEY=VALUE lines
+#   resolve-profile --list             print available profile names
+#
+# Env:
+#   IGOU_ENVDIR   directory of .env files (default /workspace/igou-devenv/envs)
+#
+# Env file keys with special handling (everything else goes through `op inject`;
+# plain values pass through unchanged):
+#   KUBECONFIG_DATA                base64 kubeconfig (op read + decode) -> temp file
+#   KUBECONFIG_TOKEN + _HOST       synthesized single-user kubeconfig  -> temp file
+#                                  (both required; mutually exclusive with _DATA)
+#   REGISTRY_HOST/_USERNAME/_PASSWORD  containers-auth.json in a temp dir
+#                                  (all three required)
+# Reserved passthrough keys (plain values the launchers interpret; harmless as
+# env vars): SSH_KEYS, PERMISSIONS.
+#
+# Output contract:
+#   KEY=VALUE            one per resolved key, in file order, profiles in arg order
+#   KUBECONFIG=<path>    temp file (mode 600) when a kubeconfig strategy is set
+#   REGISTRY_AUTH_FILE=<dir>/config.json and DOCKER_CONFIG=<dir> for registry auth
+# Temp files belong to the caller after a successful exit. On ANY failure nothing
+# is printed to stdout, every temp file created so far is removed, the reason
+# goes to stderr and the exit code is 1 — so callers never see a half-resolved
+# profile.
+set -euo pipefail
+
+ENVDIR="${IGOU_ENVDIR:-/workspace/igou-devenv/envs}"
+
+list_profiles() { ls "${ENVDIR}"/*.env 2>/dev/null | xargs -n1 basename 2>/dev/null | sed 's/\.env$//'; }
+
+if [ "${1:-}" = "--list" ]; then list_profiles; exit 0; fi
+if [ $# -eq 0 ]; then
+    echo "usage: resolve-profile NAME [NAME...] | --list" >&2
+    exit 2
+fi
+
+# op runs in Connect mode from files when no OP_* env is set (t3 and other
+# non-shell callers carry none). Export the way ~/.bashrc does.
+if [ -z "${OP_CONNECT_TOKEN:-}" ] && [ -z "${OP_SERVICE_ACCOUNT_TOKEN:-}" ] \
+   && [ -f "$HOME/.config/op/connect-host" ] && [ -f "$HOME/.config/op/connect-token" ]; then
+    OP_CONNECT_HOST="$(cat "$HOME/.config/op/connect-host")"; export OP_CONNECT_HOST
+    OP_CONNECT_TOKEN="$(cat "$HOME/.config/op/connect-token")"; export OP_CONNECT_TOKEN
+fi
+
+OUT=()
+TMPPATHS=()
+fail() {
+    echo "$1" >&2
+    for p in "${TMPPATHS[@]:-}"; do [ -n "$p" ] && rm -rf "$p"; done
+    exit 1
+}
+
+# op:// via op read, plain values unchanged.
+resolve_value() {
+    case "$1" in
+        op://*) op read "$1" ;;
+        *)      printf '%s\n' "$1" ;;
+    esac
+}
+
+field() { grep -m1 "^${2}=" "$1" | cut -d= -f2- || true; }
+
+resolve_one() {
+    local name="$1" envfile="${ENVDIR}/${1}.env"
+    if [ ! -f "$envfile" ]; then
+        echo "No env file: $envfile" >&2
+        echo "Available:" >&2
+        list_profiles >&2
+        exit 1
+    fi
+
+    local kube_data_ref kube_token_ref kube_host_ref
+    kube_data_ref=$(field "$envfile" KUBECONFIG_DATA)
+    kube_token_ref=$(field "$envfile" KUBECONFIG_TOKEN)
+    kube_host_ref=$(field "$envfile" KUBECONFIG_HOST)
+    if [ -n "$kube_data_ref" ] && { [ -n "$kube_token_ref" ] || [ -n "$kube_host_ref" ]; }; then
+        fail "Error: ${name}.env has both KUBECONFIG_DATA and KUBECONFIG_TOKEN/KUBECONFIG_HOST — use one or the other"
+    fi
+    if { [ -n "$kube_token_ref" ] && [ -z "$kube_host_ref" ]; } || \
+       { [ -z "$kube_token_ref" ] && [ -n "$kube_host_ref" ]; }; then
+        fail "Error: ${name}.env must have both KUBECONFIG_TOKEN and KUBECONFIG_HOST (found only one)"
+    fi
+
+    local reg_host_ref reg_user_ref reg_pass_ref
+    reg_host_ref=$(field "$envfile" REGISTRY_HOST)
+    reg_user_ref=$(field "$envfile" REGISTRY_USERNAME)
+    reg_pass_ref=$(field "$envfile" REGISTRY_PASSWORD)
+    if [ -n "${reg_host_ref}${reg_user_ref}${reg_pass_ref}" ] && \
+       { [ -z "$reg_host_ref" ] || [ -z "$reg_user_ref" ] || [ -z "$reg_pass_ref" ]; }; then
+        fail "Error: ${name}.env must have all of REGISTRY_HOST, REGISTRY_USERNAME, REGISTRY_PASSWORD (found a subset)"
+    fi
+
+    # Everything else: one op inject pass.
+    local remaining resolved line
+    remaining=$(grep -v '^KUBECONFIG_DATA=\|^KUBECONFIG_TOKEN=\|^KUBECONFIG_HOST=\|^REGISTRY_HOST=\|^REGISTRY_USERNAME=\|^REGISTRY_PASSWORD=' "$envfile" || true)
+    if [ -n "$remaining" ]; then
+        resolved=$(echo "$remaining" | op inject) || fail "Failed to resolve secrets for ${name}"
+        while IFS= read -r line; do
+            [[ -z "$line" || "$line" == \#* ]] && continue
+            OUT+=("$line")
+        done <<< "$resolved"
+    fi
+
+    if [ -n "$kube_data_ref" ] || [ -n "$kube_token_ref" ]; then
+        local tmpkube kube_b64 kube_token kube_host
+        tmpkube=$(mktemp /tmp/kubeconfig.XXXXXX)
+        TMPPATHS+=("$tmpkube")
+        if [ -n "$kube_data_ref" ]; then
+            if ! kube_b64=$(op read "$kube_data_ref") || ! echo "$kube_b64" | base64 -d > "$tmpkube"; then
+                fail "Failed to resolve kubeconfig for ${name}"
+            fi
+        else
+            if ! kube_token=$(echo "$kube_token_ref" | op inject) || [ -z "$kube_token" ]; then
+                fail "Failed to resolve kubeconfig for ${name}"
+            fi
+            if ! kube_host=$(echo "$kube_host_ref" | op inject) || [ -z "$kube_host" ]; then
+                fail "Failed to resolve kubeconfig for ${name}"
+            fi
+            cat > "$tmpkube" << KUBECFG
+apiVersion: v1
+kind: Config
+clusters:
+- cluster:
+    server: ${kube_host}
+    insecure-skip-tls-verify: true
+  name: cluster
+contexts:
+- context:
+    cluster: cluster
+    user: user
+  name: context
+current-context: context
+users:
+- name: user
+  user:
+    token: ${kube_token}
+KUBECFG
+        fi
+        chmod 600 "$tmpkube"
+        OUT+=("KUBECONFIG=${tmpkube}")
+    fi
+
+    if [ -n "$reg_host_ref" ]; then
+        local reg_host reg_user reg_pass tmpauth auth_b64
+        if ! reg_host=$(resolve_value "$reg_host_ref") || [ -z "$reg_host" ] || \
+           ! reg_user=$(resolve_value "$reg_user_ref") || [ -z "$reg_user" ] || \
+           ! reg_pass=$(resolve_value "$reg_pass_ref") || [ -z "$reg_pass" ]; then
+            fail "Failed to resolve registry credentials for ${name}"
+        fi
+        tmpauth=$(mktemp -d /tmp/registry-auth.XXXXXX)
+        TMPPATHS+=("$tmpauth")
+        # containers-auth.json(5) shares docker's config.json "auths" schema, so
+        # one file serves podman/buildah/skopeo (REGISTRY_AUTH_FILE) and docker
+        # (DOCKER_CONFIG points at the directory).
+        auth_b64=$(printf '%s:%s' "$reg_user" "$reg_pass" | base64 -w0)
+        cat > "${tmpauth}/config.json" << AUTHJSON
+{
+  "auths": {
+    "${reg_host}": {
+      "auth": "${auth_b64}"
+    }
+  }
+}
+AUTHJSON
+        chmod 600 "${tmpauth}/config.json"
+        OUT+=("REGISTRY_AUTH_FILE=${tmpauth}/config.json" "DOCKER_CONFIG=${tmpauth}")
+    fi
+}
+
+for name in "$@"; do resolve_one "$name"; done
+printf '%s\n' "${OUT[@]}"

@@ -148,11 +148,9 @@ KUBECONFIG_TOKEN=op://Homelab/test-cluster/token
 KUBECONFIG_HOST=https://api.test-cluster.example.com:6443/?scope=admin
 EOF
 
-# Override the envdir used by use() for testing.
-# Redefine use() to point at our test envdir instead of the real one.
-_original_use=$(declare -f use)
-# shellcheck disable=SC2001
-eval "$(echo "$_original_use" | sed "s|/workspace/igou-devenv/envs|$TESTDIR/envs|g")"
+# Point use() at the test envdir and at this checkout's resolver.
+export IGOU_DEVENV="$REPO_DIR"
+export IGOU_ENVDIR="$TESTDIR/envs"
 
 # =========================================================================
 #  Tests: Shell function existence

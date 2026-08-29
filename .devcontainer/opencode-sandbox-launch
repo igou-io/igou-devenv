@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# shellcheck disable=SC2011,SC2054
+# shellcheck disable=SC2054
 # Launch opencode inside a hardened rootless podman container for use as an
 # ADDITIONAL t3 provider instance (it does NOT replace the default opencode).
 #
@@ -42,80 +42,47 @@ done
 
 # ---------------------------------------------------------------------------
 # Resolve the profile's credentials on the host (op stays out of the container)
+# via bin/resolve-profile — the single shared resolver (adr/0001). Baked copies
+# of this launcher live in ~/.local/bin; the resolver comes from the workspace
+# checkout (or RESOLVE_PROFILE / PATH).
 # ---------------------------------------------------------------------------
+resolve_profile_bin() {
+    if [ -n "${RESOLVE_PROFILE:-}" ]; then echo "$RESOLVE_PROFILE"; return; fi
+    local here; here="$(dirname "$(readlink -f "$0")")"
+    for c in "$here/resolve-profile" "$here/../bin/resolve-profile" /workspace/igou-devenv/bin/resolve-profile; do
+        [ -x "$c" ] && { echo "$c"; return; }
+    done
+    command -v resolve-profile
+}
+
 ENV_ARGS=()
 TMPFILES=()
-cleanup() { for f in "${TMPFILES[@]:-}"; do [ -n "$f" ] && rm -f "$f"; done; }
+MOUNT_KUBE=""
+MOUNT_AUTH=""
+cleanup() { for f in "${TMPFILES[@]:-}"; do [ -n "$f" ] && rm -rf "$f"; done; }
 trap cleanup EXIT
 
 if [ "$PROFILE" != "none" ] && [ -n "$PROFILE" ]; then
-    envfile="${ENVDIR}/${PROFILE}.env"
-    if [ ! -f "$envfile" ]; then
-        log "profile '$PROFILE' not found ($envfile)"
-        log "available: $(ls "${ENVDIR}"/*.env 2>/dev/null | xargs -n1 basename 2>/dev/null | sed 's/\.env$//' | tr '\n' ' ')"
+    RESOLVER=$(resolve_profile_bin) || { log "resolve-profile not found"; exit 1; }
+    # Comma-separated PROFILE stacks several env files (later wins).
+    IFS=, read -r -a PROFILES <<< "$PROFILE"
+    if ! resolved=$(IGOU_ENVDIR="$ENVDIR" "$RESOLVER" "${PROFILES[@]}" 2> >(sed 's/^/opencode-sandbox-launch: /' >&2)); then
         exit 1
     fi
-
-    # op runs in Connect mode from files when no OP_* env is set (t3 carries
-    # none). Export the token the way ~/.bashrc does so `op inject` can resolve.
-    if [ -z "${OP_CONNECT_TOKEN:-}" ] && [ -z "${OP_SERVICE_ACCOUNT_TOKEN:-}" ] \
-       && [ -f "$HOME/.config/op/connect-host" ] && [ -f "$HOME/.config/op/connect-token" ]; then
-        OP_CONNECT_HOST="$(cat "$HOME/.config/op/connect-host")"; export OP_CONNECT_HOST
-        OP_CONNECT_TOKEN="$(cat "$HOME/.config/op/connect-token")"; export OP_CONNECT_TOKEN
-    fi
-
-    kubeconfig_ref=$(grep '^KUBECONFIG_DATA=' "$envfile" | head -1 | cut -d= -f2- || true)
-    kubeconfig_token_ref=$(grep '^KUBECONFIG_TOKEN=' "$envfile" | head -1 | cut -d= -f2- || true)
-    kubeconfig_host_ref=$(grep '^KUBECONFIG_HOST=' "$envfile" | head -1 | cut -d= -f2- || true)
-
-    if [ -n "$kubeconfig_ref" ] && { [ -n "$kubeconfig_token_ref" ] || [ -n "$kubeconfig_host_ref" ]; }; then
-        log "profile '$PROFILE' has both KUBECONFIG_DATA and KUBECONFIG_TOKEN/HOST — use one"
-        exit 1
-    fi
-    if { [ -n "$kubeconfig_token_ref" ] && [ -z "$kubeconfig_host_ref" ]; } || \
-       { [ -z "$kubeconfig_token_ref" ] && [ -n "$kubeconfig_host_ref" ]; }; then
-        log "profile '$PROFILE' must set both KUBECONFIG_TOKEN and KUBECONFIG_HOST"
-        exit 1
-    fi
-
-    remaining=$(grep -v '^KUBECONFIG_DATA=\|^KUBECONFIG_TOKEN=\|^KUBECONFIG_HOST=' "$envfile" || true)
-    if [ -n "$remaining" ]; then
-        resolved=$(echo "$remaining" | op inject) || { log "op inject failed for '$PROFILE'"; exit 1; }
-        while IFS= read -r line; do
-            [[ -z "$line" || "$line" == \#* ]] && continue
-            ENV_ARGS+=("-e" "$line")
-        done <<< "$resolved"
-    fi
-
-    if [ -n "$kubeconfig_ref" ]; then
-        tmpkube=$(mktemp /tmp/kubeconfig.XXXXXX); TMPFILES+=("$tmpkube")
-        op read "$kubeconfig_ref" | base64 -d > "$tmpkube"
-        ENV_ARGS+=("-e" "KUBECONFIG=/tmp/kubeconfig")
-    elif [ -n "$kubeconfig_token_ref" ]; then
-        tmpkube=$(mktemp /tmp/kubeconfig.XXXXXX); TMPFILES+=("$tmpkube")
-        kube_token=$(echo "$kubeconfig_token_ref" | op inject)
-        kube_host=$(echo "$kubeconfig_host_ref" | op inject)
-        cat > "$tmpkube" << KUBECFG
-apiVersion: v1
-kind: Config
-clusters:
-- cluster:
-    server: ${kube_host}
-    insecure-skip-tls-verify: true
-  name: cluster
-contexts:
-- context:
-    cluster: cluster
-    user: user
-  name: context
-current-context: context
-users:
-- name: user
-  user:
-    token: ${kube_token}
-KUBECFG
-        ENV_ARGS+=("-e" "KUBECONFIG=/tmp/kubeconfig")
-    fi
+    while IFS= read -r line; do
+        [ -z "$line" ] && continue
+        case "$line" in
+            KUBECONFIG=*)
+                MOUNT_KUBE="${line#KUBECONFIG=}"; TMPFILES+=("$MOUNT_KUBE")
+                ENV_ARGS+=("-e" "KUBECONFIG=/tmp/kubeconfig") ;;
+            REGISTRY_AUTH_FILE=*)
+                ENV_ARGS+=("-e" "REGISTRY_AUTH_FILE=/tmp/registry-auth/config.json") ;;
+            DOCKER_CONFIG=*)
+                MOUNT_AUTH="${line#DOCKER_CONFIG=}"; TMPFILES+=("$MOUNT_AUTH")
+                ENV_ARGS+=("-e" "DOCKER_CONFIG=/tmp/registry-auth") ;;
+            *)  ENV_ARGS+=("-e" "$line") ;;
+        esac
+    done <<< "$resolved"
 fi
 
 # ---------------------------------------------------------------------------
@@ -153,9 +120,8 @@ mkdir -p "$OPENCODE_CONFIG" "$OPENCODE_STATE"
 RUN_ARGS+=(-v "$OPENCODE_CONFIG:/home/igou/.config/opencode:Z")
 RUN_ARGS+=(-v "$OPENCODE_STATE:/home/igou/.local/share/opencode:Z")
 
-for f in "${TMPFILES[@]:-}"; do
-    [ -n "$f" ] && RUN_ARGS+=(-v "$f:/tmp/kubeconfig:ro,Z")
-done
+[ -n "$MOUNT_KUBE" ] && RUN_ARGS+=(-v "$MOUNT_KUBE:/tmp/kubeconfig:ro,Z")
+[ -n "$MOUNT_AUTH" ] && RUN_ARGS+=(-v "$MOUNT_AUTH:/tmp/registry-auth:ro,Z")
 if [ ${#ENV_ARGS[@]} -gt 0 ]; then
     RUN_ARGS+=("${ENV_ARGS[@]}")
 fi
