@@ -464,6 +464,14 @@ Profile keys the launcher interprets (on top of the ones `resolve-profile` handl
 | `PERMISSIONS=readonly\|guarded` | per-driver tool-permission layer from `envs/permissions/<level>/` (deny vs. ask on cluster-mutating commands) |
 | `INCLUDE=a,b` | bundle: resolve those profiles first. Kubeconfigs merge into one `KUBECONFIG` list with a context per profile (`kubectl --context rk8s-cluster-reader`); first one is current |
 
+**In-cluster (no 1Password)**: the same `envs/*.env` format works with literal values —
+an ExternalSecret renders the files into a pod (e.g. `/etc/agent/envs`) and
+`resolve-profile` skips `op` when no `op://` reference is present. The image bakes
+`~/.bashrc`, `~/.bashrc.d/` and `resolve-profile`; `05-agent-profile.sh` activates
+`AGENT_PROFILE` from `AGENT_PROFILE_ENVDIR` (default `/etc/agent/envs`) once per pod and
+caches the exports in `/tmp`. This is how Hermes session pods get the `read-only`
+bundle (igou-openshift `applications/hermes-sre`).
+
 `envs/read-only.env` is the canonical bundle (`ocp-cluster-reader` + `rk8s-cluster-reader` + `routeros-ro` + `truenas-ro`, `PERMISSIONS=readonly`): one session that can inspect every cluster (`kubectl config get-contexts`), read the RouterOS fleet through the `mktxp` API identity (`librouteros`, api-ssl 8729; the device refuses writes) and read TrueNAS as `agent-ro` (`READONLY_ADMIN`) over the JSON-RPC WebSocket API (`websockets`; REST `/api/v2.0` is FULL_ADMIN-only on 25.x).
 
 ```bash

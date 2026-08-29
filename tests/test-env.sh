@@ -895,6 +895,28 @@ _left=0; for _f in $_files; do [ -e "$_f" ] && _left=$((_left+1)); done
 if [ "$_left" = "0" ] && [ -z "${KUBECONFIG:-}" ]; then ok "bundle: unuse removes every temp kubeconfig"; else fail "bundle: unuse removes every temp kubeconfig ($_left left)"; fi
 
 # =========================================================================
+#  In-cluster mode: literal env files, no op binary, AGENT_PROFILE hook
+# =========================================================================
+echo ""
+echo "==> Testing op-less resolution + AGENT_PROFILE hook..."
+_ic=$(mktemp -d); mkdir -p "$_ic/envs" "$_ic/bin"
+printf 'KUBECONFIG_TOKEN=literal-token\nKUBECONFIG_HOST=https://a:6443\nPERMISSIONS=readonly\n' > "$_ic/envs/ocp-cluster-reader.env"
+printf 'ROUTEROS_USERNAME=mktxp\n' > "$_ic/envs/routeros-ro.env"
+printf 'INCLUDE=ocp-cluster-reader,routeros-ro\n' > "$_ic/envs/read-only.env"
+printf '#!/bin/sh\necho "op must not be called" >&2; exit 1\n' > "$_ic/bin/op"; chmod +x "$_ic/bin/op"
+_out=$(PATH="$_ic/bin:/usr/bin:/bin" IGOU_ENVDIR="$_ic/envs" "$REPO_DIR/bin/resolve-profile" read-only 2>&1)
+if grep -q '^ROUTEROS_USERNAME=mktxp$' <<< "$_out" && grep -q '^KUBECONFIG=' <<< "$_out" && ! grep -q 'op must not' <<< "$_out"; then ok "literal env files resolve without op"; else fail "literal env files resolve without op ($_out)"; fi
+grep '^KUBECONFIG=' <<< "$_out" | cut -d= -f2 | tr ':' '\n' | xargs rm -f
+_hook=$(env -i PATH="/usr/bin:/bin:$REPO_DIR/bin" HOME="$_ic" AGENT_PROFILE=read-only AGENT_PROFILE_ENVDIR="$_ic/envs" AGENT_PROFILE_CACHE="$_ic/cache.env" \
+    bash -c "source '$REPO_DIR/dotfiles/.bashrc.d/05-agent-profile.sh'; echo \"\$AGENT_PROFILE_ACTIVE \${KUBECONFIG:+kube} \$ROUTEROS_USERNAME\"")
+if [ "$_hook" = "1 kube mktxp" ]; then ok "AGENT_PROFILE hook exports the profile"; else fail "AGENT_PROFILE hook exports the profile (got: $_hook)"; fi
+if [ "$(stat -c %a "$_ic/cache.env" 2>/dev/null)" = "600" ]; then ok "hook cache is 0600"; else fail "hook cache is 0600"; fi
+grep -oE '/tmp/kubeconfig\.[A-Za-z0-9]+' "$_ic/cache.env" | xargs rm -f 2>/dev/null
+_hook2=$(env -i PATH="/usr/bin:/bin" HOME="$_ic" bash -c "source '$REPO_DIR/dotfiles/.bashrc.d/05-agent-profile.sh'; echo \"\${AGENT_PROFILE_ACTIVE:-none}\"")
+if [ "$_hook2" = "none" ]; then ok "hook is a no-op without AGENT_PROFILE"; else fail "hook is a no-op without AGENT_PROFILE"; fi
+rm -rf "$_ic"
+
+# =========================================================================
 #  Real env catalog hygiene: every envs/*.env ends with a newline and has one
 #  KEY=VALUE per line (a missing trailing newline once glued an appended
 #  PERMISSIONS= onto KUBECONFIG_HOST and broke the synthesized kubeconfig).

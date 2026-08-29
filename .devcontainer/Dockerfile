@@ -425,6 +425,15 @@ COPY --chown=igou:igou .devcontainer/opencode-sandbox-launch /home/igou/.local/b
 # t3 provider instances with a fixed credential scope; opencode-sandbox-launch
 # is now a back-compat shim over it. See adr/0006-scoped-agent-sessions.md.
 COPY --chown=igou:igou .devcontainer/agent-sandbox-launch /home/igou/.local/bin/agent-sandbox-launch
+# Shell functions + the profile resolver baked into the image so NON-devcontainer
+# consumers (Hermes kubernetes-backend session pods run this image with
+# BASH_ENV=/home/igou/.bashrc and no /workspace/igou-devenv checkout) get
+# use()/resolve-profile and the AGENT_PROFILE hook (dotfiles/.bashrc.d/05-agent-profile.sh)
+# that activates an ExternalSecret-rendered env catalog. post-create.sh
+# re-copies the same files in the devcontainer, so both paths stay identical.
+COPY --chown=igou:igou dotfiles/.bashrc /home/igou/.bashrc
+COPY --chown=igou:igou dotfiles/.bashrc.d/ /home/igou/.bashrc.d/
+COPY --chown=igou:igou bin/resolve-profile /home/igou/.local/bin/resolve-profile
 USER igou
 RUN --mount=type=secret,id=github_token set -eux; \
     ARCH_RAW=$(uname -m); \
@@ -460,7 +469,7 @@ RUN --mount=type=secret,id=github_token set -eux; \
     mkdir -p "$DEST" "$HOME/.local/bin"; \
     tar -xzf "$TARBALL" -C "$DEST"; \
     chmod +x "$DEST/opencode"; \
-    chmod +x "$HOME/.local/bin/opencode-sandbox" "$HOME/.local/bin/opencode-sandbox-launch" "$HOME/.local/bin/agent-sandbox-launch"; \
+    chmod +x "$HOME/.local/bin/opencode-sandbox" "$HOME/.local/bin/opencode-sandbox-launch" "$HOME/.local/bin/agent-sandbox-launch" "$HOME/.local/bin/resolve-profile"; \
     ln -sfn "$HOME/.local/bin/opencode-sandbox" "$HOME/.local/bin/opencode"; \
     cd / && rm -rf "$WORK"; \
     # Verify the real binary directly: the build environment may not permit user
