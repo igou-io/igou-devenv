@@ -38,14 +38,15 @@ exit 1
 GHAPP_EOF
 chmod +x "$TESTDIR/bin/ghapp"
 
-# If use() is not already defined (not running inside devcontainer), source
-# the function files from dotfiles/.bashrc.d directly.
-if ! type -t use &>/dev/null; then
-    for _rc in "$REPO_DIR"/dotfiles/.bashrc.d/*.sh; do
-        # shellcheck disable=SC1090
-        source "$_rc"
-    done
-    unset _rc
+# Always source the function files from dotfiles/.bashrc.d: the REPO copy is
+# what is under test, even when the calling shell already has ~/.bashrc.d's
+# (possibly older) definitions loaded.
+for _rc in "$REPO_DIR"/dotfiles/.bashrc.d/*.sh; do
+    # shellcheck disable=SC1090
+    source "$_rc"
+done
+unset _rc
+if true; then
     # Provide a minimal __prompt_command and PROMPT_COMMAND for function-existence tests
     if ! type -t __prompt_command &>/dev/null; then
         __prompt_command() { :; }
@@ -135,6 +136,10 @@ EOF
 cat > "$TESTDIR/envs/bad-kubeconfig.env" << 'EOF'
 KUBECONFIG_DATA=op://Homelab/missing/kubeconfig
 AWS_DEFAULT_REGION=us-east-1
+EOF
+
+cat > "$TESTDIR/envs/bundle.env" << 'EOF'
+INCLUDE=token-kubeconfig,other-kubeconfig,simple
 EOF
 
 cat > "$TESTDIR/envs/bad-token.env" << 'EOF'
@@ -872,6 +877,22 @@ if type -t ght >/dev/null; then
 else
     fail "ght() available for token tests"
 fi
+
+# =========================================================================
+#  Bundles (INCLUDE=): several kubeconfigs merge into one KUBECONFIG list
+# =========================================================================
+echo ""
+echo "==> Testing INCLUDE bundles..."
+unuse >/dev/null 2>&1
+use bundle > /dev/null 2>&1
+if [[ "${KUBECONFIG:-}" == *:* ]] && [ "$(tr ':' '\n' <<< "$KUBECONFIG" | wc -l)" = "2" ]; then ok "bundle: KUBECONFIG is a two-entry list"; else fail "bundle: KUBECONFIG is a two-entry list (got: ${KUBECONFIG:-unset})"; fi
+_ctx=$(kubectl config get-contexts -o name 2>/dev/null | tr '\n' ' ')
+if [[ "$_ctx" == *"token-kubeconfig"* ]]; then ok "bundle: synthesized context named after profile"; else fail "bundle: synthesized context named after profile (got: $_ctx)"; fi
+if [ "${AWS_DEFAULT_REGION:-}" = "us-east-1" ]; then ok "bundle: included plain profile vars exported"; else fail "bundle: included plain profile vars exported"; fi
+_files="${KUBECONFIG//:/ }"
+unuse bundle > /dev/null 2>&1
+_left=0; for _f in $_files; do [ -e "$_f" ] && _left=$((_left+1)); done
+if [ "$_left" = "0" ] && [ -z "${KUBECONFIG:-}" ]; then ok "bundle: unuse removes every temp kubeconfig"; else fail "bundle: unuse removes every temp kubeconfig ($_left left)"; fi
 
 # =========================================================================
 #  Real env catalog hygiene: every envs/*.env ends with a newline and has one

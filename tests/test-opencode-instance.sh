@@ -58,8 +58,8 @@ assert_lacks "-e KUBECONFIG"         "$out" "no credentials injected"
 
 echo "==> profile=ocp-cluster-reader (read-only kubeconfig injected)"
 out=$(run_dry ocp-cluster-reader)
-assert_has  "-e KUBECONFIG=/tmp/kubeconfig" "$out" "kubeconfig env injected"
-assert_has  "/tmp/kubeconfig:ro"     "$out" "kubeconfig mounted read-only"
+assert_has  "-e KUBECONFIG=/tmp/kubeconfig-0" "$out" "kubeconfig env injected"
+assert_has  "/tmp/kubeconfig-0:ro"   "$out" "kubeconfig mounted read-only"
 assert_lacks ".config/op:"           "$out" "1Password still NOT mounted"
 assert_has  "serve --hostname=127.0.0.1 --port=5000" "$out" "still forwards serve args"
 

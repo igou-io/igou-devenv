@@ -92,7 +92,7 @@ fi
 RESOLVE_PROFILE="${RESOLVE_PROFILE:-$(dirname "$(readlink -f "$0")")/resolve-profile}"
 ENV_ARGS=()
 TMPFILES=()
-MOUNT_KUBE=""
+KUBE_MOUNTS=()
 MOUNT_AUTH=""
 
 cleanup() {
@@ -108,10 +108,14 @@ if [ ${#ENVS[@]} -gt 0 ]; then
         [ -z "$line" ] && continue
         case "$line" in
             KUBECONFIG=*)
-                # Temp kubeconfig on the host -> read-only mount at a fixed path
-                MOUNT_KUBE="${line#KUBECONFIG=}"
-                TMPFILES+=("$MOUNT_KUBE")
-                ENV_ARGS+=("-e" "KUBECONFIG=/tmp/kubeconfig")
+                # a:b list of temp kubeconfigs -> one read-only mount each
+                kc_in=(); kc_i=0
+                IFS=: read -r -a kc_paths <<< "${line#KUBECONFIG=}"
+                for kc in "${kc_paths[@]}"; do
+                    TMPFILES+=("$kc"); KUBE_MOUNTS+=(-v "$kc:/tmp/kubeconfig-${kc_i}:ro,Z")
+                    kc_in+=("/tmp/kubeconfig-${kc_i}"); kc_i=$((kc_i+1))
+                done
+                ENV_ARGS+=("-e" "KUBECONFIG=$(IFS=:; echo "${kc_in[*]}")")
                 ;;
             REGISTRY_AUTH_FILE=*)
                 ENV_ARGS+=("-e" "REGISTRY_AUTH_FILE=/tmp/registry-auth/config.json")
@@ -198,7 +202,7 @@ CURSOR_CONFIG="${HOME}/.config/cursor"
 mkdir -p "$CURSOR_CONFIG"
 RUN_ARGS+=(-v "$CURSOR_CONFIG:/home/igou/.config/cursor:ro,Z")
 
-[ -n "$MOUNT_KUBE" ] && RUN_ARGS+=(-v "$MOUNT_KUBE:/tmp/kubeconfig:ro,Z")
+[ ${#KUBE_MOUNTS[@]} -gt 0 ] && RUN_ARGS+=("${KUBE_MOUNTS[@]}")
 [ -n "$MOUNT_AUTH" ] && RUN_ARGS+=(-v "$MOUNT_AUTH:/tmp/registry-auth:ro,Z")
 
 # --- Environment variables from resolved envs ---

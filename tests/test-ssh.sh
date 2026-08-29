@@ -30,15 +30,13 @@ mkdir -p "$TESTDIR/bin"
 cp "$SCRIPT_DIR/mock-op.sh" "$TESTDIR/bin/op"
 export PATH="$TESTDIR/bin:$PATH"
 
-# If ssh-use is not already defined (not running in an interactive devcontainer
-# shell), source the function files from dotfiles/.bashrc.d directly.
-if ! type -t ssh-use &>/dev/null; then
-    for _rc in "$REPO_DIR"/dotfiles/.bashrc.d/*.sh; do
-        # shellcheck disable=SC1090
-        source "$_rc"
-    done
-    unset _rc
-fi
+# Always source the REPO's dotfiles/.bashrc.d (what is under test), even if the
+# calling shell already carries ~/.bashrc.d's definitions.
+for _rc in "$REPO_DIR"/dotfiles/.bashrc.d/*.sh; do
+    # shellcheck disable=SC1090
+    source "$_rc"
+done
+unset _rc
 
 # Throwaway keypairs served through the mock via file: indirection (SSH keys
 # are multi-line; the secrets file itself is line-based)

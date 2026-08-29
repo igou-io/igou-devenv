@@ -447,9 +447,9 @@ opencode instances need one binary per profile (t3 keeps one shared server per
 `post-create.sh` regenerates a shim for every kubeconfig-bearing profile on each
 build (`~/.local/bin` is ephemeral), so instances keep working across rebuilds.
 
-Current instance set (`~/.t3/userdata/settings.json`): `Claude ▸ OCP read-only`,
-`Claude ▸ rk8s read-only`, `Claude ▸ rk8s admin + ansible`, `Codex ▸ OCP read-only`,
-`Codex ▸ rk8s read-only`, `opencode ▸ OCP read-only`, `opencode ▸ rk8s read-only`.
+Current instance set (`~/.t3/userdata/settings.json`): `Claude ▸ read-only`,
+`Codex ▸ read-only`, `opencode ▸ read-only` (all on the `read-only` bundle) and
+`Claude ▸ rk8s admin + ansible`.
 Unscoped sessions get their guidance from `/workspace/AGENTS.md`
 ("Credentials and session scope"): check `$AGENT_PROFILE`, else `use <profile> && …`.
 
@@ -463,6 +463,9 @@ Profile keys the launcher interprets (on top of the ones `resolve-profile` handl
 |-----|--------|
 | `SSH_KEYS=ansible,other` | keys read from `op://lab_ssh/<item>` into a **per-session** `ssh-agent` inside the container |
 | `PERMISSIONS=readonly\|guarded` | per-driver tool-permission layer from `envs/permissions/<level>/` (deny vs. ask on cluster-mutating commands) |
+| `INCLUDE=a,b` | bundle: resolve those profiles first. Kubeconfigs merge into one `KUBECONFIG` list with a context per profile (`kubectl --context rk8s-cluster-reader`); first one is current |
+
+`envs/read-only.env` is the canonical bundle (`ocp-cluster-reader` + `rk8s-cluster-reader` + `routeros-ro`, `PERMISSIONS=readonly`): one session that can inspect every cluster (`kubectl config get-contexts`) and read the RouterOS fleet through the `mktxp` API identity (`librouteros`, api-ssl 8729; the device refuses writes).
 
 ```bash
 agent-sandbox-launch --profiles ocp-cluster-reader --shell          # poke around inside the scope

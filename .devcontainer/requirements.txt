@@ -14,3 +14,5 @@ jmespath==1.1.0
 lxml==6.1.1
 paramiko==5.0.0
 scp==0.16.1
+# RouterOS API client for the read-only routeros-ro profile (community.routeros.api / direct use)
+librouteros==3.4.1

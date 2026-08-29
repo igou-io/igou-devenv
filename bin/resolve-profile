@@ -22,12 +22,17 @@
 #                                  (both required; mutually exclusive with _DATA)
 #   REGISTRY_HOST/_USERNAME/_PASSWORD  containers-auth.json in a temp dir
 #                                  (all three required)
+#   INCLUDE=a,b                    resolve those profiles first (bundles, e.g.
+#                                  read-only = ocp + rk8s + routeros readers)
 # Reserved passthrough keys (plain values the launchers interpret; harmless as
 # env vars): SSH_KEYS, PERMISSIONS.
 #
 # Output contract:
 #   KEY=VALUE            one per resolved key, in file order, profiles in arg order
-#   KUBECONFIG=<path>    temp file (mode 600) when a kubeconfig strategy is set
+#   KUBECONFIG=<path>[:<path>...]  temp files (mode 600), one per kubeconfig
+#                        profile, joined the way kubectl merges them. Contexts
+#                        are named after the profile (ocp-cluster-reader, ...);
+#                        the FIRST profile's context is current.
 #   REGISTRY_AUTH_FILE=<dir>/config.json and DOCKER_CONFIG=<dir> for registry auth
 # Temp files belong to the caller after a successful exit. On ANY failure nothing
 # is printed to stdout, every temp file created so far is removed, the reason
@@ -55,6 +60,8 @@ fi
 
 OUT=()
 TMPPATHS=()
+KUBEPATHS=()
+SEEN=()
 fail() {
     echo "$1" >&2
     for p in "${TMPPATHS[@]:-}"; do [ -n "$p" ] && rm -rf "$p"; done
@@ -73,11 +80,21 @@ field() { grep -m1 "^${2}=" "$1" | cut -d= -f2- || true; }
 
 resolve_one() {
     local name="$1" envfile="${ENVDIR}/${1}.env"
+    local seen; for seen in "${SEEN[@]:-}"; do [ "$seen" = "$name" ] && return 0; done
+    SEEN+=("$name")
     if [ ! -f "$envfile" ]; then
         echo "No env file: $envfile" >&2
         echo "Available:" >&2
         list_profiles >&2
         exit 1
+    fi
+
+    # Bundles: resolve included profiles first (their vars come before ours).
+    local include inc
+    include=$(field "$envfile" INCLUDE)
+    if [ -n "$include" ]; then
+        IFS=, read -r -a inc <<< "$include"
+        local i; for i in "${inc[@]}"; do resolve_one "$i"; done
     fi
 
     local kube_data_ref kube_token_ref kube_host_ref
@@ -103,7 +120,7 @@ resolve_one() {
 
     # Everything else: one op inject pass.
     local remaining resolved line
-    remaining=$(grep -v '^KUBECONFIG_DATA=\|^KUBECONFIG_TOKEN=\|^KUBECONFIG_HOST=\|^REGISTRY_HOST=\|^REGISTRY_USERNAME=\|^REGISTRY_PASSWORD=' "$envfile" || true)
+    remaining=$(grep -v '^KUBECONFIG_DATA=\|^KUBECONFIG_TOKEN=\|^KUBECONFIG_HOST=\|^REGISTRY_HOST=\|^REGISTRY_USERNAME=\|^REGISTRY_PASSWORD=\|^INCLUDE=' "$envfile" || true)
     if [ -n "$remaining" ]; then
         resolved=$(echo "$remaining" | op inject) || fail "Failed to resolve secrets for ${name}"
         while IFS= read -r line; do
@@ -127,6 +144,8 @@ resolve_one() {
             if ! kube_host=$(echo "$kube_host_ref" | op inject) || [ -z "$kube_host" ]; then
                 fail "Failed to resolve kubeconfig for ${name}"
             fi
+            # Names carry the profile so several kubeconfigs merge cleanly
+            # under one KUBECONFIG list (kubectl --context ocp-cluster-reader).
             cat > "$tmpkube" << KUBECFG
 apiVersion: v1
 kind: Config
@@ -134,21 +153,21 @@ clusters:
 - cluster:
     server: ${kube_host}
     insecure-skip-tls-verify: true
-  name: cluster
+  name: ${name}
 contexts:
 - context:
-    cluster: cluster
-    user: user
-  name: context
-current-context: context
+    cluster: ${name}
+    user: ${name}
+  name: ${name}
+current-context: ${name}
 users:
-- name: user
+- name: ${name}
   user:
     token: ${kube_token}
 KUBECFG
         fi
         chmod 600 "$tmpkube"
-        OUT+=("KUBECONFIG=${tmpkube}")
+        KUBEPATHS+=("$tmpkube")
     fi
 
     if [ -n "$reg_host_ref" ]; then
@@ -179,4 +198,8 @@ AUTHJSON
 }
 
 for name in "$@"; do resolve_one "$name"; done
-printf '%s\n' "${OUT[@]}"
+if [ ${#KUBEPATHS[@]} -gt 0 ]; then
+    OUT+=("KUBECONFIG=$(IFS=:; echo "${KUBEPATHS[*]}")")
+fi
+[ ${#OUT[@]} -gt 0 ] && printf '%s\n' "${OUT[@]}"
+exit 0
