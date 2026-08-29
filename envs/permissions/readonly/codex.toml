@@ -1,0 +1,5 @@
+# readonly: no writes to the workspace, every command outside the read-only
+# sandbox needs approval (surfaces in the t3 UI). The cluster token's RBAC is
+# the hard boundary; this is defense in depth.
+sandbox_mode = "read-only"
+approval_policy = "on-request"

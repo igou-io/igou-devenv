@@ -1,0 +1,4 @@
+# guarded: workspace edits allowed, anything beyond (network-affecting cluster
+# mutations run as shell commands) asks first.
+sandbox_mode = "workspace-write"
+approval_policy = "on-request"

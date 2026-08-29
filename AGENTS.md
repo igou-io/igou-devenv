@@ -103,7 +103,7 @@ anyway.
 └── requirements.txt     # pinned Python packages
 dotfiles/                # .bashrc, .bashrc.d/ (shell functions, sourced non-interactively too), tmux, code-server config, workspace file
 bin/                     # local helper scripts and wrapper launchers
-envs/                    # 1Password env files with op:// references only
+envs/                    # 1Password env files with op:// references only; envs/permissions/ = per-driver tool-permission levels
 tests/                   # devcontainer and helper-script tests
 docs/                    # runtime model docs and design records
 mise.toml / mise.lock    # mise-managed tool versions and per-asset checksums
@@ -245,5 +245,5 @@ Manual release targets are `make release`, `make release-dry-run`, and
 ## Linting
 
 ```bash
-shellcheck .devcontainer/post-create.sh .devcontainer/post-start.sh .devcontainer/init.sh dotfiles/.bashrc dotfiles/.bashrc.d/*.sh tests/*.sh bin/resolve-profile bin/claude-run bin/cursor-run bin/opencode-run bin/ensure-ssh-agent .devcontainer/opencode-sandbox-launch
+shellcheck .devcontainer/post-create.sh .devcontainer/post-start.sh .devcontainer/init.sh dotfiles/.bashrc dotfiles/.bashrc.d/*.sh tests/*.sh bin/resolve-profile .devcontainer/agent-sandbox-launch bin/claude-run bin/cursor-run bin/opencode-run bin/ensure-ssh-agent .devcontainer/opencode-sandbox-launch
 ```

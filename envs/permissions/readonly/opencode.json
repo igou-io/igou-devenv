@@ -1,0 +1,33 @@
+{
+  "permission": {
+    "edit": "deny",
+    "bash": {
+      "*": "ask",
+      "git status*": "allow",
+      "git diff*": "allow",
+      "git log*": "allow",
+      "git show*": "allow",
+      "ls*": "allow",
+      "cat *": "allow",
+      "head *": "allow",
+      "tail *": "allow",
+      "grep*": "allow",
+      "rg *": "allow",
+      "find *": "allow",
+      "oc get*": "allow",
+      "oc describe*": "allow",
+      "oc logs*": "allow",
+      "oc whoami*": "allow",
+      "oc explain*": "allow",
+      "kubectl get*": "allow",
+      "kubectl describe*": "allow",
+      "kubectl logs*": "allow",
+      "argocd app get*": "allow",
+      "argocd app list*": "allow",
+      "argocd app diff*": "allow",
+      "helm list*": "allow",
+      "helm get*": "allow",
+      "helm template*": "allow"
+    }
+  }
+}
