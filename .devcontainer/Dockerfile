@@ -421,6 +421,10 @@ COPY --chown=igou:igou .devcontainer/opencode-1password-sandbox /home/igou/.loca
 # provider instance (does not replace the default opencode). Referenced by the
 # instance's binaryPath; see adr/0005-opencode-1password-sandbox.md.
 COPY --chown=igou:igou .devcontainer/opencode-sandbox-launch /home/igou/.local/bin/opencode-sandbox-launch
+# Driver-agnostic scoped-session launcher (claude / codex / opencode) backing
+# t3 provider instances with a fixed credential scope; opencode-sandbox-launch
+# is now a back-compat shim over it. See adr/0006-scoped-agent-sessions.md.
+COPY --chown=igou:igou .devcontainer/agent-sandbox-launch /home/igou/.local/bin/agent-sandbox-launch
 USER igou
 RUN --mount=type=secret,id=github_token set -eux; \
     ARCH_RAW=$(uname -m); \
@@ -456,7 +460,7 @@ RUN --mount=type=secret,id=github_token set -eux; \
     mkdir -p "$DEST" "$HOME/.local/bin"; \
     tar -xzf "$TARBALL" -C "$DEST"; \
     chmod +x "$DEST/opencode"; \
-    chmod +x "$HOME/.local/bin/opencode-sandbox" "$HOME/.local/bin/opencode-sandbox-launch"; \
+    chmod +x "$HOME/.local/bin/opencode-sandbox" "$HOME/.local/bin/opencode-sandbox-launch" "$HOME/.local/bin/agent-sandbox-launch"; \
     ln -sfn "$HOME/.local/bin/opencode-sandbox" "$HOME/.local/bin/opencode"; \
     cd / && rm -rf "$WORK"; \
     # Verify the real binary directly: the build environment may not permit user
