@@ -448,8 +448,7 @@ opencode instances need one binary per profile (t3 keeps one shared server per
 build (`~/.local/bin` is ephemeral), so instances keep working across rebuilds.
 
 Current instance set (`~/.t3/userdata/settings.json`): `Claude ▸ read-only`,
-`Codex ▸ read-only`, `opencode ▸ read-only` (all on the `read-only` bundle) and
-`Claude ▸ rk8s admin + ansible`.
+`Codex ▸ read-only`, `opencode ▸ read-only` (all on the `read-only` bundle).
 Unscoped sessions get their guidance from `/workspace/AGENTS.md`
 ("Credentials and session scope"): check `$AGENT_PROFILE`, else `use <profile> && …`.
 
@@ -465,7 +464,7 @@ Profile keys the launcher interprets (on top of the ones `resolve-profile` handl
 | `PERMISSIONS=readonly\|guarded` | per-driver tool-permission layer from `envs/permissions/<level>/` (deny vs. ask on cluster-mutating commands) |
 | `INCLUDE=a,b` | bundle: resolve those profiles first. Kubeconfigs merge into one `KUBECONFIG` list with a context per profile (`kubectl --context rk8s-cluster-reader`); first one is current |
 
-`envs/read-only.env` is the canonical bundle (`ocp-cluster-reader` + `rk8s-cluster-reader` + `routeros-ro`, `PERMISSIONS=readonly`): one session that can inspect every cluster (`kubectl config get-contexts`) and read the RouterOS fleet through the `mktxp` API identity (`librouteros`, api-ssl 8729; the device refuses writes).
+`envs/read-only.env` is the canonical bundle (`ocp-cluster-reader` + `rk8s-cluster-reader` + `routeros-ro` + `truenas-ro`, `PERMISSIONS=readonly`): one session that can inspect every cluster (`kubectl config get-contexts`), read the RouterOS fleet through the `mktxp` API identity (`librouteros`, api-ssl 8729; the device refuses writes) and read TrueNAS as `agent-ro` (`READONLY_ADMIN`) over the JSON-RPC WebSocket API (`websockets`; REST `/api/v2.0` is FULL_ADMIN-only on 25.x).
 
 ```bash
 agent-sandbox-launch --profiles ocp-cluster-reader --shell          # poke around inside the scope
