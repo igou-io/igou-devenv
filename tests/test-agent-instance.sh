@@ -32,9 +32,10 @@ export PATH="$TESTDIR/bin:$PATH"
 
 # Isolated HOME so per-scope homes and shims land in the test dir.
 export HOME="$TESTDIR/home"
-mkdir -p "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode"
+mkdir -p "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" "$HOME/.t3/userdata/attachments"
 echo '{"model":"opus","permissions":{"allow":["Bash(ls*)"]}}' > "$HOME/.claude/settings.json"
 echo '{"oauthAccount":"x"}' > "$HOME/.claude.json"
+echo '{"claudeAiOauth":{"accessToken":"x"}}' > "$HOME/.claude/.credentials.json"
 printf 'model_reasoning_effort = "high"\n' > "$HOME/.codex/config.toml"
 echo '{"tokens":"x"}' > "$HOME/.codex/auth.json"
 
@@ -73,12 +74,14 @@ assert_lacks ".config/op:"            "$out" "1Password NOT mounted"
 assert_lacks "-e KUBECONFIG"          "$out" "no credentials injected"
 assert_has  "-e AGENT_PROFILE=none"   "$out" "AGENT_PROFILE exported"
 assert_has  "/.claude:/home/igou/.claude:Z" "$out" "profile=none keeps the shared ~/.claude"
+assert_has  ".t3/userdata/attachments:" "$out" "t3 attachments dir mounted (add-dir target)"
+assert_has  "attachments:ro"           "$out" "t3 attachments mounted read-only"
 
 echo "==> claude: stdio, scoped home, permissions"
 out=$(run_dry ocp-cluster-reader --output-format stream-json --verbose)
 assert_has  " -i "                    "$out" "stdio: -i"
 assert_lacks " -it "                  "$out" "stdio: no tty"
-assert_lacks "--network=host"         "$out" "stdio: no host network"
+assert_has  "--network=host"          "$out" "host network (t3 MCP on 127.0.0.1:3773)"
 assert_lacks "--name"                 "$out" "stdio: no fixed container name (parallel sessions)"
 assert_has  "ghcr.io/igou-io/claude-code:latest claude --output-format stream-json --verbose" "$out" "forwards claude args verbatim"
 assert_has  "-e KUBECONFIG=/tmp/kubeconfig" "$out" "kubeconfig env injected"
@@ -95,6 +98,7 @@ else
     fail "settings.json = host settings merged with readonly fragment"
 fi
 [ -f "$CH/.claude-state.json" ] && ok "claude.json snapshot seeded" || fail "claude.json snapshot seeded"
+if [ -f "$CH/.credentials.json" ] && [ "$(stat -c %a "$CH/.credentials.json")" = "600" ]; then ok "OAuth credentials seeded into scoped home (0600)"; else fail "OAuth credentials seeded into scoped home (0600)"; fi
 
 echo "==> codex: inferred from app-server, CODEX_HOME, config overlay"
 out=$(run_dry ocp-cluster-reader app-server --listen stdio://)
