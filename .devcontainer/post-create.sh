@@ -72,4 +72,17 @@ ln -sfn /workspace/igou-devenv/bin /home/igou/bin
 # ---------------------------------------------------------------------------
 /workspace/igou-devenv/bin/link-skills
 
+# ---------------------------------------------------------------------------
+# Per-profile opencode shims for scoped t3 instances (adr/0006). t3 keeps one
+# shared `opencode serve` per binaryPath, so each profile needs its own
+# binary; ~/.local/bin is ephemeral, so regenerate on every build. One shim per
+# env profile that carries a kubeconfig (the ones worth an instance).
+# ---------------------------------------------------------------------------
+if [ -x /home/igou/.local/bin/agent-sandbox-launch ]; then
+    for envfile in /workspace/igou-devenv/envs/*.env; do
+        grep -qE '^KUBECONFIG_(DATA|TOKEN)=' "$envfile" || continue
+        /home/igou/.local/bin/agent-sandbox-launch --install-shim "$(basename "$envfile" .env)" 2>/dev/null || true
+    done
+fi
+
 echo "==> Setup complete!"

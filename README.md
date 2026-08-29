@@ -444,6 +444,14 @@ instance environment:
 opencode instances need one binary per profile (t3 keeps one shared server per
 `binaryPath`): `agent-sandbox-launch --install-shim ocp-cluster-reader` writes
 `~/.local/bin/agent-sandbox-launch-ocp-cluster-reader` to use as `binaryPath`.
+`post-create.sh` regenerates a shim for every kubeconfig-bearing profile on each
+build (`~/.local/bin` is ephemeral), so instances keep working across rebuilds.
+
+Current instance set (`~/.t3/userdata/settings.json`): `Claude ▸ OCP read-only`,
+`Claude ▸ rk8s read-only`, `Claude ▸ rk8s admin + ansible`, `Codex ▸ OCP read-only`,
+`Codex ▸ rk8s read-only`, `opencode ▸ OCP read-only`, `opencode ▸ rk8s read-only`.
+Unscoped sessions get their guidance from `/workspace/AGENTS.md`
+("Credentials and session scope"): check `$AGENT_PROFILE`, else `use <profile> && …`.
 
 Inside the session `oc`/`kubectl` work for exactly that identity, `op`/`use`/`ssh-use`
 do not exist, `AGENT_PROFILE` names the scope, and a scope note in the agent's
