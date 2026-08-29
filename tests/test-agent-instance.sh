@@ -149,6 +149,8 @@ S="$TESTDIR/shims/agent-sandbox-launch-ocp-cluster-reader"
 [ -x "$S" ] && ok "shim written + executable" || fail "shim written + executable"
 out=$("$S" --dry-run serve --port=1 2>&1)
 assert_has "--name opencode-instance-ocp-cluster-reader" "$out" "shim pins the profile"
+out=$("$S" --dry-run --version 2>&1)
+assert_has "ghcr.io/igou-io/opencode:latest opencode --version" "$out" "shim pins the opencode driver for t3 probes"
 
 echo "==> temp files cleaned"
 n=$(find /tmp -maxdepth 1 \( -name 'agent-ssh-keys.*' -o -name 'agent-scope.*' \) -newer "$TESTDIR/bin/podman" | wc -l)
