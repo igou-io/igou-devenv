@@ -62,6 +62,15 @@ EOF2
 cat > "$AGENT_SANDBOX_ENVDIR/bad-perms.env" << 'EOF2'
 PERMISSIONS=does-not-exist
 EOF2
+cat > "$AGENT_SANDBOX_ENVDIR/rk8s-cluster-reader.env" << 'EOF2'
+KUBECONFIG_TOKEN=op://awx/ocp/reader-token
+KUBECONFIG_HOST=https://cm3588-nas-01.igou.systems:6443
+PERMISSIONS=readonly
+EOF2
+cat > "$AGENT_SANDBOX_ENVDIR/read-only.env" << 'EOF2'
+INCLUDE=ocp-cluster-reader,rk8s-cluster-reader,ansible
+PERMISSIONS=readonly
+EOF2
 
 run_dry() { local p="$1"; shift; AGENT_SANDBOX_PROFILES="$p" "$LAUNCH" --dry-run "$@" 2>&1; }
 
@@ -84,8 +93,8 @@ assert_lacks " -it "                  "$out" "stdio: no tty"
 assert_has  "--network=host"          "$out" "host network (t3 MCP on 127.0.0.1:3773)"
 assert_lacks "--name"                 "$out" "stdio: no fixed container name (parallel sessions)"
 assert_has  "ghcr.io/igou-io/claude-code:latest claude --output-format stream-json --verbose" "$out" "forwards claude args verbatim"
-assert_has  "-e KUBECONFIG=/tmp/kubeconfig" "$out" "kubeconfig env injected"
-assert_has  "/tmp/kubeconfig:ro"      "$out" "kubeconfig mounted read-only"
+assert_has  "-e KUBECONFIG=/tmp/kubeconfig-0" "$out" "kubeconfig env injected"
+assert_has  "/tmp/kubeconfig-0:ro"    "$out" "kubeconfig mounted read-only"
 assert_lacks "PERMISSIONS="           "$out" "PERMISSIONS key not leaked as env"
 assert_has  ".claude-ocp-cluster-reader:/home/igou/.claude:Z" "$out" "per-scope claude home"
 CH="$HOME/.claude-ocp-cluster-reader"
@@ -130,6 +139,17 @@ assert_has  "ssh-agent"               "$out" "per-session ssh-agent started in c
 assert_lacks "ssh-agent.sock"         "$out" "host ssh-agent socket NOT mounted"
 assert_has  ".claude-ocp-cluster-reader-ansible:" "$out" "stacked scope slug in home"
 assert_lacks "SSH_KEYS="              "$out" "SSH_KEYS key not leaked as env"
+
+echo "==> bundle profile (INCLUDE): two kubeconfigs, one KUBECONFIG list"
+out=$(run_dry read-only)
+assert_has  "/tmp/kubeconfig-0:ro"    "$out" "first kubeconfig mounted"
+assert_has  "/tmp/kubeconfig-1:ro"    "$out" "second kubeconfig mounted"
+assert_has  "-e KUBECONFIG=/tmp/kubeconfig-0:/tmp/kubeconfig-1" "$out" "KUBECONFIG is the merged list"
+assert_has  "-e ANSIBLE_INVENTORY="   "$out" "included plain profile vars present"
+assert_has  "/tmp/agent-ssh-keys:ro"  "$out" "included SSH_KEYS honoured"
+assert_has  "-e AGENT_PROFILE=read-only" "$out" "bundle name is the scope"
+assert_has  ".claude-read-only:"      "$out" "bundle name is the home slug"
+if grep -q 'get-contexts' "$HOME/.claude-read-only/CLAUDE.md"; then ok "scope note explains multi-context KUBECONFIG"; else fail "scope note explains multi-context KUBECONFIG"; fi
 
 echo "==> explicit driver + shell"
 out=$(AGENT_SANDBOX_DRIVER=codex run_dry none --shell)

@@ -14,14 +14,17 @@ _use_sanitize() { echo "${1//-/_}"; }
 # files (issue #98). Each entry records its creator's $BASHPID in
 # _USE_TMP{KUBE,AUTH}_OWNER_<name>; only the creating shell deletes.
 _use_cleanup_all() {
-    local varname name owner_var
+    local varname name owner_var p prev
     while IFS='=' read -r varname _; do
         case "$varname" in
             _USE_TMPKUBE_OWNER_*|_USE_TMPAUTH_OWNER_*) continue ;;
             _USE_TMPKUBE_*)
                 name="${varname#_USE_TMPKUBE_}"
                 owner_var="_USE_TMPKUBE_OWNER_${name}"
-                [ "${!owner_var:-}" = "$BASHPID" ] && rm -f "${!varname}"
+                if [ "${!owner_var:-}" = "$BASHPID" ]; then
+                    prev="${!varname}"
+                    for p in ${prev//:/ }; do rm -f "$p"; done
+                fi
                 ;;
             _USE_TMPAUTH_*)
                 name="${varname#_USE_TMPAUTH_}"
@@ -37,9 +40,10 @@ trap _use_cleanup_all EXIT
 # previous one if THIS shell created it, then mark this shell as the owner so
 # only it deletes the path on EXIT/unuse (issue #98).
 _use_track_tmp() {
-    local tmpvar="_USE_TMP${1}_${2}" ownervar="_USE_TMP${1}_OWNER_${2}"
+    local tmpvar="_USE_TMP${1}_${2}" ownervar="_USE_TMP${1}_OWNER_${2}" old prev
     if [ -n "${!tmpvar:-}" ] && [ "${!ownervar:-}" = "$BASHPID" ]; then
-        rm -rf "${!tmpvar}"
+        prev="${!tmpvar}"
+        for old in ${prev//:/ }; do rm -rf "$old"; done
     fi
     export "$tmpvar=$3" "$ownervar=$BASHPID"
 }
@@ -69,7 +73,7 @@ use() {
         key="${line%%=*}"
         value="${line#*=}"
         case "$key" in
-            KUBECONFIG)    _use_track_tmp KUBE "$safe_name" "$value" ;;
+            KUBECONFIG)    _use_track_tmp KUBE "$safe_name" "$value" ;;   # may be a:b list
             DOCKER_CONFIG) _use_track_tmp AUTH "$safe_name" "$value"
                            echo "Registry auth written to ${value}/config.json (podman/docker)" ;;
         esac
@@ -128,7 +132,10 @@ unuse() {
     local tmpvar="_USE_TMPKUBE_${safe_name}"
     local ownervar="_USE_TMPKUBE_OWNER_${safe_name}"
     if [ -n "${!tmpvar:-}" ]; then
-        [ "${!ownervar:-}" = "$BASHPID" ] && rm -f "${!tmpvar}"
+        if [ "${!ownervar:-}" = "$BASHPID" ]; then
+            local p prev="${!tmpvar}"
+            for p in ${prev//:/ }; do rm -f "$p"; done
+        fi
         unset "$tmpvar"
     fi
     unset "$ownervar"
