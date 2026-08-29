@@ -16,3 +16,5 @@ paramiko==5.0.0
 scp==0.16.1
 # RouterOS API client for the read-only routeros-ro profile (community.routeros.api / direct use)
 librouteros==3.4.1
+# TrueNAS JSON-RPC WebSocket client for the read-only truenas-ro profile
+websockets==15.0.1
