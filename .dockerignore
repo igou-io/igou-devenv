@@ -23,5 +23,6 @@ renovate-base.json
 !bin/resolve-profile
 !bin/truenas-ro
 !bin/routeros-ro
+!bin/ocp-alerts
 !dotfiles/.bashrc
 !dotfiles/.bashrc.d/

@@ -170,7 +170,9 @@ scope_note() {
 This session runs in a sandbox with a FIXED credential scope: profile(s)
 \`${SCOPE}\` from igou-devenv \`envs/\`${PERMISSIONS:+, permission level \`${PERMISSIONS}\`}.
 - \`KUBECONFIG\`, registry auth and any other credentials are already set; \`oc\`/\`kubectl\`
-  just work for exactly this identity. Check it with \`oc whoami\`. If several clusters
+  just work for exactly this identity. Check it with \`oc whoami\`. Cluster alerts:
+  \`ocp-alerts\` (Alertmanager API, firing), \`ocp-alerts --silences\`, \`ocp-alerts --thanos\`.
+  If several clusters
   are in scope, \`KUBECONFIG\` is a list: \`kubectl config get-contexts\` shows one context
   per profile (e.g. \`ocp-cluster-reader\`, \`rk8s-cluster-reader\`); pick with \`--context\`.
 - If \`ROUTEROS_USERNAME\`/\`ROUTEROS_PASSWORD\` are set: read-only RouterOS API on the

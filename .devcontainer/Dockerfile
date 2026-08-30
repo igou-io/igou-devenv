@@ -439,6 +439,7 @@ COPY --chown=igou:igou bin/resolve-profile /home/igou/.local/bin/resolve-profile
 # of hand-writing the protocol dance (an SRE run once failed TrueNAS auth for that).
 COPY --chown=igou:igou bin/truenas-ro /home/igou/.local/bin/truenas-ro
 COPY --chown=igou:igou bin/routeros-ro /home/igou/.local/bin/routeros-ro
+COPY --chown=igou:igou bin/ocp-alerts /home/igou/.local/bin/ocp-alerts
 USER igou
 RUN --mount=type=secret,id=github_token set -eux; \
     ARCH_RAW=$(uname -m); \
@@ -474,7 +475,7 @@ RUN --mount=type=secret,id=github_token set -eux; \
     mkdir -p "$DEST" "$HOME/.local/bin"; \
     tar -xzf "$TARBALL" -C "$DEST"; \
     chmod +x "$DEST/opencode"; \
-    chmod +x "$HOME/.local/bin/opencode-sandbox" "$HOME/.local/bin/opencode-sandbox-launch" "$HOME/.local/bin/agent-sandbox-launch" "$HOME/.local/bin/resolve-profile" "$HOME/.local/bin/truenas-ro" "$HOME/.local/bin/routeros-ro"; \
+    chmod +x "$HOME/.local/bin/opencode-sandbox" "$HOME/.local/bin/opencode-sandbox-launch" "$HOME/.local/bin/agent-sandbox-launch" "$HOME/.local/bin/resolve-profile" "$HOME/.local/bin/truenas-ro" "$HOME/.local/bin/routeros-ro" "$HOME/.local/bin/ocp-alerts"; \
     ln -sfn "$HOME/.local/bin/opencode-sandbox" "$HOME/.local/bin/opencode"; \
     cd / && rm -rf "$WORK"; \
     # Verify the real binary directly: the build environment may not permit user
