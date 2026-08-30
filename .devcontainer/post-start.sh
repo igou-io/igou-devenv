@@ -40,6 +40,14 @@ echo "==> Ensuring container-local SSH agent..."
 
 
 # ---------------------------------------------------------------------------
+# Writable-layer hygiene (igou-devenv#187): nested podman images, stale
+# scratchpads, old CLI versions, package caches. Non-fatal.
+# ---------------------------------------------------------------------------
+echo "==> Pruning container writable layer..."
+/workspace/igou-devenv/.devcontainer/hygiene.sh 2>&1 \
+    || echo "    WARNING (non-fatal): hygiene pass failed"
+
+# ---------------------------------------------------------------------------
 # Docker socket permissions — match the docker group GID to the socket's GID
 # so the non-root user can access it without socat proxying.
 # ---------------------------------------------------------------------------

@@ -99,6 +99,7 @@ anyway.
 ├── init.sh              # host-side initializeCommand
 ├── post-create.sh       # shell config, workspace file
 ├── post-start.sh        # SSH agent bootstrap, libvirt/dbus, code-server sync/start
+├── hygiene.sh           # Writable-layer prune (nested podman, scratchpads, caches), from post-start
 ├── code-server-sync.sh  # applies devcontainer.json VS Code customizations to code-server
 └── requirements.txt     # pinned Python packages
 dotfiles/                # .bashrc, .bashrc.d/ (shell functions, sourced non-interactively too), tmux, code-server config, workspace file
@@ -245,5 +246,5 @@ Manual release targets are `make release`, `make release-dry-run`, and
 ## Linting
 
 ```bash
-shellcheck .devcontainer/post-create.sh .devcontainer/post-start.sh .devcontainer/init.sh dotfiles/.bashrc dotfiles/.bashrc.d/*.sh tests/*.sh bin/resolve-profile .devcontainer/agent-sandbox-launch bin/claude-run bin/cursor-run bin/opencode-run bin/ensure-ssh-agent .devcontainer/opencode-sandbox-launch
+shellcheck .devcontainer/post-create.sh .devcontainer/post-start.sh .devcontainer/hygiene.sh .devcontainer/init.sh dotfiles/.bashrc dotfiles/.bashrc.d/*.sh tests/*.sh bin/resolve-profile .devcontainer/agent-sandbox-launch bin/claude-run bin/cursor-run bin/opencode-run bin/ensure-ssh-agent .devcontainer/opencode-sandbox-launch
 ```
