@@ -106,6 +106,24 @@ esac
 IMAGE="${AGENT_SANDBOX_IMAGE:-$IMAGE_DEFAULT}"
 
 # ---------------------------------------------------------------------------
+# Fast path for t3's health probe. t3 runs `binaryPath --version` with a 4 s
+# timeout every 5 minutes; a version string needs no credentials, no scope
+# home and no SSH keys, so skip all of that. When the image is not cached yet
+# (rootless store is wiped on rebuild) start the pull in the background and
+# answer with the host binary of the same driver so the instance shows as
+# available instead of timing out until someone pulls by hand.
+# ---------------------------------------------------------------------------
+if [ "${#AGENT_ARGS[@]}" -eq 1 ] && [ "${AGENT_ARGS[0]}" = "--version" ] && ! $DRY_RUN && ! $SHELL_MODE; then
+    if podman image exists "$IMAGE" 2>/dev/null; then
+        exec podman run --rm --userns=keep-id --cap-drop=ALL --security-opt no-new-privileges:true \
+            --network=none "$IMAGE" "$BIN" --version
+    fi
+    log "$IMAGE not cached; pulling in the background, answering --version from the host $BIN"
+    (podman pull "$IMAGE" >/dev/null 2>&1 &)
+    exec "$BIN" --version
+fi
+
+# ---------------------------------------------------------------------------
 # Resolve profiles on the host (op never enters the container)
 # ---------------------------------------------------------------------------
 resolve_profile_bin() {
@@ -231,6 +249,13 @@ case "$DRIVER" in
             pf=$(perm_file claude.json) || exit 1
             if [ -n "$pf" ]; then
                 merge_json "$HOME/.claude/settings.json" "$pf" > "$CLAUDE_HOME/settings.json"
+                # The Claude sandbox is a container-only layer: it lives in the
+                # permission fragment, not in the user's ~/.claude/settings.json
+                # (unscoped devcontainer sessions run without one). Fail closed.
+                if [ "$(jq -r '.sandbox.enabled // false' "$CLAUDE_HOME/settings.json")" != "true" ]; then
+                    log "$pf does not enable the Claude sandbox; refusing to launch a scoped session without it"
+                    exit 1
+                fi
             elif [ -f "$HOME/.claude/settings.json" ] && [ ! -f "$CLAUDE_HOME/settings.json" ]; then
                 cp "$HOME/.claude/settings.json" "$CLAUDE_HOME/settings.json"
             fi

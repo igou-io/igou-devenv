@@ -76,13 +76,27 @@ ln -sfn /workspace/igou-devenv/bin /home/igou/bin
 # Per-profile opencode shims for scoped t3 instances (adr/0006). t3 keeps one
 # shared `opencode serve` per binaryPath, so each profile needs its own
 # binary; ~/.local/bin is ephemeral, so regenerate on every build. One shim per
-# env profile that carries a kubeconfig (the ones worth an instance).
+# env profile that carries a kubeconfig or is an INCLUDE= bundle of profiles
+# (e.g. read-only) — the ones worth an instance.
+#
+# The agent images live in the rootless podman store, which is also ephemeral:
+# after a rebuild the first t3 probe of every scoped instance had to `podman
+# pull` inside t3's 4-10 s probe timeout and showed "Unavailable" until the
+# pull happened to complete. Warm the store in the background instead.
 # ---------------------------------------------------------------------------
 if [ -x /home/igou/.local/bin/agent-sandbox-launch ]; then
     for envfile in /workspace/igou-devenv/envs/*.env; do
-        grep -qE '^KUBECONFIG_(DATA|TOKEN)=' "$envfile" || continue
+        grep -qE '^(KUBECONFIG_(DATA|TOKEN)|INCLUDE)=' "$envfile" || continue
         /home/igou/.local/bin/agent-sandbox-launch --install-shim "$(basename "$envfile" .env)" 2>/dev/null || true
     done
+    if command -v podman >/dev/null 2>&1; then
+        echo "==> Pre-pulling agent sandbox images in the background (~/.local/share/containers/agent-image-pull.log)"
+        mkdir -p /home/igou/.local/share/containers
+        (for img in claude-code codex opencode; do
+            podman pull "ghcr.io/igou-io/${img}:latest"
+        done) > /home/igou/.local/share/containers/agent-image-pull.log 2>&1 &
+        disown || true
+    fi
 fi
 
 echo "==> Setup complete!"

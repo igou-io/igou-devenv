@@ -53,6 +53,12 @@ session is created, not escalated from inside.
   (Claude `settings.json` deny/ask lists, Codex `sandbox_mode`/`approval_policy`,
   opencode `permission` block) applied into a per-scope home so mutations are denied
   (`readonly`) or ask in the t3 UI (`guarded`).
+- **The Claude sandbox is a container-only layer.** The bwrap/seccomp `sandbox`
+  block lives in `envs/permissions/<level>/claude.json`, not in the user's
+  `~/.claude/settings.json`, and the launcher fails closed if the rendered scope
+  settings don't enable it. Unscoped sessions in the devcontainer therefore run
+  without a Claude sandbox; scoped ones always have it, with an allowlist sized to
+  the scope (Anthropic, GitHub, the cluster/API hosts the profile reaches).
 - **The agent knows its scope.** The launcher writes a scope note (profiles,
   permission level, "there is no `use`/`op` here; ask for a different session") into
   the per-scope Claude `CLAUDE.md` / `CODEX_HOME/AGENTS.md` / an opencode
