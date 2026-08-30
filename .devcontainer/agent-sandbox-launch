@@ -172,6 +172,8 @@ This session runs in a sandbox with a FIXED credential scope: profile(s)
 - \`KUBECONFIG\`, registry auth and any other credentials are already set; \`oc\`/\`kubectl\`
   just work for exactly this identity. Check it with \`oc whoami\`. Cluster alerts:
   \`ocp-alerts\` (Alertmanager API, firing), \`ocp-alerts --silences\`, \`ocp-alerts --thanos\`.
+  Cluster logs: \`ocp-logs '{kubernetes_namespace_name="x"} |= "error"' --since 2h\`
+  (\`--tenant infrastructure\`, \`--labels\`, \`--values LABEL\`; LokiStack gateway).
   If several clusters
   are in scope, \`KUBECONFIG\` is a list: \`kubectl config get-contexts\` shows one context
   per profile (e.g. \`ocp-cluster-reader\`, \`rk8s-cluster-reader\`); pick with \`--context\`.
