@@ -1,0 +1,70 @@
+#!/usr/bin/env python3
+"""ocp-logs — read-only LogQL queries against the OpenShift LokiStack gateway.
+
+Usage:
+  ocp-logs '{kubernetes_namespace_name="hermes-sre"}'                 last 30m, application tenant
+  ocp-logs --tenant infrastructure --since 2h '{kubernetes_namespace_name="openshift-ovn-kubernetes"} |= "error"'
+  ocp-logs --labels                    label names for the tenant
+  ocp-logs --values kubernetes_namespace_name
+  ocp-logs --json ...                  raw Loki JSON
+Options: --tenant application|infrastructure|audit (default application), --since 30m|2h|1d,
+         --limit N (default 200), --context NAME (kubeconfig context for the bearer token).
+Env: OCP_LOKI_URL overrides https://logging-loki-openshift-logging.apps.ocp.igou.systems.
+Needs the loki-logs-read ClusterRole on the session identity (cluster-read-only has it).
+"""
+import json, os, re, ssl, subprocess, sys, time, urllib.parse, urllib.request
+
+LOKI = os.environ.get("OCP_LOKI_URL", "https://logging-loki-openshift-logging.apps.ocp.igou.systems")
+
+def token(ctx):
+    args = ["kubectl", "config", "view", "--raw", "-o", "json"] + (["--context", ctx] if ctx else [])
+    cfg = json.loads(subprocess.check_output(args)); name = ctx or cfg.get("current-context")
+    c = next(x for x in cfg["contexts"] if x["name"] == name); u = next(x for x in cfg["users"] if x["name"] == c["context"]["user"])
+    t = u["user"].get("token")
+    if not t: sys.exit("ocp-logs: no bearer token in kubeconfig")
+    return t
+
+def get(path, tok, params=None):
+    url = f"{LOKI}{path}" + (("?" + urllib.parse.urlencode(params)) if params else "")
+    ctx = ssl.create_default_context(); ctx.check_hostname = False; ctx.verify_mode = ssl.CERT_NONE
+    req = urllib.request.Request(url, headers={"Authorization": f"Bearer {tok}"})
+    try:
+        with urllib.request.urlopen(req, context=ctx, timeout=60) as r: return json.load(r)
+    except urllib.error.HTTPError as e:
+        sys.exit(f"ocp-logs: {e.code} {e.read().decode()[:200]}")
+
+def dur(s):
+    m = re.fullmatch(r"(\d+)([smhd])", s); 
+    if not m: sys.exit("ocp-logs: --since like 30m, 2h, 1d")
+    return int(m.group(1)) * {"s": 1, "m": 60, "h": 3600, "d": 86400}[m.group(2)]
+
+def main():
+    a = sys.argv[1:]
+    if not a or "-h" in a or "--help" in a: print(__doc__); return 0
+    def opt(name, default=None):
+        if name in a: i = a.index(name); v = a[i + 1]; del a[i:i + 2]; return v
+        return default
+    tenant = opt("--tenant", "application"); since = dur(opt("--since", "30m")); limit = opt("--limit", "200"); ctx = opt("--context")
+    raw = "--json" in a; a = [x for x in a if x != "--json"]
+    tok = token(ctx); base = f"/api/logs/v1/{tenant}/loki/api/v1"; now = int(time.time())
+    if "--labels" in a:
+        d = get(f"{base}/labels", tok, {"start": f"{(now - since)}000000000", "end": f"{now}000000000"})
+        print(json.dumps(d, indent=2) if raw else "\n".join(d.get("data", []))); return 0
+    if "--values" in a:
+        lab = a[a.index("--values") + 1]
+        d = get(f"{base}/label/{lab}/values", tok, {"start": f"{(now - since)}000000000", "end": f"{now}000000000"})
+        print(json.dumps(d, indent=2) if raw else "\n".join(d.get("data", []))); return 0
+    q = " ".join(a)
+    if not q: sys.exit("ocp-logs: give a LogQL query")
+    d = get(f"{base}/query_range", tok, {"query": q, "limit": limit, "direction": "backward", "start": f"{(now - since)}000000000", "end": f"{now}000000000"})
+    if raw: print(json.dumps(d, indent=2)); return 0
+    rows = []
+    for s in d.get("data", {}).get("result", []):
+        lab = s.get("stream", {}); tag = f"{lab.get('kubernetes_namespace_name','?')}/{lab.get('kubernetes_pod_name','?')}"
+        for ts, line in s.get("values", []): rows.append((int(ts), tag, line))
+    rows.sort()
+    for ts, tag, line in rows: print(time.strftime("%H:%M:%S", time.gmtime(ts / 1e9)), tag, line.rstrip()[:400])
+    print(f"-- {len(rows)} line(s), tenant={tenant}, since={opt('--since','30m') or '30m'}", file=sys.stderr); return 0
+
+if __name__ == "__main__":
+    sys.exit(main())
