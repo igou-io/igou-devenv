@@ -1,0 +1,49 @@
+#!/usr/bin/env python3
+"""routeros-ro — read-only RouterOS API (api-ssl) queries with the mktxp identity.
+
+Usage:
+  routeros-ro HOST PATH [key=value ...]     e.g.  routeros-ro crs328 system/resource
+                                                  routeros-ro rb5009 interface
+                                                  routeros-ro all system/resource
+                                                  routeros-ro crs317 ip/address
+HOST is a short name (rb5009, crs310, crs317, crs328), an FQDN, or `all` for every
+host in ROUTEROS_HOSTS. PATH is the API path with slashes. Optional key=value pairs
+are passed as a query filter (equality). Output is JSON (list of rows).
+Env (from the routeros-ro / read-only profile): ROUTEROS_USERNAME, ROUTEROS_PASSWORD,
+ROUTEROS_API_PORT (8729), ROUTEROS_HOSTS. The mktxp user has policy read,api: any
+write is refused by the device ("not enough permissions"); this tool never issues one.
+"""
+import json, os, ssl, sys
+
+def main():
+    if len(sys.argv) < 3 or sys.argv[1] in ("-h", "--help"):
+        print(__doc__); return 2
+    host, path, kv = sys.argv[1], sys.argv[2].strip("/"), sys.argv[3:]
+    user, pw = os.environ.get("ROUTEROS_USERNAME"), os.environ.get("ROUTEROS_PASSWORD")
+    if not (user and pw):
+        print("routeros-ro: ROUTEROS_USERNAME/ROUTEROS_PASSWORD not set (activate the routeros-ro / read-only profile)", file=sys.stderr); return 4
+    port = int(os.environ.get("ROUTEROS_API_PORT", "8729"))
+    hosts_env = [h for h in os.environ.get("ROUTEROS_HOSTS", "").split(",") if h]
+    if host == "all": hosts = hosts_env
+    elif "." in host: hosts = [host]
+    else:
+        m = [h for h in hosts_env if h.split(".")[0] == host]
+        hosts = m or [f"{host}.igou.systems"]
+    import librouteros
+    ctx = ssl.create_default_context(); ctx.check_hostname = False; ctx.verify_mode = ssl.CERT_NONE
+    out, rc = {}, 0
+    for h in hosts:
+        try:
+            api = librouteros.connect(host=h, username=user, password=pw, port=port, ssl_wrapper=ctx.wrap_socket)
+            q = api.path(*path.split("/"))
+            rows = list(q)  # full listing
+            if kv:
+                flt = dict(x.split("=", 1) for x in kv)
+                rows = [r for r in rows if all(str(r.get(k)) == v for k, v in flt.items())]
+            out[h] = rows
+        except Exception as e:
+            out[h] = {"error": str(e)}; rc = 1
+    print(json.dumps(out if len(hosts) > 1 else out[hosts[0]], indent=2, default=str)); return rc
+
+if __name__ == "__main__":
+    sys.exit(main())

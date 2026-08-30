@@ -1,0 +1,55 @@
+#!/usr/bin/env python3
+"""truenas-ro — read-only TrueNAS JSON-RPC (WebSocket) calls with the agent-ro key.
+
+Usage:
+  truenas-ro METHOD [JSON_PARAMS]      e.g.  truenas-ro system.info
+                                             truenas-ro pool.query
+                                             truenas-ro alert.list
+                                             truenas-ro pool.dataset.query '[[["name","=","ssd"]],{"count":true}]'
+Env (from the truenas-ro / read-only profile): TRUENAS_WS_URL (default
+wss://truenas.igou.systems/api/current), TRUENAS_API_KEY.
+TrueNAS 25.x only authorises READONLY_ADMIN keys on this API (REST /api/v2.0 -> 403);
+login is auth.login_with_api_key [KEY] — no username involved. Writes are refused
+by the key's roles; this tool additionally refuses obviously mutating method names.
+"""
+import asyncio, json, os, ssl, sys
+
+MUTATING = ("create", "update", "delete", "set", "start", "stop", "restart", "reboot",
+            "shutdown", "run", "scrub", "attach", "detach", "import", "export", "upgrade",
+            "install", "login", "logout", "generate", "reset", "resume", "pause", "sync",
+            "remove", "add", "rename", "move", "copy", "send", "write", "kill", "flush")
+
+def main():
+    if len(sys.argv) < 2 or sys.argv[1] in ("-h", "--help"):
+        print(__doc__); return 2
+    method = sys.argv[1]
+    params = json.loads(sys.argv[2]) if len(sys.argv) > 2 else []
+    if any(method.split(".")[-1].startswith(m) for m in MUTATING):
+        print(f"truenas-ro: refusing mutating method {method}", file=sys.stderr); return 3
+    key = os.environ.get("TRUENAS_API_KEY")
+    if not key:
+        print("truenas-ro: TRUENAS_API_KEY not set (activate the truenas-ro / read-only profile)", file=sys.stderr); return 4
+    url = os.environ.get("TRUENAS_WS_URL", "wss://truenas.igou.systems/api/current")
+    import websockets
+    ctx = ssl.create_default_context(); ctx.check_hostname = False; ctx.verify_mode = ssl.CERT_NONE
+
+    async def run():
+        async with websockets.connect(url, ssl=ctx, max_size=2**26) as ws:
+            i = 0
+            async def call(m, p):
+                nonlocal i; i += 1
+                await ws.send(json.dumps({"jsonrpc": "2.0", "id": i, "method": m, "params": p}))
+                while True:
+                    r = json.loads(await ws.recv())
+                    if r.get("id") == i: return r
+            r = await call("auth.login_with_api_key", [key])
+            if r.get("result") is not True:
+                print(f"truenas-ro: login failed: {r.get('error') or r}", file=sys.stderr); return 5
+            r = await call(method, params)
+            if "error" in r:
+                print(json.dumps(r["error"], indent=2), file=sys.stderr); return 1
+            print(json.dumps(r.get("result"), indent=2)); return 0
+    return asyncio.run(run())
+
+if __name__ == "__main__":
+    sys.exit(main())

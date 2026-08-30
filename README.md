@@ -472,6 +472,11 @@ an ExternalSecret renders the files into a pod (e.g. `/etc/agent/envs`) and
 caches the exports in `/tmp`. This is how Hermes session pods get the `read-only`
 bundle (igou-openshift `applications/hermes-sre`).
 
+Two read-only CLIs ship with the profiles (and the image): `truenas-ro METHOD [JSON]`
+(JSON-RPC over WebSocket, API-key login, refuses mutating method names) and
+`routeros-ro HOST|all PATH [k=v]` (api-ssl via librouteros, JSON out). Agents get told
+about them in the scope note; humans can use them after `use read-only`.
+
 `envs/read-only.env` is the canonical bundle (`ocp-cluster-reader` + `rk8s-cluster-reader` + `routeros-ro` + `truenas-ro`, `PERMISSIONS=readonly`): one session that can inspect every cluster (`kubectl config get-contexts`), read the RouterOS fleet through the `mktxp` API identity (`librouteros`, api-ssl 8729; the device refuses writes) and read TrueNAS as `agent-ro` (`READONLY_ADMIN`) over the JSON-RPC WebSocket API (`websockets`; REST `/api/v2.0` is FULL_ADMIN-only on 25.x).
 
 ```bash
