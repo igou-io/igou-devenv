@@ -434,6 +434,11 @@ COPY --chown=igou:igou .devcontainer/agent-sandbox-launch /home/igou/.local/bin/
 COPY --chown=igou:igou dotfiles/.bashrc /home/igou/.bashrc
 COPY --chown=igou:igou dotfiles/.bashrc.d/ /home/igou/.bashrc.d/
 COPY --chown=igou:igou bin/resolve-profile /home/igou/.local/bin/resolve-profile
+# Read-only infra CLIs for scoped sessions (TrueNAS JSON-RPC, RouterOS api-ssl):
+# agents call `truenas-ro system.info` / `routeros-ro all system/resource` instead
+# of hand-writing the protocol dance (an SRE run once failed TrueNAS auth for that).
+COPY --chown=igou:igou bin/truenas-ro /home/igou/.local/bin/truenas-ro
+COPY --chown=igou:igou bin/routeros-ro /home/igou/.local/bin/routeros-ro
 USER igou
 RUN --mount=type=secret,id=github_token set -eux; \
     ARCH_RAW=$(uname -m); \
@@ -469,7 +474,7 @@ RUN --mount=type=secret,id=github_token set -eux; \
     mkdir -p "$DEST" "$HOME/.local/bin"; \
     tar -xzf "$TARBALL" -C "$DEST"; \
     chmod +x "$DEST/opencode"; \
-    chmod +x "$HOME/.local/bin/opencode-sandbox" "$HOME/.local/bin/opencode-sandbox-launch" "$HOME/.local/bin/agent-sandbox-launch" "$HOME/.local/bin/resolve-profile"; \
+    chmod +x "$HOME/.local/bin/opencode-sandbox" "$HOME/.local/bin/opencode-sandbox-launch" "$HOME/.local/bin/agent-sandbox-launch" "$HOME/.local/bin/resolve-profile" "$HOME/.local/bin/truenas-ro" "$HOME/.local/bin/routeros-ro"; \
     ln -sfn "$HOME/.local/bin/opencode-sandbox" "$HOME/.local/bin/opencode"; \
     cd / && rm -rf "$WORK"; \
     # Verify the real binary directly: the build environment may not permit user

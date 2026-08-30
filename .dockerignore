@@ -21,5 +21,7 @@ renovate-base.json
 
 # Baked into the image for non-devcontainer consumers (Hermes session pods):
 !bin/resolve-profile
+!bin/truenas-ro
+!bin/routeros-ro
 !dotfiles/.bashrc
 !dotfiles/.bashrc.d/

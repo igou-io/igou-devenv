@@ -173,17 +173,14 @@ This session runs in a sandbox with a FIXED credential scope: profile(s)
   just work for exactly this identity. Check it with \`oc whoami\`. If several clusters
   are in scope, \`KUBECONFIG\` is a list: \`kubectl config get-contexts\` shows one context
   per profile (e.g. \`ocp-cluster-reader\`, \`rk8s-cluster-reader\`); pick with \`--context\`.
-- If \`ROUTEROS_USERNAME\`/\`ROUTEROS_PASSWORD\` are set: read-only RouterOS API (api-ssl,
-  port \`ROUTEROS_API_PORT\`) on the devices in \`ROUTEROS_HOSTS\`. Query with python
-  \`librouteros\` (\`connect(host, username, password, port, ssl_wrapper=<ssl ctx, no verify>)\`
-  then \`api.path('system','resource')\`) or \`ansible localhost -m community.routeros.api -a
-  "hostname=<host> username=... password=... tls=true validate_certs=false port=8729 path=system/resource"\`.
-  No SSH, no writes (the device refuses them).
-- If \`TRUENAS_API_KEY\` is set: read-only TrueNAS (READONLY_ADMIN) via the JSON-RPC
-  WebSocket API \`TRUENAS_WS_URL\` — python \`websockets\`: send
-  \`{"jsonrpc":"2.0","id":1,"method":"auth.login_with_api_key","params":[KEY]}\` then
-  e.g. \`system.info\`, \`pool.dataset.query\`, \`alert.list\`. The legacy REST
-  \`/api/v2.0\` returns 403 for this key by design; writes are refused.
+- If \`ROUTEROS_USERNAME\`/\`ROUTEROS_PASSWORD\` are set: read-only RouterOS API on the
+  devices in \`ROUTEROS_HOSTS\`. Use the CLI: \`routeros-ro all system/resource\`,
+  \`routeros-ro crs328 interface\`, \`routeros-ro rb5009 ip/address\` (JSON out; \`-h\` for
+  help). No SSH, no writes (the device refuses them).
+- If \`TRUENAS_API_KEY\` is set: read-only TrueNAS (READONLY_ADMIN) over the JSON-RPC
+  WebSocket API. Use the CLI: \`truenas-ro system.info\`, \`truenas-ro pool.query\`,
+  \`truenas-ro alert.list\`, \`truenas-ro pool.dataset.query '[[],{"count":true}]'\`. Login is
+  by API key alone (no username); REST \`/api/v2.0\` is 403 for this key; writes are refused.
 - There is NO \`use\`, \`ssh-use\`, \`op\`, or 1Password here. Do not look for them or try
   to work around a 403: the scope is a deliberate policy boundary.
 - If a task needs a different or broader identity, stop and say which profile
