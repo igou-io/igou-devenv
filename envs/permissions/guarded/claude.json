@@ -61,5 +61,41 @@
       "Bash(helm upgrade*)",
       "Bash(helm uninstall*)"
     ]
+  },
+  "sandbox": {
+    "enabled": true,
+    "failIfUnavailable": false,
+    "allowUnsandboxedCommands": false,
+    "network": {
+      "allowedDomains": [
+        "api.anthropic.com",
+        "claude.ai",
+        "statsig.anthropic.com",
+        "sentry.io",
+        "github.com",
+        "api.ocp.igou.systems",
+        "cm3588-nas-01.igou.systems",
+        "truenas.igou.systems",
+        "rb5009.igou.systems",
+        "crs310.igou.systems",
+        "crs317.igou.systems",
+        "crs328.igou.systems"
+      ]
+    },
+    "filesystem": {
+      "allowWrite": [
+        "."
+      ],
+      "denyWrite": [
+        "~/.local/bin",
+        "~/.bashrc",
+        "~/.profile",
+        "~/.bash_profile"
+      ]
+    },
+    "enableWeakerNestedSandbox": true,
+    "seccomp": {
+      "applyPath": "/usr/local/lib/claude-sandbox/apply-seccomp"
+    }
   }
 }

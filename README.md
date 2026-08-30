@@ -444,8 +444,17 @@ instance environment:
 opencode instances need one binary per profile (t3 keeps one shared server per
 `binaryPath`): `agent-sandbox-launch --install-shim ocp-cluster-reader` writes
 `~/.local/bin/agent-sandbox-launch-ocp-cluster-reader` to use as `binaryPath`.
-`post-create.sh` regenerates a shim for every kubeconfig-bearing profile on each
-build (`~/.local/bin` is ephemeral), so instances keep working across rebuilds.
+`post-create.sh` regenerates a shim for every kubeconfig-bearing profile and
+every `INCLUDE=` bundle on each build (`~/.local/bin` is ephemeral), so instances
+keep working across rebuilds. It also pre-pulls the three agent images in the
+background (log: `~/.local/share/containers/agent-image-pull.log`): the rootless
+podman store is ephemeral too, and t3's health probe (`binaryPath --version`,
+4 s timeout, every 5 min) cannot wait for a pull. The launcher answers a bare
+`--version` without resolving profiles; if the image is still missing it starts
+the pull and reports the host binary's version so the instance is selectable.
+Codex instances should pin `AGENT_SANDBOX_DRIVER=codex` in their environment
+(t3 probes Codex with `app-server`, which the launcher infers, but pinning it
+keeps the instance working if that ever changes).
 
 Current instance set (`~/.t3/userdata/settings.json`): `Claude ▸ read-only`,
 `Codex ▸ read-only`, `opencode ▸ read-only` (all on the `read-only` bundle).

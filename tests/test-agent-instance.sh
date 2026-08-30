@@ -100,6 +100,8 @@ assert_has  ".claude-ocp-cluster-reader:/home/igou/.claude:Z" "$out" "per-scope 
 CH="$HOME/.claude-ocp-cluster-reader"
 if grep -q 'Session scope: ocp-cluster-reader' "$CH/CLAUDE.md" 2>/dev/null; then ok "scope note written to CLAUDE.md"; else fail "scope note written to CLAUDE.md"; fi
 if grep -q 'permission level `readonly`' "$CH/CLAUDE.md" 2>/dev/null; then ok "scope note names permission level"; else fail "scope note names permission level"; fi
+[ "$(jq -r '.sandbox.enabled' "$CH/settings.json" 2>/dev/null)" = "true" ] && ok "scoped settings enable the Claude sandbox" || fail "scoped settings enable the Claude sandbox"
+jq -e '.sandbox.network.allowedDomains | index("api.ocp.igou.systems")' "$CH/settings.json" >/dev/null 2>&1 && ok "sandbox allowlist comes from the fragment" || fail "sandbox allowlist comes from the fragment"
 if [ "$(jq -r '.model' "$CH/settings.json")" = "opus" ] && jq -e '.permissions.deny | index("Bash(oc apply*)")' "$CH/settings.json" >/dev/null \
    && jq -e '.permissions.allow | index("Bash(oc get*)")' "$CH/settings.json" >/dev/null; then
     ok "settings.json = host settings merged with readonly fragment"
