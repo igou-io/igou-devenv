@@ -472,7 +472,7 @@ an ExternalSecret renders the files into a pod (e.g. `/etc/agent/envs`) and
 caches the exports in `/tmp`. This is how Hermes session pods get the `read-only`
 bundle (igou-openshift `applications/hermes-sre`).
 
-Two read-only CLIs ship with the profiles (and the image): `truenas-ro METHOD [JSON]`
+Three read-only CLIs ship with the profiles (and the image): `ocp-alerts` (Alertmanager API / Thanos with the kubeconfig token), `truenas-ro METHOD [JSON]`
 (JSON-RPC over WebSocket, API-key login, refuses mutating method names) and
 `routeros-ro HOST|all PATH [k=v]` (api-ssl via librouteros, JSON out). Agents get told
 about them in the scope note; humans can use them after `use read-only`.

@@ -1,0 +1,64 @@
+#!/usr/bin/env python3
+"""ocp-alerts — read-only view of cluster alerts with the session's kubeconfig token.
+
+Usage:
+  ocp-alerts                     firing alerts from the Alertmanager API (name, severity, ns, since, summary)
+  ocp-alerts --all               include pending/suppressed
+  ocp-alerts --silences          active silences
+  ocp-alerts --thanos            same list from Thanos ALERTS{alertstate="firing"} (no Alertmanager RBAC needed)
+  ocp-alerts --json              raw JSON instead of the table
+  ocp-alerts --context NAME      kubeconfig context to take the bearer token from (default: current)
+Env: OCP_ALERTMANAGER_URL / OCP_THANOS_URL override the *.apps routes. Read-only:
+this tool never creates silences (the read-only SA cannot anyway).
+"""
+import json, os, ssl, subprocess, sys, urllib.parse, urllib.request
+
+AM = os.environ.get("OCP_ALERTMANAGER_URL", "https://alertmanager-main-openshift-monitoring.apps.ocp.igou.systems")
+TH = os.environ.get("OCP_THANOS_URL", "https://thanos-querier-openshift-monitoring.apps.ocp.igou.systems")
+
+def token(ctx):
+    args = ["kubectl", "config", "view", "--raw", "-o", "json"]
+    if ctx: args += ["--context", ctx]
+    cfg = json.loads(subprocess.check_output(args))
+    ctxname = ctx or cfg.get("current-context")
+    c = next(x for x in cfg["contexts"] if x["name"] == ctxname)
+    u = next(x for x in cfg["users"] if x["name"] == c["context"]["user"])
+    t = u["user"].get("token")
+    if not t: sys.exit(f"ocp-alerts: no bearer token in kubeconfig user {c['context']['user']}")
+    return t
+
+def get(url, tok):
+    ctx = ssl.create_default_context(); ctx.check_hostname = False; ctx.verify_mode = ssl.CERT_NONE
+    req = urllib.request.Request(url, headers={"Authorization": f"Bearer {tok}"})
+    with urllib.request.urlopen(req, context=ctx, timeout=30) as r: return json.load(r)
+
+def main():
+    a = sys.argv[1:]
+    if "-h" in a or "--help" in a: print(__doc__); return 0
+    ctx = a[a.index("--context") + 1] if "--context" in a else None
+    tok = token(ctx); raw = "--json" in a
+    if "--silences" in a:
+        d = get(f"{AM}/api/v2/silences", tok)
+        d = [s for s in d if s.get("status", {}).get("state") == "active"]
+        if raw: print(json.dumps(d, indent=2)); return 0
+        for s in d: print(f"{s['id'][:8]}  {s['startsAt'][:16]}→{s['endsAt'][:16]}  {s['createdBy']}: {s['comment']}  [{' '.join(m['name']+'='+m['value'] for m in s['matchers'])}]")
+        print(f"{len(d)} active silence(s)"); return 0
+    if "--thanos" in a:
+        q = urllib.parse.quote('ALERTS{alertstate="firing"}')
+        d = get(f"{TH}/api/v1/query?query={q}", tok)["data"]["result"]
+        rows = [(m["metric"].get("alertname"), m["metric"].get("severity", "-"), m["metric"].get("namespace", "-"), "-", "-") for m in d]
+    else:
+        try:
+            d = get(f"{AM}/api/v2/alerts", tok)
+        except urllib.error.HTTPError as e:
+            sys.exit(f"ocp-alerts: Alertmanager API {e.code} — try --thanos (needs monitoring-alertmanager-view otherwise)")
+        if "--all" not in a: d = [x for x in d if x.get("status", {}).get("state") == "active" and not x["status"].get("silencedBy")]
+        if raw: print(json.dumps(d, indent=2)); return 0
+        rows = [(x["labels"].get("alertname"), x["labels"].get("severity", "-"), x["labels"].get("namespace", "-"), x.get("startsAt", "")[:16], (x.get("annotations", {}).get("summary") or x.get("annotations", {}).get("message") or "")[:70]) for x in d]
+    rows.sort(key=lambda r: ({"critical": 0, "warning": 1, "info": 2}.get(r[1], 3), r[0] or ""))
+    w = max((len(r[0] or "") for r in rows), default=10)
+    for r in rows: print(f"{(r[0] or '-'):<{w}}  {r[1]:<8} {r[2]:<28} {r[3]:<16} {r[4]}")
+    print(f"{len(rows)} firing alert(s)"); return 0
+
+if __name__ == "__main__":
+    sys.exit(main())
