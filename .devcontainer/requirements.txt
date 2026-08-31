@@ -11,10 +11,12 @@ awxkit==24.6.1
 yq==4.1.2
 kubernetes==36.0.3
 jmespath==1.1.0
-lxml==6.1.1
+lxml==6.1.2
 paramiko==5.0.0
 scp==0.16.1
 # RouterOS API client for the read-only routeros-ro profile (community.routeros.api / direct use)
-librouteros==3.4.1
-# TrueNAS JSON-RPC WebSocket client for the read-only truenas-ro profile
+librouteros==4.2.0
+# TrueNAS JSON-RPC WebSocket client for the read-only truenas-ro profile.
+# Held at 15.0.x: ansible-rulebook pins websockets<15.1 (renovate.json allowedVersions
+# rule mirrors this cap — lift both when rulebook does).
 websockets==15.0.1
