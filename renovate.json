@@ -3,6 +3,15 @@
   "extends": [
     "github>igou-io/igou-devenv//renovate-base.json"
   ],
+  "customDatasources": {
+    "cursor-agent": {
+      "defaultRegistryUrlTemplate": "https://cursor.com/install",
+      "format": "plain",
+      "transformTemplates": [
+        "{ \"releases\": [releases[$contains(version, 'DOWNLOAD_URL=')].{ \"version\": $match(version, /downloads\\.cursor\\.com\\/lab\\/([^/]+)/).groups[0], \"releaseTimestamp\": $join($split($substring($match(version, /downloads\\.cursor\\.com\\/lab\\/([^/]+)/).groups[0], 0, 10), '.'), '-') & 'T00:00:00Z' }] }"
+      ]
+    }
+  },
   "packageRules": [
     {
       "matchManagers": ["pip_requirements"],
@@ -52,7 +61,7 @@
     },
     {
       "matchManagers": ["custom.regex"],
-      "matchPackageNames": ["anomalyco/opencode", "openai/codex"],
+      "matchPackageNames": ["anomalyco/opencode", "cursor-agent", "openai/codex"],
       "groupName": "coding agent clis",
       "description": "automerge:false — cli-sha-recapture.yaml owns merging this PR (it recaptures the per-arch *_SHA256_* ARGs the version bump invalidates, pushes the fixup, then enables GitHub auto-merge), mirroring the release-prepare/mise.lock pattern. Never push manual commits to this branch outside that workflow: an edited branch freezes Renovate. The 3-day age gate matches MINIMUM_RELEASE_AGE_DAYS in the Dockerfile.",
       "minimumReleaseAge": "3 days",
@@ -76,9 +85,9 @@
       "customType": "regex",
       "managerFilePatterns": ["/\\.sh$/", "/Dockerfile$/", "/Containerfile$/", "/mise\\.toml$/"],
       "matchStrings": [
-        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: extractVersion=(?<extractVersion>\\S+))?\\n(?:ARG )?\\w+_VERSION=\"(?<currentValue>[^\"]+)\""
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: extractVersion=(?<extractVersion>\\S+))?(?: versioning=(?<versioning>\\S+))?\\n(?:ARG )?\\w+_VERSION=\"(?<currentValue>[^\"]+)\""
       ],
-      "versioningTemplate": "semver"
+      "versioningTemplate": "{{#if versioning}}{{{versioning}}}{{else}}semver{{/if}}"
     }
   ]
 }

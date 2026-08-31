@@ -356,6 +356,7 @@ ARG MINIMUM_RELEASE_AGE_DAYS=3
 #   curl -sL https://cursor.com/install | grep -oP "lab/\K[0-9a-zA-Z.-]+"
 #   curl -sL "https://downloads.cursor.com/lab/<VER>/linux/x64/agent-cli-package.tar.gz" | sha256sum
 #   (repeat for arm64)
+# renovate: datasource=custom.cursor-agent depName=cursor-agent versioning=loose
 ARG CURSOR_AGENT_VERSION="2026.05.01-eea359f"
 ARG CURSOR_AGENT_SHA256_X64="63b17a0ec0f4b73bf3ed540a24d51391bfe01c37d5961dffadcbbf1a8b02499c"
 ARG CURSOR_AGENT_SHA256_ARM64="8c06f06834c7472b68df07353462889c7b284b280a2a3a323ea1dfd26972ade9"

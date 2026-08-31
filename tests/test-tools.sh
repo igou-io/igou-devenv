@@ -55,6 +55,15 @@ for tool in $(echo "${!TOOLS[@]}" | tr ' ' '\n' | sort); do
     fi
 done
 
+# Hermes' propose-fix workflow delegates through this non-interactive option.
+# Catch a breaking Codex CLI contract during the image build, before the weekly
+# release can publish an image that exits before starting the agent.
+if codex exec --help 2>&1 | grep -q -- '--approve-for-me'; then
+    ok "codex exec supports --approve-for-me"
+else
+    fail "codex exec supports --approve-for-me"
+fi
+
 # ---------------------------------------------------------------------------
 # Python packages
 # ---------------------------------------------------------------------------
