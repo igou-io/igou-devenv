@@ -9,6 +9,12 @@
       "groupName": "python dependencies"
     },
     {
+      "matchManagers": ["pip_requirements"],
+      "matchPackageNames": ["websockets"],
+      "description": "ansible-rulebook (same requirements.txt) pins websockets<15.1; without this cap the python-dependencies group PR arrives permanently red on pip ResolutionImpossible. Lift when ansible-rulebook widens its range.",
+      "allowedVersions": "<15.1"
+    },
+    {
       "matchManagers": ["dockerfile"],
       "groupName": "container base images"
     },
