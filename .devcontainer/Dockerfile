@@ -404,9 +404,9 @@ USER root
 #   (repeat for arm64)
 # MINIMUM_RELEASE_AGE_DAYS is inherited from the ARG declared above the Cursor block.
 # renovate: datasource=github-releases depName=anomalyco/opencode
-ARG OPENCODE_VERSION="v1.18.23"
-ARG OPENCODE_SHA256_X64="ab7015cd8113e011a461f30a0c2b77d8299a144ff688cb62e93e8802835d7288"
-ARG OPENCODE_SHA256_ARM64="86d3afaf4e8784f9adab189be2a315c12b27ec40a04b70defbe70595c3cc7c65"
+ARG OPENCODE_VERSION="v1.18.25"
+ARG OPENCODE_SHA256_X64="58a3729a6f3432dd6d2917fcc4a949788891a035818646ad480e12c947f56e78"
+ARG OPENCODE_SHA256_ARM64="35ef77897425e41b5183a2c21ac4fb1d4d944d82a94e3c920f57b5490af11ac5"
 # GITHUB_TOKEN authenticates the release-age API call below. Without it the
 # 60/hr unauthenticated quota gets exhausted on busy CI runners and the build
 # fails with HTTP 403. Provided via a BuildKit secret mount (see the mise block
