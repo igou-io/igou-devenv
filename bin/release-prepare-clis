@@ -8,6 +8,7 @@
 # bin/release-prepare-mise (the mise.lock variant of the same pattern).
 #
 # SHA sources:
+#   cursor    — no upstream SHASUMS file; download each arch tarball and hash it
 #   opencode — no upstream SHASUMS file; download each arch tarball and hash it
 #              (same TOFU capture the manual process performed, done by CI).
 #   codex    — upstream publishes codex-package_SHA256SUMS in the release; take
@@ -50,6 +51,17 @@ set_sha_arg() {
   fi
   sed -i -E "s|^ARG $name=\"[^\"]+\"|ARG $name=\"$sha\"|" "$DOCKERFILE"
 }
+
+# cursor — hash the release tarballs directly.
+CURSOR_AGENT_VERSION="$(get_arg CURSOR_AGENT_VERSION)"
+echo "Recapturing cursor-agent ${CURSOR_AGENT_VERSION} SHAs..."
+for pair in "x64:CURSOR_AGENT_SHA256_X64" "arm64:CURSOR_AGENT_SHA256_ARM64"; do
+  arch="${pair%%:*}"
+  var="${pair#*:}"
+  url="https://downloads.cursor.com/lab/${CURSOR_AGENT_VERSION}/linux/${arch}/agent-cli-package.tar.gz"
+  sha="$(curl -fsSL --retry 3 "$url" | sha256sum | awk '{print $1}')"
+  set_sha_arg "$var" "$sha"
+done
 
 # opencode — hash the release tarballs directly.
 OPENCODE_VERSION="$(get_arg OPENCODE_VERSION)"

@@ -43,6 +43,7 @@ assert_version "cursor-agent" "agent --version"      "$(get_arg CURSOR_AGENT_VER
 # Real binary: the `opencode` symlink is the sandbox shim (needs a user
 # namespace, absent in the CI image build). adr/0005.
 assert_version "opencode"     "$HOME/.opencode/bin/opencode --version" "$(get_arg OPENCODE_VERSION)"
+assert_version "codex"        "codex --version"                         "$(get_arg CODEX_VERSION)"
 
 # Note: terraform, flux, kubectl, direnv (and the other 17 mise-managed tools)
 # are version-pinned in mise.toml, not via Dockerfile ARG. tests/test-mise.sh

@@ -195,8 +195,10 @@ after the relevant test has actually passed.
   GPG fingerprint. Mise-managed tools are pinned in `mise.lock`, and
   `tests/test-mise.sh` audits the expected verification method.
 - `codex`, Claude Code, Cursor agent, and OpenCode installed in the main
-  devcontainer are pinned and verified in the Dockerfile. Persistent agent
-  state is mounted from host directories, not baked into the image.
+  devcontainer are pinned and Renovate-managed. Cursor, OpenCode, and Codex
+  use the CLI SHA-recapture workflow; Claude verifies vendor-signed checksums.
+  Persistent agent state is mounted from host directories, not baked into the
+  image.
 - code-server is installed via mise, started by `post-start.sh`, and bound to
   `0.0.0.0:8080` with mandatory password auth. Because the full devcontainer is
   privileged with `/dev` mounted, anyone reaching code-server gets powerful host
