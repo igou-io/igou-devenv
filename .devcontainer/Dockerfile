@@ -357,7 +357,7 @@ ARG MINIMUM_RELEASE_AGE_DAYS=3
 #   curl -sL "https://downloads.cursor.com/lab/<VER>/linux/x64/agent-cli-package.tar.gz" | sha256sum
 #   (repeat for arm64)
 # renovate: datasource=custom.cursor-agent depName=cursor-agent versioning=loose
-ARG CURSOR_AGENT_VERSION="2026.05.01-eea359f"
+ARG CURSOR_AGENT_VERSION="2026.09.02-c22c1a3"
 ARG CURSOR_AGENT_SHA256_X64="63b17a0ec0f4b73bf3ed540a24d51391bfe01c37d5961dffadcbbf1a8b02499c"
 ARG CURSOR_AGENT_SHA256_ARM64="8c06f06834c7472b68df07353462889c7b284b280a2a3a323ea1dfd26972ade9"
 USER igou
@@ -404,7 +404,7 @@ USER root
 #   (repeat for arm64)
 # MINIMUM_RELEASE_AGE_DAYS is inherited from the ARG declared above the Cursor block.
 # renovate: datasource=github-releases depName=anomalyco/opencode
-ARG OPENCODE_VERSION="v1.18.23"
+ARG OPENCODE_VERSION="v1.18.27"
 ARG OPENCODE_SHA256_X64="ab7015cd8113e011a461f30a0c2b77d8299a144ff688cb62e93e8802835d7288"
 ARG OPENCODE_SHA256_ARM64="86d3afaf4e8784f9adab189be2a315c12b27ec40a04b70defbe70595c3cc7c65"
 # GITHUB_TOKEN authenticates the release-age API call below. Without it the
@@ -501,7 +501,7 @@ USER root
 # Pinned to a release that already clears the age gate (so `make build` and CI
 # build clean); Renovate advances it on the same 3-day lag thereafter.
 # renovate: datasource=github-releases depName=openai/codex extractVersion=^rust-v(?<version>.+)$
-ARG CODEX_VERSION="0.150.1"
+ARG CODEX_VERSION="0.153.2"
 ARG CODEX_SHA256_X64="00aba704f029f6dc0d948be407a756e0c97cc840132fd691353b2c6b0a505b17"
 ARG CODEX_SHA256_ARM64="1ecac3f87823efb98153233b076ea3d6e34a7a8cebe43c5285dc5f79e1514639"
 # GITHUB_TOKEN authenticates the release-age API call below (see the opencode
