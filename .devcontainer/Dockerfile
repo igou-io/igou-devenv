@@ -357,9 +357,9 @@ ARG MINIMUM_RELEASE_AGE_DAYS=3
 #   curl -sL "https://downloads.cursor.com/lab/<VER>/linux/x64/agent-cli-package.tar.gz" | sha256sum
 #   (repeat for arm64)
 # renovate: datasource=custom.cursor-agent depName=cursor-agent versioning=loose
-ARG CURSOR_AGENT_VERSION="2026.05.01-eea359f"
-ARG CURSOR_AGENT_SHA256_X64="63b17a0ec0f4b73bf3ed540a24d51391bfe01c37d5961dffadcbbf1a8b02499c"
-ARG CURSOR_AGENT_SHA256_ARM64="8c06f06834c7472b68df07353462889c7b284b280a2a3a323ea1dfd26972ade9"
+ARG CURSOR_AGENT_VERSION="2026.09.02-c22c1a3"
+ARG CURSOR_AGENT_SHA256_X64="b73b59854762535c0fc20d7ccc51c3b5a356a851491088d60a362be48750f53c"
+ARG CURSOR_AGENT_SHA256_ARM64="fb7bc635be6172ebcf68f907fd9217e3614da51916455c6d7fdb66690997884c"
 USER igou
 RUN set -eux; \
     ARCH_RAW=$(uname -m); \
@@ -404,9 +404,9 @@ USER root
 #   (repeat for arm64)
 # MINIMUM_RELEASE_AGE_DAYS is inherited from the ARG declared above the Cursor block.
 # renovate: datasource=github-releases depName=anomalyco/opencode
-ARG OPENCODE_VERSION="v1.18.23"
-ARG OPENCODE_SHA256_X64="ab7015cd8113e011a461f30a0c2b77d8299a144ff688cb62e93e8802835d7288"
-ARG OPENCODE_SHA256_ARM64="86d3afaf4e8784f9adab189be2a315c12b27ec40a04b70defbe70595c3cc7c65"
+ARG OPENCODE_VERSION="v1.18.27"
+ARG OPENCODE_SHA256_X64="4af5494f9433f59db8c1e344198f0ee72a50c06ec009fb4a8aeab4c2d4abd702"
+ARG OPENCODE_SHA256_ARM64="8cbc134eb5e100baf61ee7196150f503e352056e703276e2d8637c38bafd2c39"
 # GITHUB_TOKEN authenticates the release-age API call below. Without it the
 # 60/hr unauthenticated quota gets exhausted on busy CI runners and the build
 # fails with HTTP 403. Provided via a BuildKit secret mount (see the mise block
@@ -501,9 +501,9 @@ USER root
 # Pinned to a release that already clears the age gate (so `make build` and CI
 # build clean); Renovate advances it on the same 3-day lag thereafter.
 # renovate: datasource=github-releases depName=openai/codex extractVersion=^rust-v(?<version>.+)$
-ARG CODEX_VERSION="0.150.1"
-ARG CODEX_SHA256_X64="00aba704f029f6dc0d948be407a756e0c97cc840132fd691353b2c6b0a505b17"
-ARG CODEX_SHA256_ARM64="1ecac3f87823efb98153233b076ea3d6e34a7a8cebe43c5285dc5f79e1514639"
+ARG CODEX_VERSION="0.153.2"
+ARG CODEX_SHA256_X64="e10fa0cee78e9f0bd395880f03fd4fd227d903ca7af649bbc08d1649101e9225"
+ARG CODEX_SHA256_ARM64="a3bfaf4b62fcb17e0a0338dfe0502413ddce0ab1b39028679390539c45d2c6e3"
 # GITHUB_TOKEN authenticates the release-age API call below (see the opencode
 # block); provided via a BuildKit secret mount, empty in CI's published image.
 ARG GITHUB_TOKEN=""
