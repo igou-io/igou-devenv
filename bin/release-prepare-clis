@@ -59,7 +59,7 @@ for pair in "x64:CURSOR_AGENT_SHA256_X64" "arm64:CURSOR_AGENT_SHA256_ARM64"; do
   arch="${pair%%:*}"
   var="${pair#*:}"
   url="https://downloads.cursor.com/lab/${CURSOR_AGENT_VERSION}/linux/${arch}/agent-cli-package.tar.gz"
-  sha="$(curl -fsSL --retry 3 "$url" | sha256sum | awk '{print $1}')"
+  sha="$(curl -fsSL --retry 8 --retry-all-errors --retry-delay 3 --retry-max-time 180 "$url" | sha256sum | awk '{print $1}')"
   set_sha_arg "$var" "$sha"
 done
 
@@ -70,14 +70,14 @@ for pair in "x64:OPENCODE_SHA256_X64" "arm64:OPENCODE_SHA256_ARM64"; do
   arch="${pair%%:*}"
   var="${pair#*:}"
   url="https://github.com/anomalyco/opencode/releases/download/${OPENCODE_VERSION}/opencode-linux-${arch}.tar.gz"
-  sha="$(curl -fsSL --retry 3 "$url" | sha256sum | awk '{print $1}')"
+  sha="$(curl -fsSL --retry 8 --retry-all-errors --retry-delay 3 --retry-max-time 180 "$url" | sha256sum | awk '{print $1}')"
   set_sha_arg "$var" "$sha"
 done
 
 # codex — take the published SHASUMS entries for the linux-musl package assets.
 CODEX_VERSION="$(get_arg CODEX_VERSION)"
 echo "Recapturing codex ${CODEX_VERSION} SHAs..."
-sums="$(curl -fsSL --retry 3 "https://github.com/openai/codex/releases/download/rust-v${CODEX_VERSION}/codex-package_SHA256SUMS")"
+sums="$(curl -fsSL --retry 8 --retry-all-errors --retry-delay 3 --retry-max-time 180 "https://github.com/openai/codex/releases/download/rust-v${CODEX_VERSION}/codex-package_SHA256SUMS")"
 for pair in "x86_64:CODEX_SHA256_X64" "aarch64:CODEX_SHA256_ARM64"; do
   triple="${pair%%:*}-unknown-linux-musl"
   var="${pair#*:}"
