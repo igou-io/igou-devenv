@@ -357,9 +357,9 @@ ARG MINIMUM_RELEASE_AGE_DAYS=3
 #   curl -sL "https://downloads.cursor.com/lab/<VER>/linux/x64/agent-cli-package.tar.gz" | sha256sum
 #   (repeat for arm64)
 # renovate: datasource=custom.cursor-agent depName=cursor-agent versioning=loose
-ARG CURSOR_AGENT_VERSION="2026.09.02-c22c1a3"
-ARG CURSOR_AGENT_SHA256_X64="b73b59854762535c0fc20d7ccc51c3b5a356a851491088d60a362be48750f53c"
-ARG CURSOR_AGENT_SHA256_ARM64="fb7bc635be6172ebcf68f907fd9217e3614da51916455c6d7fdb66690997884c"
+ARG CURSOR_AGENT_VERSION="2026.09.10-fd3934a"
+ARG CURSOR_AGENT_SHA256_X64="27997c8391ad853a5a732b1845db8ef82a8ba6afb0f7829cc739464f8966e96e"
+ARG CURSOR_AGENT_SHA256_ARM64="e0494438b01c37bc34848491d1f3478ef469494c56caf020de11796d146db64a"
 USER igou
 RUN set -eux; \
     ARCH_RAW=$(uname -m); \
@@ -501,9 +501,9 @@ USER root
 # Pinned to a release that already clears the age gate (so `make build` and CI
 # build clean); Renovate advances it on the same 3-day lag thereafter.
 # renovate: datasource=github-releases depName=openai/codex extractVersion=^rust-v(?<version>.+)$
-ARG CODEX_VERSION="0.153.4"
-ARG CODEX_SHA256_X64="a822187e1a2420c61c5926721bfbd878701ed95547c9bb0d4de4498a16ba1821"
-ARG CODEX_SHA256_ARM64="fc395cb043a1093ab0db34f44aba3199bfaa9ce640cd9be7fd588f44b0da64a4"
+ARG CODEX_VERSION="0.154.0"
+ARG CODEX_SHA256_X64="fc6e3e3b85f2cf7d664520ee5c66a7fe4aa12bae7d46834f47e2f165fd0d6f78"
+ARG CODEX_SHA256_ARM64="97d93e11df72d3c26772db019e6ea8bb72c246500d46b98c760839f3240355e6"
 # GITHUB_TOKEN authenticates the release-age API call below (see the opencode
 # block); provided via a BuildKit secret mount, empty in CI's published image.
 ARG GITHUB_TOKEN=""
