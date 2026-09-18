@@ -12,11 +12,12 @@
 # the bind-mounted ~/.config/op, exported by .bashrc.
 #
 # The owner half of OWNER/REPO selects the installation, so one App installed on
-# both accounts needs no per-call plumbing (david-igou repos vs igou-io repos).
+# multiple accounts needs no per-call plumbing.
 github_app:
   client_id: "Iv23liP6aQEsyKXnZYiB"
   app_slug: "igou-dev"
   installations:
+    aiops-ansible-software-factory-demojam: "162815679"
     david-igou: "143866260"
     igou-io: "143866153"
   private_key_cmd: op read "op://lab_external_api_keys/igou-dev-github-app/private_key"
