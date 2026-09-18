@@ -255,9 +255,10 @@ claude-igou-io-github-token` PAT flow. Those env files still exist but are
 **deprecated** (kept only as a fallback for gaps the App's permission ceiling
 can't cover, e.g. writing Actions secrets).
 
-The App (`igou-dev`) is installed on both accounts; the owner half of
-`OWNER/REPO` picks the installation, so `david-igou/*` and `igou-io/*` both work
-from one config (`~/.config/ghapp/config.yaml`, seeded by `post-create.sh`).
+The App (`igou-dev`) is installed on multiple accounts; the owner half of
+`OWNER/REPO` picks the installation, so `david-igou/*`, `igou-io/*`, and
+`aiops-ansible-software-factory-demojam/*` work from one config
+(`~/.config/ghapp/config.yaml`, seeded by `post-create.sh`).
 
 Three ways to authenticate:
 
