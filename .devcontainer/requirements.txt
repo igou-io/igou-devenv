@@ -1,5 +1,5 @@
 # Managed by Renovate — pin versions for automated updates
-ansible-core==2.21.3
+ansible-core==2.21.4
 ansible-navigator==26.8.0
 ansible-builder==3.1.1
 ansible-rulebook==1.3.1
@@ -15,7 +15,7 @@ lxml==6.1.3
 paramiko==5.0.0
 scp==0.16.1
 # RouterOS API client for the read-only routeros-ro profile (community.routeros.api / direct use)
-librouteros==4.2.0
+librouteros==4.2.1
 # TrueNAS JSON-RPC WebSocket client for the read-only truenas-ro profile.
 # Held at 15.0.x: ansible-rulebook pins websockets<15.1 (renovate.json allowedVersions
 # rule mirrors this cap — lift both when rulebook does).
