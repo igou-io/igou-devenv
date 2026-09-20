@@ -42,18 +42,18 @@ checksum = "blake3:8cf53a872032634dcb93885f156bbe1af1630ec701b6bf050ceb015e1c180
 url = "https://nodejs.org/dist/v26.4.0/node-v26.4.0-linux-x64.tar.gz"
 
 [[tools."aqua:tektoncd/pipelines-as-code"]]
-version = "0.50.0"
+version = "0.51.0"
 backend = "aqua:tektoncd/pipelines-as-code"
 
 [tools."aqua:tektoncd/pipelines-as-code"."platforms.linux-arm64"]
-checksum = "sha256:065de14c222bc116190d8b626a50e98c9ae6a1304f35748745989083ec67e626"
-url = "https://github.com/tektoncd/pipelines-as-code/releases/download/v0.50.0/tkn-pac_0.50.0_linux_arm64.tar.gz"
-url_api = "https://api.github.com/repos/tektoncd/pipelines-as-code/releases/assets/502697946"
+checksum = "sha256:4bcec14ecd753038f8a29de576344b0fd17ec976d5165b023648df350f274a22"
+url = "https://github.com/tektoncd/pipelines-as-code/releases/download/v0.51.0/tkn-pac_0.51.0_linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/tektoncd/pipelines-as-code/releases/assets/554743750"
 
 [tools."aqua:tektoncd/pipelines-as-code"."platforms.linux-x64"]
-checksum = "sha256:1a5e60379a38224fc583051b9a2ae99c9586069fd2cdb92aff8c7cf97723f037"
-url = "https://github.com/tektoncd/pipelines-as-code/releases/download/v0.50.0/tkn-pac_0.50.0_linux_x86_64.tar.gz"
-url_api = "https://api.github.com/repos/tektoncd/pipelines-as-code/releases/assets/502697975"
+checksum = "sha256:4aeeb4418508be8a027e175b3fe686c044cdd00e5c5acd85db8adb1a409de64c"
+url = "https://github.com/tektoncd/pipelines-as-code/releases/download/v0.51.0/tkn-pac_0.51.0_linux_x86_64.tar.gz"
+url_api = "https://api.github.com/repos/tektoncd/pipelines-as-code/releases/assets/554743753"
 
 [[tools.argocd]]
 version = "3.5.2"
@@ -126,16 +126,16 @@ url_api = "https://api.github.com/repos/cli/cli/releases/assets/542974264"
 provenance = "github-attestations"
 
 [[tools.helm]]
-version = "4.2.4"
+version = "4.3.0"
 backend = "aqua:helm/helm"
 
 [tools.helm."platforms.linux-arm64"]
-checksum = "sha256:564de2191b881e9f71b5606b25345821ea1682f06ab90499d3ab22b530176da1"
-url = "https://get.helm.sh/helm-v4.2.4-linux-arm64.tar.gz"
+checksum = "sha256:31c5794dd55c66a51e6b7d2e2ac7a114ae8b1de41ff1d9ba51748ac973b06a08"
+url = "https://get.helm.sh/helm-v4.3.0-linux-arm64.tar.gz"
 
 [tools.helm."platforms.linux-x64"]
-checksum = "sha256:c306b46f719b0a4da32d0f78ee21bf90ce8d602f15b22ab753f0674d1670a7f3"
-url = "https://get.helm.sh/helm-v4.2.4-linux-amd64.tar.gz"
+checksum = "sha256:86584a54def73570558f66f5111cc53dfed56689637ae32c1201205d494f54fb"
+url = "https://get.helm.sh/helm-v4.3.0-linux-amd64.tar.gz"
 
 [[tools."http:code-server"]]
 version = "4.123.0"
@@ -264,18 +264,18 @@ checksum = "sha256:6129359f4e1f3848a5572ccb0b26cf28b8ca08cef38c95a765b2f64a2c961
 url = "https://dl.k8s.io/v1.37.0/bin/linux/amd64/kubectl"
 
 [[tools.kubeseal]]
-version = "0.39.1"
+version = "0.40.0"
 backend = "aqua:bitnami-labs/sealed-secrets"
 
 [tools.kubeseal."platforms.linux-arm64"]
-checksum = "sha256:e90e86c6319ff92410856a339f0dfeb88d0d5e351e144e0ed34c28e1d7ce477f"
-url = "https://github.com/bitnami/sealed-secrets/releases/download/v0.39.1/kubeseal-0.39.1-linux-arm64.tar.gz"
-url_api = "https://api.github.com/repos/bitnami/sealed-secrets/releases/assets/521998649"
+checksum = "sha256:d82f01e9226d194ca7ebc13e3619edefd596b5b433582bcec3d5a8e8b1a03123"
+url = "https://github.com/bitnami/sealed-secrets/releases/download/v0.40.0/kubeseal-0.40.0-linux-arm64.tar.gz"
+url_api = "https://api.github.com/repos/bitnami/sealed-secrets/releases/assets/555346329"
 
 [tools.kubeseal."platforms.linux-x64"]
-checksum = "sha256:785c8316370073426d6ce0b7e9e949bd7ba3709ef7f9e45a900aa07e5596db9c"
-url = "https://github.com/bitnami/sealed-secrets/releases/download/v0.39.1/kubeseal-0.39.1-linux-amd64.tar.gz"
-url_api = "https://api.github.com/repos/bitnami/sealed-secrets/releases/assets/521998648"
+checksum = "sha256:9314c35916646e9d59c8f06b1314574b4e79c4d76f079433607ed7b697bb5eb7"
+url = "https://github.com/bitnami/sealed-secrets/releases/download/v0.40.0/kubeseal-0.40.0-linux-amd64.tar.gz"
+url_api = "https://api.github.com/repos/bitnami/sealed-secrets/releases/assets/555346331"
 
 [[tools.kustomize]]
 version = "5.8.1"
@@ -292,36 +292,35 @@ url = "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/
 url_api = "https://api.github.com/repos/kubernetes-sigs/kustomize/releases/assets/353160972"
 
 [[tools.node]]
-version = "26.8.1"
+version = "26.8.2"
 backend = "aqua:nodejs/node"
 
 [tools.node."platforms.linux-arm64"]
-url = "https://nodejs.org/dist/v26.8.1/node-v26.8.1-linux-arm64.tar.gz"
+url = "https://nodejs.org/dist/v26.8.2/node-v26.8.2-linux-arm64.tar.gz"
 
 [tools.node."platforms.linux-x64"]
-checksum = "blake3:cf0e32b9758576625a01a1a8f5f0db361192731bf91a975aac8c3b874ba75301"
-url = "https://nodejs.org/dist/v26.8.1/node-v26.8.1-linux-x64.tar.gz"
+url = "https://nodejs.org/dist/v26.8.2/node-v26.8.2-linux-x64.tar.gz"
 
 [[tools."npm:t3"]]
-version = "0.0.40"
+version = "0.0.42"
 backend = "npm:t3"
 
 [tools."npm:t3".options]
 allow_builds = '["node-pty"]'
 
 [[tools.rclone]]
-version = "1.75.0"
+version = "1.75.1"
 backend = "aqua:rclone/rclone"
 
 [tools.rclone."platforms.linux-arm64"]
-checksum = "sha256:d0ad88ba4c8e285b7c9efa591e0ab643280a91741e13c27f3a9c0957ccfa5203"
-url = "https://github.com/rclone/rclone/releases/download/v1.75.0/rclone-v1.75.0-linux-arm64.zip"
-url_api = "https://api.github.com/repos/rclone/rclone/releases/assets/496933638"
+checksum = "sha256:03f2504174034b6d004152ed7369251c9a9ec1f7e0836eda420f5c7a5ec0dff9"
+url = "https://github.com/rclone/rclone/releases/download/v1.75.1/rclone-v1.75.1-linux-arm64.zip"
+url_api = "https://api.github.com/repos/rclone/rclone/releases/assets/544639310"
 
 [tools.rclone."platforms.linux-x64"]
-checksum = "sha256:aa2804e08f48250e71009c727124b6341cd0288465804a9a09d14663cabafbaa"
-url = "https://github.com/rclone/rclone/releases/download/v1.75.0/rclone-v1.75.0-linux-amd64.zip"
-url_api = "https://api.github.com/repos/rclone/rclone/releases/assets/496932792"
+checksum = "sha256:982b5aa772841168f8e380f139e9e787b2a105403e32b94da8676a0e1c0a13ab"
+url = "https://github.com/rclone/rclone/releases/download/v1.75.1/rclone-v1.75.1-linux-amd64.zip"
+url_api = "https://api.github.com/repos/rclone/rclone/releases/assets/544638482"
 
 [[tools.sops]]
 version = "3.13.3"
@@ -358,13 +357,13 @@ url = "https://github.com/tektoncd/cli/releases/download/v0.46.0/tkn_0.46.0_Linu
 url_api = "https://api.github.com/repos/tektoncd/cli/releases/assets/502223564"
 
 [[tools.terraform]]
-version = "1.16.1"
+version = "1.16.2"
 backend = "aqua:hashicorp/terraform"
 
 [tools.terraform."platforms.linux-arm64"]
-checksum = "sha256:423288a23ab024d42ac05c409972585f7ec0cf1be572b773ad952f9a1c41387d"
-url = "https://releases.hashicorp.com/terraform/1.16.1/terraform_1.16.1_linux_arm64.zip"
+checksum = "sha256:c040bd1e3122b4290f70f74288d8c5a54ddd4254a3e52a29e7cc666653f50a0a"
+url = "https://releases.hashicorp.com/terraform/1.16.2/terraform_1.16.2_linux_arm64.zip"
 
 [tools.terraform."platforms.linux-x64"]
-checksum = "sha256:745d33b4b02b7980c62a38ec1beea24ee084ea8caf3f503c200554bd9a0cbe49"
-url = "https://releases.hashicorp.com/terraform/1.16.1/terraform_1.16.1_linux_amd64.zip"
+checksum = "sha256:0d17011f0c4664539b164b044903d04e296c86c13cb9f28040076c65cfb3985a"
+url = "https://releases.hashicorp.com/terraform/1.16.2/terraform_1.16.2_linux_amd64.zip"
