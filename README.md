@@ -638,12 +638,15 @@ GITHUB_TOKEN=ghp_... make renovate-dry-run # see what would be updated
 
 ### Weekly release
 
-A Monday pipeline cuts a dated release of the devcontainer:
+A Monday pipeline cuts a dated release of the devcontainer, with all schedules
+using the `America/New_York` time zone so they track Eastern daylight-saving
+changes:
 
-- `release-prepare.yaml` (06:30 UTC) regenerates `mise.lock` on the week's
+- `build.yaml` (06:00 Eastern) builds, tests, and publishes `:latest`.
+- `release-prepare.yaml` (06:30 Eastern) regenerates `mise.lock` on the week's
   Renovate mise PR and enables GitHub auto-merge (it can't merge itself — the
   hosted app can't regenerate the lock); GitHub merges it once `build` passes.
-- `release.yaml` (08:00 UTC) promotes the tested `:latest` digest to
+- `release.yaml` (08:00 Eastern) promotes the tested `:latest` digest to
   `ghcr.io/igou-io/igou-devenv:YYYY.MM.DD` (no rebuild — byte-identical to what
   CI tested), tags `vYYYY.MM.DD`, and creates a GitHub Release with notes + SBOM.
 

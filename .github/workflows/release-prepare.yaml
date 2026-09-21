@@ -1,6 +1,6 @@
 name: release-prepare (weekly mise lock)
 
-# Monday 06:30 UTC (after Renovate's Sunday run). Renovate cannot regenerate
+# Monday 06:30 Eastern (after Renovate's Sunday run). Renovate cannot regenerate
 # mise.lock (hosted Mend app, no postUpgradeTasks), so its mise-tools PR is
 # stale. This job regenerates the lock, pushes it (which re-triggers CI), and
 # enables GitHub native auto-merge — using RELEASE_PAT so the push re-triggers
@@ -11,6 +11,7 @@ name: release-prepare (weekly mise lock)
 on:
   schedule:
     - cron: '30 6 * * 1'
+      timezone: America/New_York
   workflow_dispatch:
 
 permissions:

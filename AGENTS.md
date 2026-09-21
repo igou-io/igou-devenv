@@ -233,11 +233,14 @@ change was deliberate.
 
 ## Release Notes
 
-Weekly release automation has two scheduled workflows:
+Weekly release automation uses three Monday schedules in the
+`America/New_York` time zone so they stay aligned with Eastern time across DST:
 
-- `release-prepare.yaml` regenerates `mise.lock` on the open Renovate mise PR
-  and enables GitHub auto-merge with `RELEASE_PAT`.
-- `release.yaml` promotes the already-tested
+- `build.yaml` runs at 06:00, builds and tests the devcontainer, and publishes
+  `:latest`.
+- `release-prepare.yaml` runs at 06:30, regenerates `mise.lock` on the open
+  Renovate mise PR, and enables GitHub auto-merge with `RELEASE_PAT`.
+- `release.yaml` runs at 08:00 and promotes the already-tested
   `ghcr.io/igou-io/igou-devenv:latest` image by digest to an immutable
   `:YYYY.MM.DD` tag, creates a `vYYYY.MM.DD` git tag, and publishes a GitHub
   Release. It does not rebuild the image.
