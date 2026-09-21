@@ -62,15 +62,15 @@ kubectl = "1.37.0"
 # Task 2.1 — SHA256-verified tools (aqua-registry per-tool checksums.txt).
 gh = "2.100.0"
 kustomize = "5.8.1"
-kubeseal = "0.39.1"
+kubeseal = "0.40.0"
 kubeconform = "0.8.0"
 kind = "0.33.0"
 act = "0.2.89"
 tekton-cli = "0.46.0"   # binary is `tkn`; mise registry key is tekton-cli
 # Pipelines-as-Code CLI (binary: tkn-pac). No short alias in mise's registry,
 # so use the explicit aqua: key form.
-"aqua:tektoncd/pipelines-as-code" = "0.50.0"
-rclone = "1.75.0"
+"aqua:tektoncd/pipelines-as-code" = "0.51.0"
+rclone = "1.75.1"
 direnv = "2.37.1"
 age = "1.3.2"
 # node — `core:node` does not record per-platform checksums in mise.lock, so
@@ -79,7 +79,7 @@ age = "1.3.2"
 # `node` dependency; upstream provides no SHASUMS in the aqua definition, so
 # mise falls back to blake3 TOFU (strictly better than the prior unverified
 # `curl | tar`).
-node = "26.8.1"
+node = "26.8.2"
 
 # Task 2.2 — cosign-keyless-verified tools.
 flux2 = "2.9.5"
@@ -99,11 +99,11 @@ argocd = "3.5.2"
 # references gpg, so the script can't be silently dropped on a future bump.
 
 [tools.helm]
-version = "4.2.4"
+version = "4.3.0"
 postinstall = "/etc/mise/aqua-registry/helm-postinstall.sh"
 
 [tools.terraform]
-version = "1.16.1"
+version = "1.16.2"
 postinstall = "/etc/mise/aqua-registry/terraform-postinstall.sh"
 
 # Task 3.1 — off-registry tools via mise's http backend.
@@ -197,7 +197,7 @@ linux-arm64 = { url = "https://github.com/coder/code-server/releases/download/v{
 # blocked. The build needs gcc-c++/make/python3 (present in the Dockerfile
 # layer and the bin/run-pinned-mise bootstrap).
 [tools."npm:t3"]
-version = "0.0.40"
+version = "0.0.42"
 allow_builds = ["node-pty"]
 
 # rustfs-cli — the `rc` admin/client CLI for RustFS S3 servers. Only the RustFS
