@@ -1,6 +1,6 @@
 name: release (weekly CalVer)
 
-# Monday 08:00 UTC. PROMOTES the already-built, already-tested :latest image
+# Monday 08:00 Eastern. PROMOTES the already-built, already-tested :latest image
 # (build.yaml builds+tests+pushes :latest on every push to main) to an immutable
 # dated tag by digest — no rebuild — so the released image is byte-identical to
 # what CI tested. Then pushes git tag vYYYY.MM.DD and a GitHub Release with auto
@@ -17,6 +17,7 @@ name: release (weekly CalVer)
 on:
   schedule:
     - cron: '0 8 * * 1'
+      timezone: America/New_York
   workflow_dispatch:
     inputs:
       dry_run:
