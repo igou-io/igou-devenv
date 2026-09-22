@@ -65,6 +65,12 @@ bash "$DIR/test-run-scripts.sh"
 
 echo ""
 echo "========================================="
+echo "  test-openshell-codex"
+echo "========================================="
+bash "$DIR/test-openshell-codex.sh"
+
+echo ""
+echo "========================================="
 echo "  test-pinned-versions"
 echo "========================================="
 "$DIR/test-pinned-versions.sh"

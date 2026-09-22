@@ -341,6 +341,28 @@ Hermes uses its docker-terminal setting to enter a configured rootless Podman
 container. Do not assume Hermes uses these wrappers unless someone explicitly
 wires Hermes to call them and verifies that path.
 
+## OpenShell Codex sandboxes
+
+`openshell-codex` creates a container sandbox on the registered `ocp` OpenShell
+gateway, uploads the current project, attaches the gateway-managed `opencode-go`
+provider, removes the overlapping generic OpenCode network rule, and launches
+Codex with the OpenCode Go endpoint configuration. The API key remains in
+OpenShell's encrypted provider storage and is not passed through the wrapper.
+
+Authenticate once before the first sandbox:
+
+```bash
+openshell gateway login ocp
+openshell-codex
+```
+
+Sandboxes are retained by default. Use `--ephemeral` to delete the sandbox when
+Codex exits, or pass a non-interactive Codex command after `--`:
+
+```bash
+openshell-codex --ephemeral -- exec 'Review this repository'
+```
+
 ### Usage
 
 ```bash

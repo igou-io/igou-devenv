@@ -1,0 +1,204 @@
+#!/usr/bin/env bash
+# Create a provider-backed OpenShell sandbox and run Codex inside it.
+set -euo pipefail
+
+GATEWAY="${OPENSHELL_CODEX_GATEWAY:-ocp}"
+PROVIDER="${OPENSHELL_CODEX_PROVIDER:-opencode-go}"
+MODEL="${OPENSHELL_CODEX_MODEL:-gpt-5.6-luna}"
+CPU="${OPENSHELL_CODEX_CPU:-2}"
+MEMORY="${OPENSHELL_CODEX_MEMORY:-4Gi}"
+SANDBOX_NAME=""
+UPLOAD_PATH="$PWD"
+EPHEMERAL=false
+DRY_RUN=false
+CODEX_ARGS=()
+
+usage() {
+    cat <<'EOF'
+Usage: openshell-codex [OPTIONS] [-- CODEX_ARGS...]
+
+Create an OpenShell container sandbox, upload the current project, attach the
+OpenCode Go provider, and launch Codex inside the sandbox.
+
+Options:
+  --name NAME       Sandbox name (default: project name plus timestamp)
+  --gateway NAME    Registered OpenShell gateway (default: ocp)
+  --provider NAME   OpenShell provider (default: opencode-go)
+  --model MODEL     Codex model (default: gpt-5.6-luna)
+  --cpu CPU         Sandbox CPU limit (default: 2)
+  --memory MEMORY   Sandbox memory limit (default: 4Gi)
+  --upload PATH     Project path to upload (default: current directory)
+  --no-upload       Start with the base sandbox workspace only
+  --ephemeral       Delete the sandbox when Codex exits
+  --dry-run         Print the planned commands without running them
+  -h, --help        Show this help
+
+Examples:
+  openshell-codex
+  openshell-codex --ephemeral
+  openshell-codex --name review-123 -- exec 'Review the repository'
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --name)
+            SANDBOX_NAME="$2"
+            shift 2
+            ;;
+        --gateway)
+            GATEWAY="$2"
+            shift 2
+            ;;
+        --provider)
+            PROVIDER="$2"
+            shift 2
+            ;;
+        --model)
+            MODEL="$2"
+            shift 2
+            ;;
+        --cpu)
+            CPU="$2"
+            shift 2
+            ;;
+        --memory)
+            MEMORY="$2"
+            shift 2
+            ;;
+        --upload)
+            UPLOAD_PATH="$2"
+            shift 2
+            ;;
+        --no-upload)
+            UPLOAD_PATH=""
+            shift
+            ;;
+        --ephemeral)
+            EPHEMERAL=true
+            shift
+            ;;
+        --dry-run)
+            DRY_RUN=true
+            shift
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        --)
+            shift
+            CODEX_ARGS=("$@")
+            break
+            ;;
+        *)
+            echo "Unknown option: $1" >&2
+            echo "Run 'openshell-codex --help' for usage." >&2
+            exit 2
+            ;;
+    esac
+done
+
+if [[ -z "$SANDBOX_NAME" ]]; then
+    project_name=$(basename "$PWD" | tr '[:upper:]_' '[:lower:]-' | tr -cd '[:alnum:]-')
+    project_name=${project_name:0:32}
+    SANDBOX_NAME="${project_name:-codex}-$(date -u +%Y%m%d%H%M%S)"
+fi
+
+if [[ ! "$SANDBOX_NAME" =~ ^[a-z0-9][a-z0-9-]{0,62}$ ]]; then
+    echo "Sandbox name must use lowercase letters, numbers, and hyphens (max 63 characters)." >&2
+    exit 2
+fi
+
+OPEN_SHELL=(openshell --gateway "$GATEWAY")
+CREATE=("${OPEN_SHELL[@]}" sandbox create
+    --name "$SANDBOX_NAME"
+    --provider "$PROVIDER"
+    --cpu "$CPU"
+    --memory "$MEMORY"
+    --detach)
+if [[ -n "$UPLOAD_PATH" ]]; then
+    CREATE+=(--upload "$UPLOAD_PATH:/sandbox")
+fi
+CREATE+=(-- sleep infinity)
+
+session_header=${SANDBOX_NAME//\"/}
+CODEX=(codex
+    -c 'model_provider="opencode_go"'
+    -c 'model_providers.opencode_go.name="OpenCode Go"'
+    -c 'model_providers.opencode_go.base_url="https://opencode.ai/zen/go/v1"'
+    -c 'model_providers.opencode_go.env_key="OPENAI_API_KEY"'
+    -c 'model_providers.opencode_go.wire_api="responses"'
+    -c "model_providers.opencode_go.http_headers={\"x-opencode-session\"=\"$session_header\",\"User-Agent\"=\"openshell-codex/1.0\"}"
+    --model "$MODEL"
+    --sandbox danger-full-access)
+
+if [[ ${#CODEX_ARGS[@]} -gt 0 && "${CODEX_ARGS[0]}" == "exec" ]]; then
+    CODEX+=(exec --skip-git-repo-check "${CODEX_ARGS[@]:1}")
+else
+    CODEX+=("${CODEX_ARGS[@]}")
+fi
+
+if [[ -t 0 && -t 1 ]]; then
+    TTY_FLAG=--tty
+else
+    TTY_FLAG=--no-tty
+fi
+EXEC=("${OPEN_SHELL[@]}" sandbox exec
+    --name "$SANDBOX_NAME"
+    --workdir /sandbox
+    "$TTY_FLAG"
+    --
+    "${CODEX[@]}")
+
+print_command() {
+    printf '%q ' "$@"
+    printf '\n'
+}
+
+if "$DRY_RUN"; then
+    print_command "${CREATE[@]}"
+    print_command "${OPEN_SHELL[@]}" policy update "$SANDBOX_NAME" --remove-rule opencode --wait
+    print_command "${EXEC[@]}"
+    if "$EPHEMERAL"; then
+        print_command "${OPEN_SHELL[@]}" sandbox delete "$SANDBOX_NAME"
+    fi
+    exit 0
+fi
+
+for command_name in openshell jq; do
+    if ! command -v "$command_name" >/dev/null 2>&1; then
+        echo "Required command not found: $command_name" >&2
+        exit 1
+    fi
+done
+
+"${OPEN_SHELL[@]}" status >/dev/null
+if ! "${OPEN_SHELL[@]}" provider get "$PROVIDER" >/dev/null 2>&1; then
+    echo "OpenShell provider '$PROVIDER' is not configured on gateway '$GATEWAY'." >&2
+    exit 1
+fi
+
+created=false
+cleanup() {
+    rc=$?
+    trap - EXIT INT TERM
+    if "$EPHEMERAL" && "$created"; then
+        "${OPEN_SHELL[@]}" sandbox delete "$SANDBOX_NAME" >/dev/null || true
+    fi
+    exit "$rc"
+}
+trap cleanup EXIT INT TERM
+
+printf 'Creating OpenShell sandbox %s...\n' "$SANDBOX_NAME"
+"${CREATE[@]}"
+created=true
+
+policy_json=$("${OPEN_SHELL[@]}" policy get "$SANDBOX_NAME" --full --output json)
+if jq -e '.policy.network_policies[]? | select(.name == "opencode")' \
+    >/dev/null <<<"$policy_json"; then
+    "${OPEN_SHELL[@]}" policy update "$SANDBOX_NAME" --remove-rule opencode --wait
+fi
+
+printf 'Launching Codex in %s...\n' "$SANDBOX_NAME"
+"${EXEC[@]}"
