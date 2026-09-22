@@ -88,6 +88,7 @@ argocd = "sha256+slsa"
 "http:virtctl" = "blake3"            # binary: virtctl
 "http:kube-burner" = "blake3"        # binary: kube-burner
 "http:kube-burner-ocp" = "blake3"    # binary: kube-burner-ocp
+"http:openshell" = "blake3"           # binary: openshell
 
 # Task 3.2 — oc (OpenShift CLI). http: backend pins a blake3 TOFU floor in
 # mise.lock; the postinstall hook (aqua-registry/oc-postinstall.sh) re-runs
