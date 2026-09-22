@@ -1,0 +1,10 @@
+{
+  "name": "ocp",
+  "gateway_endpoint": "https://openshell.apps.ocp.igou.systems",
+  "gateway_port": 0,
+  "is_remote": true,
+  "auth_mode": "oidc",
+  "oidc_issuer": "https://keycloak.apps.ocp.igou.systems/realms/igou",
+  "oidc_client_id": "openshell-cli",
+  "oidc_audience": "openshell-cli"
+}

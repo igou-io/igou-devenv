@@ -3,7 +3,7 @@ WORKSPACE    = $(CURDIR)
 
 .DEFAULT_GOAL := help
 
-.PHONY: link-skills build up up-release down restart exec shell run test test-all test-tools test-sandbox-primitives test-podman test-env test-mise test-ssh test-mise-lockfile test-openshell-codex test-qemu clean rebuild help renovate-validate renovate-dry-run sbom sbom-devcontainer e2e opencode-build mise-lock release release-dry-run release-prepare release-prepare-clis release-watch
+.PHONY: link-skills build up up-release down restart exec shell run test test-all test-tools test-sandbox-primitives test-podman test-env test-mise test-ssh test-mise-lockfile test-openshell-gateway-config test-openshell-codex test-qemu clean rebuild help renovate-validate renovate-dry-run sbom sbom-devcontainer e2e opencode-build mise-lock release release-dry-run release-prepare release-prepare-clis release-watch
 
 
 ## Build the devcontainer image (with cache)
@@ -101,7 +101,7 @@ up-release:
 	st=$$?; rm -rf "$$(dirname "$$cfg")"; exit $$st
 
 ## Run all tests (tools, podman, env, ssh, mise lockfile freshness + audit)
-test-all: test-tools test-podman test-env test-ssh test-mise-lockfile test-mise test-openshell-codex test-qemu
+test-all: test-tools test-podman test-env test-ssh test-mise-lockfile test-mise test-openshell-gateway-config test-openshell-codex test-qemu
 
 ## Alias for test-all
 test: test-all
@@ -121,6 +121,10 @@ test-opencode-sandbox:
 ## Verify the OpenShell Codex wrapper command construction and cleanup behavior
 test-openshell-codex:
 	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) /workspace/igou-devenv/tests/test-openshell-codex.sh
+
+## Verify declarative OpenShell gateway metadata and token preservation
+test-openshell-gateway-config:
+	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) /workspace/igou-devenv/tests/test-openshell-gateway-config.sh
 
 ## Verify the credential-injecting opencode container launcher (adr/0005)
 test-opencode-instance:
