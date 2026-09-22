@@ -71,6 +71,12 @@ bash "$DIR/test-openshell-codex.sh"
 
 echo ""
 echo "========================================="
+echo "  test-openshell-gateway-config"
+echo "========================================="
+bash "$DIR/test-openshell-gateway-config.sh"
+
+echo ""
+echo "========================================="
 echo "  test-pinned-versions"
 echo "========================================="
 "$DIR/test-pinned-versions.sh"

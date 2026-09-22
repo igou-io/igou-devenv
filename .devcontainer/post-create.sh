@@ -47,6 +47,13 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# OpenShell client registration — metadata is declarative; OIDC tokens remain
+# per-user runtime state in the persistent ~/.config/openshell bind mount.
+# ---------------------------------------------------------------------------
+echo "==> Configuring OpenShell OCP gateway..."
+/workspace/igou-devenv/bin/configure-openshell-gateway
+
+# ---------------------------------------------------------------------------
 # Cursor sandbox config — grant agent access to bind-mounted paths
 # ---------------------------------------------------------------------------
 echo "==> Writing Cursor sandbox config..."

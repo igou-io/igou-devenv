@@ -349,6 +349,12 @@ provider, removes the overlapping generic OpenCode network rule, and launches
 Codex with the OpenCode Go endpoint configuration. The API key remains in
 OpenShell's encrypted provider storage and is not passed through the wrapper.
 
+The non-secret `ocp` registration is managed from
+`dotfiles/openshell/gateways/ocp/metadata.json` and converged by `post-create`.
+`~/.config/openshell` is bind-mounted from the host, so the registration and
+per-user OIDC token survive devcontainer rebuilds. The token is runtime state;
+it is never copied into the repository or image.
+
 Authenticate once before the first sandbox:
 
 ```bash
@@ -745,7 +751,7 @@ sudo dnf install -y docker openssh-server
 sudo systemctl enable --now docker
 sudo usermod -aG docker "$USER"   # re-login so docker works without sudo
 
-mkdir -p ~/.ssh ~/.kube ~/.config/argocd ~/.config/op ~/.config/opencode ~/.terraform.d ~/.claude
+mkdir -p ~/.ssh ~/.kube ~/.config/argocd ~/.config/op ~/.config/opencode ~/.config/openshell ~/.terraform.d ~/.claude
 echo '{}' > ~/.claude.json
 touch ~/.gitconfig
 
