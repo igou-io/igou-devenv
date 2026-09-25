@@ -3,6 +3,8 @@
 # Runs inside the devcontainer — used by both `make test-tools` and CI.
 set -euo pipefail
 
+bash "$(dirname "${BASH_SOURCE[0]}")/test-omnigent.sh"
+
 PASS=0
 FAIL=0
 

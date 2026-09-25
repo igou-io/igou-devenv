@@ -341,6 +341,37 @@ Hermes uses its docker-terminal setting to enter a configured rootless Podman
 container. Do not assume Hermes uses these wrappers unless someone explicitly
 wires Hermes to call them and verifies that path.
 
+## Omnigent host runtime
+
+The image includes `omnigent` on the default PATH, installed in
+`/opt/omnigent` independently of the Ansible Python packages. No devcontainer
+lifecycle hooks or startup downloads are needed to run `omnigent host`.
+The pinned version is in `.devcontainer/omnigent/requirements.txt`; keep it
+compatible with the server when updating it.
+
+OpenShell requires the separate `websockets==15.0.1` override in
+`.devcontainer/omnigent/proxy/requirements.txt` so the host tunnel honors its
+HTTP proxy. This intentionally exceeds Omnigent 0.15.0's declared `<15` cap.
+`tests/test-omnigent.sh` checks CLI startup, matching SDK versions, proxy
+support, and rejects any other Python dependency conflicts.
+
+For an OpenShell sandbox, supply a writable `HOME` and workspace at runtime.
+Allow `/opt/omnigent` and the selected harness's executable paths in the
+filesystem policy **when creating the sandbox**. The Pi harness uses Node
+under `/opt/mise`; allow that path too. Allow network access to the Omnigent
+server and model provider, and the package registry if the harness needs to
+be installed. Pi is not bundled by this change; harness selection and
+installation remain separate from the Omnigent host runtime.
+
+Server authentication and model credentials are injected at runtime. This
+image does not register a host automatically or contain credentials. To use
+it for managed sessions, configure the Omnigent OpenShell backend's sandbox
+image explicitly: its image setting can override the gateway default.
+The harness dropdown selects the agent client running inside that sandbox;
+it does not select another image. Deployment configuration lives in
+`igou-openshift`, with the workflow documented in `igou-docs` under
+“Omnigent Managed Sandboxes and API Workflows.”
+
 ## OpenShell Codex sandboxes
 
 `openshell-codex` creates a container sandbox on the registered `ocp` OpenShell
