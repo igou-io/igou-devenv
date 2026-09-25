@@ -261,6 +261,16 @@ COPY .devcontainer/requirements.txt /tmp/requirements.txt
 RUN pip install --break-system-packages --ignore-installed -r /tmp/requirements.txt && \
     rm /tmp/requirements.txt
 
+# Omnigent host runtime: separate from the Ansible Python dependency set.
+# websockets 15 supplies HTTP-proxy support required inside OpenShell; install
+# that tested exception after resolving Omnigent's declared websockets<15 cap.
+COPY .devcontainer/omnigent/ /tmp/omnigent/
+RUN python3 -m venv /opt/omnigent && \
+    /opt/omnigent/bin/pip install --no-cache-dir -r /tmp/omnigent/requirements.txt && \
+    /opt/omnigent/bin/pip install --no-cache-dir --no-deps -r /tmp/omnigent/proxy/requirements.txt && \
+    ln -s /opt/omnigent/bin/omnigent /usr/local/bin/omnigent && \
+    rm -rf /tmp/omnigent
+
 # ---------------------------------------------------------------------------
 # ghapp — runtime-minted, repo-scoped GitHub App tokens (credential helper +
 # gh-app/git-app wrappers). Not published to PyPI (the name belongs to
