@@ -511,9 +511,9 @@ USER root
 # Pinned to a release that already clears the age gate (so `make build` and CI
 # build clean); Renovate advances it on the same 3-day lag thereafter.
 # renovate: datasource=github-releases depName=openai/codex extractVersion=^rust-v(?<version>.+)$
-ARG CODEX_VERSION="0.155.0"
-ARG CODEX_SHA256_X64="135bfe1af2d8d5954c12f03bee2cf8b40dffb06f76bb0ec3bd6105de5357e009"
-ARG CODEX_SHA256_ARM64="28110b360a635fca2c4501036a8efbe0da5b7fe66153ae1f2f944d3fb4c7b5d2"
+ARG CODEX_VERSION="0.155.1"
+ARG CODEX_SHA256_X64="a65b895c6ac1a73629bbe4b864640c86133e94a43b4d67b3103044e1a306d5a2"
+ARG CODEX_SHA256_ARM64="71857dbc9bea3613410e8a69cfb46b07c0402d6d20fec18843dbaffd757634bd"
 # GITHUB_TOKEN authenticates the release-age API call below (see the opencode
 # block); provided via a BuildKit secret mount, empty in CI's published image.
 ARG GITHUB_TOKEN=""
