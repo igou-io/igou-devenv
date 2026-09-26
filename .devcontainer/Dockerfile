@@ -414,7 +414,7 @@ USER root
 #   (repeat for arm64)
 # MINIMUM_RELEASE_AGE_DAYS is inherited from the ARG declared above the Cursor block.
 # renovate: datasource=github-releases depName=anomalyco/opencode
-ARG OPENCODE_VERSION="v1.18.31"
+ARG OPENCODE_VERSION="v1.18.32"
 ARG OPENCODE_SHA256_X64="e9312be75ed803b7415fc2aeabda1f4fe938912a39673762dc0c38c0e11ebde4"
 ARG OPENCODE_SHA256_ARM64="d4e332f46b227448582c0d9fc75f6f826dfe95c9f751bc2011fc4d937a042be6"
 # GITHUB_TOKEN authenticates the release-age API call below. Without it the
@@ -511,7 +511,7 @@ USER root
 # Pinned to a release that already clears the age gate (so `make build` and CI
 # build clean); Renovate advances it on the same 3-day lag thereafter.
 # renovate: datasource=github-releases depName=openai/codex extractVersion=^rust-v(?<version>.+)$
-ARG CODEX_VERSION="0.155.1"
+ARG CODEX_VERSION="0.156.1"
 ARG CODEX_SHA256_X64="a65b895c6ac1a73629bbe4b864640c86133e94a43b4d67b3103044e1a306d5a2"
 ARG CODEX_SHA256_ARM64="71857dbc9bea3613410e8a69cfb46b07c0402d6d20fec18843dbaffd757634bd"
 # GITHUB_TOKEN authenticates the release-age API call below (see the opencode
