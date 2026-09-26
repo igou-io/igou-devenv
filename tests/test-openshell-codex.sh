@@ -65,17 +65,17 @@ if grep -q -- 'sandbox delete' <<<"$dry_run"; then
     exit 1
 fi
 
-if bin/openshell-codex --name 'Invalid_Name' --dry-run >/dev/null 2>&1; then
+if "$REPO_DIR/bin/openshell-codex" --name 'Invalid_Name' --dry-run >/dev/null 2>&1; then
     echo 'invalid sandbox name unexpectedly succeeded' >&2
     exit 1
 fi
 
-if OPENSHELL_CODEX_IMAGE='' bin/openshell-codex --dry-run >/dev/null 2>&1; then
+if OPENSHELL_CODEX_IMAGE='' "$REPO_DIR/bin/openshell-codex" --dry-run >/dev/null 2>&1; then
     echo 'missing agent image unexpectedly succeeded' >&2
     exit 1
 fi
 
-explicit_image=$(bin/openshell-codex --image registry.example.com/custom/codex:2 --dry-run)
+explicit_image=$("$REPO_DIR/bin/openshell-codex" --image registry.example.com/custom/codex:2 --dry-run)
 grep -q -- '--from registry.example.com/custom/codex:2' <<<"$explicit_image"
 
 echo '[OK] openshell-codex wrapper'
