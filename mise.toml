@@ -148,7 +148,7 @@ linux-arm64 = { url = "https://github.com/kube-burner/kube-burner-ocp/releases/d
 # The global minimum_release_age gate still applies.
 # renovate: datasource=github-releases depName=NVIDIA/OpenShell
 [tools."http:openshell"]
-version = "0.0.116"
+version = "0.1.1"
 
 [tools."http:openshell".platforms]
 linux-x64   = { url = "https://github.com/NVIDIA/OpenShell/releases/download/v{{ version }}/openshell-x86_64-unknown-linux-musl.tar.gz" }

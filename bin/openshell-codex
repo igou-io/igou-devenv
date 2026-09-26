@@ -7,6 +7,7 @@ PROVIDER="${OPENSHELL_CODEX_PROVIDER:-opencode-go}"
 MODEL="${OPENSHELL_CODEX_MODEL:-gpt-5.6-luna}"
 CPU="${OPENSHELL_CODEX_CPU:-2}"
 MEMORY="${OPENSHELL_CODEX_MEMORY:-4Gi}"
+IMAGE="${OPENSHELL_CODEX_IMAGE:-}"
 SANDBOX_NAME=""
 UPLOAD_PATH="$PWD"
 EPHEMERAL=false
@@ -27,6 +28,7 @@ Options:
   --model MODEL     Codex model (default: gpt-5.6-luna)
   --cpu CPU         Sandbox CPU limit (default: 2)
   --memory MEMORY   Sandbox memory limit (default: 4Gi)
+  --image IMAGE     Required agent image containing Codex (or OPENSHELL_CODEX_IMAGE)
   --upload PATH     Project path to upload (default: current directory)
   --no-upload       Start with the base sandbox workspace only
   --ephemeral       Delete the sandbox when Codex exits
@@ -34,9 +36,8 @@ Options:
   -h, --help        Show this help
 
 Examples:
-  openshell-codex
-  openshell-codex --ephemeral
-  openshell-codex --name review-123 -- exec 'Review the repository'
+  openshell-codex --image registry.example.com/agents/codex:1.0
+  openshell-codex --image registry.example.com/agents/codex:1.0 --ephemeral
 EOF
 }
 
@@ -64,6 +65,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --memory)
             MEMORY="$2"
+            shift 2
+            ;;
+        --image)
+            IMAGE="$2"
             shift 2
             ;;
         --upload)
@@ -110,13 +115,19 @@ if [[ ! "$SANDBOX_NAME" =~ ^[a-z0-9][a-z0-9-]{0,62}$ ]]; then
     exit 2
 fi
 
+if [[ -z "$IMAGE" ]]; then
+    echo 'Set --image or OPENSHELL_CODEX_IMAGE to an agent image containing Codex; the gateway default is minimal Ubuntu.' >&2
+    exit 2
+fi
+
 OPEN_SHELL=(openshell --gateway "$GATEWAY")
 CREATE=("${OPEN_SHELL[@]}" sandbox create
     --name "$SANDBOX_NAME"
     --provider "$PROVIDER"
     --cpu "$CPU"
     --memory "$MEMORY"
-    --detach)
+    --detach
+    --from "$IMAGE")
 if [[ -n "$UPLOAD_PATH" ]]; then
     CREATE+=(--upload "$UPLOAD_PATH:/sandbox")
 fi
@@ -158,7 +169,6 @@ print_command() {
 
 if "$DRY_RUN"; then
     print_command "${CREATE[@]}"
-    print_command "${OPEN_SHELL[@]}" policy update "$SANDBOX_NAME" --remove-rule opencode --wait
     print_command "${EXEC[@]}"
     if "$EPHEMERAL"; then
         print_command "${OPEN_SHELL[@]}" sandbox delete "$SANDBOX_NAME"
@@ -166,12 +176,10 @@ if "$DRY_RUN"; then
     exit 0
 fi
 
-for command_name in openshell jq; do
-    if ! command -v "$command_name" >/dev/null 2>&1; then
-        echo "Required command not found: $command_name" >&2
-        exit 1
-    fi
-done
+if ! command -v openshell >/dev/null 2>&1; then
+    echo 'Required command not found: openshell' >&2
+    exit 1
+fi
 
 "${OPEN_SHELL[@]}" status >/dev/null
 if ! "${OPEN_SHELL[@]}" provider get "$PROVIDER" >/dev/null 2>&1; then
@@ -193,12 +201,6 @@ trap cleanup EXIT INT TERM
 printf 'Creating OpenShell sandbox %s...\n' "$SANDBOX_NAME"
 "${CREATE[@]}"
 created=true
-
-policy_json=$("${OPEN_SHELL[@]}" policy get "$SANDBOX_NAME" --full --output json)
-if jq -e '.policy.network_policies[]? | select(.name == "opencode")' \
-    >/dev/null <<<"$policy_json"; then
-    "${OPEN_SHELL[@]}" policy update "$SANDBOX_NAME" --remove-rule opencode --wait
-fi
 
 printf 'Launching Codex in %s...\n' "$SANDBOX_NAME"
 "${EXEC[@]}"

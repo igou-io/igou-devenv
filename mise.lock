@@ -202,15 +202,15 @@ checksum = "blake3:0750313e14f2cc7c62404740e39027c9f0a6f8e2633d1f4a0a5a2cce29c5b
 url = "https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/4.21.16/openshift-client-linux.tar.gz"
 
 [[tools."http:openshell"]]
-version = "0.0.116"
+version = "0.1.1"
 backend = "http:openshell"
 
 [tools."http:openshell"."platforms.linux-arm64"]
-url = "https://github.com/NVIDIA/OpenShell/releases/download/v0.0.116/openshell-aarch64-unknown-linux-musl.tar.gz"
+url = "https://github.com/NVIDIA/OpenShell/releases/download/v0.1.1/openshell-aarch64-unknown-linux-musl.tar.gz"
 
 [tools."http:openshell"."platforms.linux-x64"]
-checksum = "blake3:b31b30a3c31cf20c394ac0af1bb3a7bbaf67d0f7987a4aa46929ff528e9ef25a"
-url = "https://github.com/NVIDIA/OpenShell/releases/download/v0.0.116/openshell-x86_64-unknown-linux-musl.tar.gz"
+checksum = "blake3:473e0f3031e7d930c2295f76588780efd7ef55c69e5502c8ba05e1d3b60ef8d5"
+url = "https://github.com/NVIDIA/OpenShell/releases/download/v0.1.1/openshell-x86_64-unknown-linux-musl.tar.gz"
 
 [[tools."http:rustfs-cli"]]
 version = "0.1.25"
