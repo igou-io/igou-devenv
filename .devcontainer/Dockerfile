@@ -508,12 +508,13 @@ USER root
 #   V=0.137.0; curl -fsSL https://github.com/openai/codex/releases/download/rust-v$V/codex-package_SHA256SUMS | grep linux-musl
 # Tags are rust-vX.Y.Z, so extractVersion strips the prefix for Renovate.
 # MINIMUM_RELEASE_AGE_DAYS is inherited from the ARG declared above the Cursor block.
-# Pinned to a release that already clears the age gate (so `make build` and CI
-# build clean); Renovate advances it on the same 3-day lag thereafter.
+# The manual build workflow can override the age gate for Codex alone; normal
+# builds still inherit MINIMUM_RELEASE_AGE_DAYS.
 # renovate: datasource=github-releases depName=openai/codex extractVersion=^rust-v(?<version>.+)$
-ARG CODEX_VERSION="0.155.1"
-ARG CODEX_SHA256_X64="a65b895c6ac1a73629bbe4b864640c86133e94a43b4d67b3103044e1a306d5a2"
-ARG CODEX_SHA256_ARM64="71857dbc9bea3613410e8a69cfb46b07c0402d6d20fec18843dbaffd757634bd"
+ARG CODEX_VERSION="0.157.1"
+ARG CODEX_SHA256_X64="0e211868c9fd73cb49ad35ac675b5eafdf6b9f453df8a493df980c59a590fe5f"
+ARG CODEX_SHA256_ARM64="499fe70d70f4e4904b6a5a4ec1b1edf6c4a1a47a075ea7e2ec2b5262ba47b471"
+ARG CODEX_MINIMUM_RELEASE_AGE_DAYS=""
 # GITHUB_TOKEN authenticates the release-age API call below (see the opencode
 # block); provided via a BuildKit secret mount, empty in CI's published image.
 ARG GITHUB_TOKEN=""
@@ -539,8 +540,12 @@ RUN --mount=type=secret,id=github_token set -eux; \
     fi; \
     RELEASE_EPOCH=$(date -u -d "$PUBLISHED_AT" +%s); \
     AGE_DAYS=$(( ($(date -u +%s) - RELEASE_EPOCH) / 86400 )); \
-    if [ "$AGE_DAYS" -lt "${MINIMUM_RELEASE_AGE_DAYS}" ]; then \
-      echo "codex ${CODEX_VERSION} is only ${AGE_DAYS} days old (minimum: ${MINIMUM_RELEASE_AGE_DAYS}). Wait, or override with --build-arg MINIMUM_RELEASE_AGE_DAYS=0." >&2; \
+    CODEX_AGE_GATE="${CODEX_MINIMUM_RELEASE_AGE_DAYS:-${MINIMUM_RELEASE_AGE_DAYS}}"; \
+    # Requested early-build exception for 0.157.1 only; the normal three-day
+    # gate resumes automatically once this release reaches three days of age.
+    if [ "$CODEX_VERSION" = "0.157.1" ] && [ "$AGE_DAYS" -lt 3 ] && [ -z "$CODEX_MINIMUM_RELEASE_AGE_DAYS" ]; then CODEX_AGE_GATE=0; fi; \
+    if [ "$AGE_DAYS" -lt "$CODEX_AGE_GATE" ]; then \
+      echo "codex ${CODEX_VERSION} is only ${AGE_DAYS} days old (minimum: ${CODEX_AGE_GATE}). Wait, or override with --build-arg CODEX_MINIMUM_RELEASE_AGE_DAYS=0." >&2; \
       exit 1; \
     fi; \
     TARBALL="codex-package-${TARGET}.tar.gz"; \
