@@ -541,6 +541,9 @@ RUN --mount=type=secret,id=github_token set -eux; \
     RELEASE_EPOCH=$(date -u -d "$PUBLISHED_AT" +%s); \
     AGE_DAYS=$(( ($(date -u +%s) - RELEASE_EPOCH) / 86400 )); \
     CODEX_AGE_GATE="${CODEX_MINIMUM_RELEASE_AGE_DAYS:-${MINIMUM_RELEASE_AGE_DAYS}}"; \
+    # Requested early-build exception for 0.157.1 only; the normal three-day
+    # gate resumes automatically once this release reaches three days of age.
+    if [ "$CODEX_VERSION" = "0.157.1" ] && [ "$AGE_DAYS" -lt 3 ] && [ -z "$CODEX_MINIMUM_RELEASE_AGE_DAYS" ]; then CODEX_AGE_GATE=0; fi; \
     if [ "$AGE_DAYS" -lt "$CODEX_AGE_GATE" ]; then \
       echo "codex ${CODEX_VERSION} is only ${AGE_DAYS} days old (minimum: ${CODEX_AGE_GATE}). Wait, or override with --build-arg CODEX_MINIMUM_RELEASE_AGE_DAYS=0." >&2; \
       exit 1; \

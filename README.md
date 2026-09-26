@@ -376,9 +376,12 @@ it does not select another image. Deployment configuration lives in
 
 `openshell-codex` creates a container sandbox on the registered `ocp` OpenShell
 gateway, uploads the current project, attaches the gateway-managed `opencode-go`
-provider, removes the overlapping generic OpenCode network rule, and launches
+provider, and launches
 Codex with the OpenCode Go endpoint configuration. The API key remains in
 OpenShell's encrypted provider storage and is not passed through the wrapper.
+OpenShell 0.1.1 uses a minimal Ubuntu gateway default. Pass `--image` or set
+`OPENSHELL_CODEX_IMAGE` to a fully qualified, preferably digest-pinned image
+containing Codex and its dependencies. The wrapper preserves the image's policy.
 
 The non-secret `ocp` registration is managed from
 `dotfiles/openshell/gateways/ocp/metadata.json` and converged by `post-create`.
@@ -390,14 +393,14 @@ Authenticate once before the first sandbox:
 
 ```bash
 openshell gateway login ocp
-openshell-codex
+openshell-codex --image registry.example.com/agents/codex:1.0
 ```
 
 Sandboxes are retained by default. Use `--ephemeral` to delete the sandbox when
 Codex exits, or pass a non-interactive Codex command after `--`:
 
 ```bash
-openshell-codex --ephemeral -- exec 'Review this repository'
+openshell-codex --image registry.example.com/agents/codex:1.0 --ephemeral -- exec 'Review this repository'
 ```
 
 ### Usage
