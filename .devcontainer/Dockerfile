@@ -511,9 +511,9 @@ USER root
 # The manual build workflow can override the age gate for Codex alone; normal
 # builds still inherit MINIMUM_RELEASE_AGE_DAYS.
 # renovate: datasource=github-releases depName=openai/codex extractVersion=^rust-v(?<version>.+)$
-ARG CODEX_VERSION="0.157.1"
-ARG CODEX_SHA256_X64="0e211868c9fd73cb49ad35ac675b5eafdf6b9f453df8a493df980c59a590fe5f"
-ARG CODEX_SHA256_ARM64="499fe70d70f4e4904b6a5a4ec1b1edf6c4a1a47a075ea7e2ec2b5262ba47b471"
+ARG CODEX_VERSION="0.159.1"
+ARG CODEX_SHA256_X64="9a2dff8e1eb9bad83f52edb6f91175efeb5c68a316f880c95d7770f87a34fc5c"
+ARG CODEX_SHA256_ARM64="63b3b5a4e76b4174d651d2d363ac028fdb4961ba47eca9946da3c35267999aec"
 ARG CODEX_MINIMUM_RELEASE_AGE_DAYS=""
 # GITHUB_TOKEN authenticates the release-age API call below (see the opencode
 # block); provided via a BuildKit secret mount, empty in CI's published image.
@@ -541,9 +541,9 @@ RUN --mount=type=secret,id=github_token set -eux; \
     RELEASE_EPOCH=$(date -u -d "$PUBLISHED_AT" +%s); \
     AGE_DAYS=$(( ($(date -u +%s) - RELEASE_EPOCH) / 86400 )); \
     CODEX_AGE_GATE="${CODEX_MINIMUM_RELEASE_AGE_DAYS:-${MINIMUM_RELEASE_AGE_DAYS}}"; \
-    # Requested early-build exception for 0.157.1 only; the normal three-day
+    # Requested early-build exception for 0.159.1 only; the normal three-day
     # gate resumes automatically once this release reaches three days of age.
-    if [ "$CODEX_VERSION" = "0.157.1" ] && [ "$AGE_DAYS" -lt 3 ] && [ -z "$CODEX_MINIMUM_RELEASE_AGE_DAYS" ]; then CODEX_AGE_GATE=0; fi; \
+    if [ "$CODEX_VERSION" = "0.159.1" ] && [ "$AGE_DAYS" -lt 3 ] && [ -z "$CODEX_MINIMUM_RELEASE_AGE_DAYS" ]; then CODEX_AGE_GATE=0; fi; \
     if [ "$AGE_DAYS" -lt "$CODEX_AGE_GATE" ]; then \
       echo "codex ${CODEX_VERSION} is only ${AGE_DAYS} days old (minimum: ${CODEX_AGE_GATE}). Wait, or override with --build-arg CODEX_MINIMUM_RELEASE_AGE_DAYS=0." >&2; \
       exit 1; \
