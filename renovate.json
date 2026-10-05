@@ -76,10 +76,34 @@
       "matchManagers": ["custom.regex"],
       "matchPackageNames": ["anomalyco/opencode", "cursor-agent", "openai/codex"],
       "groupName": "coding agent clis",
-      "description": "automerge:false — cli-sha-recapture.yaml owns merging this PR (it recaptures the per-arch *_SHA256_* ARGs the version bump invalidates, pushes the fixup, then enables GitHub auto-merge), mirroring the release-prepare/mise.lock pattern. Never push manual commits to this branch outside that workflow: an edited branch freezes Renovate. The 3-day age gate matches MINIMUM_RELEASE_AGE_DAYS in the Dockerfile.",
+      "description": "automerge:false — cli-sha-recapture.yaml owns merging this PR (it recaptures the per-arch *_SHA256_* ARGs the version bump invalidates, pushes the fixup, then enables GitHub auto-merge), mirroring the release-prepare/mise.lock pattern. Never push manual commits to this branch outside that workflow: an edited branch freezes Renovate. Cursor and OpenCode retain the 3-day Dockerfile age gate; Codex is exempted separately.",
       "minimumReleaseAge": "3 days",
       "schedule": ["at any time"],
       "automerge": false
+    },
+    {
+      "description": "Codex releases are time-sensitive; bypass the age gate while retaining checksum recapture and required CI.",
+      "matchManagers": [
+        "custom.regex"
+      ],
+      "matchPackageNames": [
+        "openai/codex"
+      ],
+      "minimumReleaseAge": null
+    },
+    {
+      "description": "t3 releases are time-sensitive; bypass the age gate while retaining the mise lockfile handoff and required CI.",
+      "matchManagers": [
+        "mise"
+      ],
+      "matchPackageNames": [
+        "t3",
+        "npm:t3"
+      ],
+      "minimumReleaseAge": null,
+      "schedule": [
+        "at any time"
+      ]
     },
     {
       "matchManagers": ["custom.regex"],

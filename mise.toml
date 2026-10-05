@@ -210,7 +210,9 @@ linux-arm64 = { url = "https://github.com/coder/code-server/releases/download/v{
 # blocked. The build needs gcc-c++/make/python3 (present in the Dockerfile
 # layer and the bin/run-pinned-mise bootstrap).
 [tools."npm:t3"]
-version = "0.0.42"
+version = "0.0.45"
+# Keep fresh t3 releases and their npm dependencies available immediately.
+minimum_release_age = "0s"
 allow_builds = ["node-pty"]
 
 # rustfs-cli — the `rc` admin/client CLI for RustFS S3 servers. Only the RustFS

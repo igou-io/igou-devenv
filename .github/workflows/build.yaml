@@ -10,12 +10,7 @@ on:
   schedule:
     - cron: '0 6 * * 1' # Weekly on Monday at 06:00 Eastern
       timezone: America/New_York
-  workflow_dispatch:
-    inputs:
-      allow_fresh_codex:
-        description: Build Codex before its three-day release-age gate expires
-        type: boolean
-        default: false
+  workflow_dispatch: {}
 
 permissions:
   contents: write
@@ -62,7 +57,6 @@ jobs:
         run: |
           docker buildx build \
             --file .devcontainer/Dockerfile \
-            --build-arg CODEX_MINIMUM_RELEASE_AGE_DAYS=${{ github.event_name == 'workflow_dispatch' && inputs.allow_fresh_codex && '0' || '' }} \
             --secret id=github_token,env=GITHUB_TOKEN \
             --cache-from type=registry,ref=${IMAGE}:latest \
             --cache-to type=inline \
