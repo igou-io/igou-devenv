@@ -314,7 +314,7 @@ checksum = "blake3:9e23a27184e8b167f7805bdd71216ad418a3f0549d77662bb1f13497e4e58
 url = "https://nodejs.org/dist/v26.9.0/node-v26.9.0-linux-x64.tar.gz"
 
 [[tools."npm:t3"]]
-version = "0.0.42"
+version = "0.0.45"
 backend = "npm:t3"
 
 [tools."npm:t3".options]
