@@ -21,8 +21,15 @@ else
     RUNTIME=docker
 fi
 
+CONFIGS=()
+if [[ -f "$REPO_DIR/renovate.json" && -f "$REPO_DIR/renovate-base.json" ]]; then
+    CONFIGS=(renovate.json renovate-base.json)
+fi
+
 exec "$RUNTIME" run --rm \
     -v "$REPO_DIR:/repo:ro" \
     -w /repo \
+    -e RENOVATE_TOKEN="${GITHUB_TOKEN:-${GH_TOKEN:-}}" \
+    -e GITHUB_COM_TOKEN="${GITHUB_TOKEN:-${GH_TOKEN:-}}" \
     docker.io/renovate/renovate \
-    renovate-config-validator
+    renovate-config-validator "${CONFIGS[@]}"

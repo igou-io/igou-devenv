@@ -1,6 +1,7 @@
-name: release-prepare (weekly mise lock)
+name: release-prepare (mise lock)
 
-# Monday 06:30 Eastern (after Renovate's Sunday run). Renovate cannot regenerate
+# On Renovate PR updates and Monday 06:30 Eastern (after its Sunday run).
+# Renovate cannot regenerate
 # mise.lock (hosted Mend app, no postUpgradeTasks), so its mise-tools PR is
 # stale. This job regenerates the lock, pushes it (which re-triggers CI), and
 # enables GitHub native auto-merge — using RELEASE_PAT so the push re-triggers
@@ -9,6 +10,13 @@ name: release-prepare (weekly mise lock)
 # blocks waiting. The 08:00 release.yaml then ships.
 
 on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+    paths:
+      - mise.toml
   schedule:
     - cron: '30 6 * * 1'
       timezone: America/New_York
@@ -18,8 +26,19 @@ permissions:
   contents: read
   issues: write
 
+concurrency:
+  group: dependency-preparation-mise
+  cancel-in-progress: false
+
 jobs:
   prepare:
+    # Renovate's same-repository group only; never expose RELEASE_PAT to a fork
+    # or a user-created branch named like the Renovate branch.
+    if: >-
+      github.event_name != 'pull_request' ||
+      (github.head_ref == 'renovate/mise-managed-cli-tools' &&
+       github.event.pull_request.head.repo.full_name == github.repository &&
+       github.event.pull_request.user.login == 'renovate[bot]')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7

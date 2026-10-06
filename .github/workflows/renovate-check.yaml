@@ -1,0 +1,32 @@
+name: Renovate coverage
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - renovate.json
+      - renovate-base.json
+      - mise.toml
+      - tests/test-renovate.mjs
+      - .github/workflows/renovate-check.yaml
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    container:
+      image: docker.io/renovate/renovate:44.138.0@sha256:32027ed5e5e450f76ee372fcd6e72c8114db7fdb28c97c520515a03ea4a0d77b
+      options: --user 0
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Validate repository and shared preset
+        env:
+          RENOVATE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_COM_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: renovate-config-validator renovate.json renovate-base.json
+      - name: Check extraction, replacements, handoff, and release timestamps
+        run: node tests/test-renovate.mjs

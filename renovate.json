@@ -14,71 +14,117 @@
   },
   "packageRules": [
     {
-      "matchManagers": ["pip_requirements"],
+      "matchManagers": [
+        "pip_requirements"
+      ],
       "groupName": "python dependencies"
     },
     {
-      "matchManagers": ["pip_requirements"],
-      "matchPackageNames": ["websockets"],
+      "matchManagers": [
+        "pip_requirements"
+      ],
+      "matchPackageNames": [
+        "websockets"
+      ],
       "description": "ansible-rulebook (same requirements.txt) pins websockets<15.1; without this cap the python-dependencies group PR arrives permanently red on pip ResolutionImpossible. Lift when ansible-rulebook widens its range.",
       "allowedVersions": "<15.1"
     },
     {
-      "matchManagers": ["pip_requirements"],
-      "matchFileNames": [".devcontainer/omnigent/**"],
+      "matchManagers": [
+        "pip_requirements"
+      ],
+      "matchFileNames": [
+        ".devcontainer/omnigent/**"
+      ],
       "groupName": "omnigent runtime",
       "automerge": false,
       "description": "Review compatibility with the deployed server and the tested OpenShell WebSocket proxy override before updating."
     },
     {
-      "matchManagers": ["dockerfile"],
+      "matchManagers": [
+        "dockerfile"
+      ],
       "groupName": "container base images"
     },
     {
-      "matchManagers": ["dockerfile"],
-      "matchPackageNames": ["quay.io/centos/centos"],
+      "matchManagers": [
+        "dockerfile"
+      ],
+      "matchPackageNames": [
+        "quay.io/centos/centos"
+      ],
       "pinDigests": false
     },
     {
-      "matchManagers": ["custom.regex"],
+      "matchManagers": [
+        "custom.regex"
+      ],
       "groupName": "cli tools"
     },
     {
-      "matchManagers": ["github-actions"],
+      "matchManagers": [
+        "github-actions"
+      ],
       "groupName": "github actions"
     },
     {
-      "matchManagers": ["npm"],
+      "matchManagers": [
+        "npm"
+      ],
       "groupName": "npm dependencies"
     },
     {
-      "matchManagers": ["mise"],
+      "matchManagers": [
+        "mise",
+        "custom.regex"
+      ],
       "groupName": "mise-managed cli tools",
-      "description": "automerge:false — release-prepare.yaml owns merging this PR (it regenerates mise.lock then enables GitHub auto-merge); this avoids racing Renovate's own automerge.",
-      "automerge": false
+      "description": "The native mise manager and HTTP regex manager share the lockfile handoff; release-prepare regenerates mise.lock before enabling GitHub auto-merge.",
+      "automerge": false,
+      "matchFileNames": [
+        "mise.toml"
+      ]
     },
     {
-      "matchManagers": ["mise"],
-      "matchUpdateTypes": ["lockFileMaintenance"],
+      "matchManagers": [
+        "mise"
+      ],
+      "matchUpdateTypes": [
+        "lockFileMaintenance"
+      ],
       "description": "Lock-file-maintenance PRs only refresh mise.lock (no mise.toml bump), so release-prepare never touches them; they are safe to automerge behind the required build check.",
       "automerge": true
     },
     {
-      "matchManagers": ["custom.regex"],
-      "matchPackageNames": ["anthropics/claude-code"],
+      "matchManagers": [
+        "custom.regex"
+      ],
+      "matchPackageNames": [
+        "anthropics/claude-code"
+      ],
       "groupName": "claude code",
       "description": "Coding-agent harness, ungrouped from the SHA-pinned agent CLIs: the Dockerfile verifies it via PGP against the release signature (no *_SHA256_* ARGs), so a version bump is self-contained and safe to automerge on a green build. 3-day age gate instead of the global 10: harness releases ship protocol/feature fixes weekly and staleness has real operational cost on the Hermes terminal backend.",
       "minimumReleaseAge": "3 days",
-      "schedule": ["at any time"],
+      "schedule": [
+        "at any time"
+      ],
       "automerge": true
     },
     {
-      "matchManagers": ["custom.regex"],
-      "matchPackageNames": ["anomalyco/opencode", "cursor-agent", "openai/codex"],
+      "matchManagers": [
+        "custom.regex"
+      ],
+      "matchPackageNames": [
+        "anomalyco/opencode",
+        "cursor-agent",
+        "openai/codex"
+      ],
       "groupName": "coding agent clis",
-      "description": "automerge:false — cli-sha-recapture.yaml owns merging this PR (it recaptures the per-arch *_SHA256_* ARGs the version bump invalidates, pushes the fixup, then enables GitHub auto-merge), mirroring the release-prepare/mise.lock pattern. Never push manual commits to this branch outside that workflow: an edited branch freezes Renovate. Cursor and OpenCode retain the 3-day Dockerfile age gate; Codex is exempted separately.",
+      "description": "CLI SHA preparation owns merging this group. Its generated-artifact author is recognized by gitIgnoredAuthors so Renovate can refresh prepared branches; human edits still freeze them. Cursor/OpenCode retain their 3-day gate and Codex is exempted separately.",
       "minimumReleaseAge": "3 days",
-      "schedule": ["at any time"],
+      "schedule": [
+        "at any time"
+      ],
       "automerge": false
     },
     {
@@ -106,25 +152,65 @@
       ]
     },
     {
-      "matchManagers": ["custom.regex"],
-      "matchPackageNames": ["jdx/mise"],
+      "matchManagers": [
+        "custom.regex"
+      ],
+      "matchPackageNames": [
+        "jdx/mise"
+      ],
       "groupName": "mise itself (trust anchor)"
     },
     {
-      "matchManagers": ["custom.regex"],
-      "matchPackageNames": ["aquaproj/aqua-registry"],
-      "groupName": "aqua-registry SHA pin (trust anchor)"
+      "matchManagers": [
+        "custom.regex"
+      ],
+      "matchPackageNames": [
+        "aquaproj/aqua-registry"
+      ],
+      "groupName": "aqua-registry SHA pin (trust anchor)",
+      "automerge": false
     }
   ],
   "customManagers": [
     {
       "description": "Update pinned versions in shell scripts and Dockerfiles via '# renovate:' comments",
       "customType": "regex",
-      "managerFilePatterns": ["/\\.sh$/", "/Dockerfile$/", "/Containerfile$/", "/mise\\.toml$/"],
+      "managerFilePatterns": [
+        "/\\.sh$/",
+        "/Dockerfile$/",
+        "/Containerfile$/"
+      ],
       "matchStrings": [
         "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: extractVersion=(?<extractVersion>\\S+))?(?: versioning=(?<versioning>\\S+))?\\n(?:ARG )?\\w+_VERSION=\"(?<currentValue>[^\"]+)\""
       ],
       "versioningTemplate": "{{#if versioning}}{{{versioning}}}{{else}}semver{{/if}}"
+    },
+    {
+      "description": "Track annotated HTTP tools skipped by the native mise manager",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^mise\\.toml$/"
+      ],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\n\\[tools\\.\"http:[^\"\\n]+\"\\]\\nversion = \"(?<currentValue>[^\"\\n]+)\""
+      ],
+      "versioningTemplate": "semver"
+    },
+    {
+      "description": "Update the aqua registry release tag and immutable commit together",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^mise\\.toml$/"
+      ],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>aquaproj/aqua-registry)\\nregistry_url = \"https://raw\\.githubusercontent\\.com/aquaproj/aqua-registry/(?<currentDigest>[a-f0-9]{40})/registry\\.yaml\" # (?<currentValue>v\\d+\\.\\d+\\.\\d+)"
+      ],
+      "versioningTemplate": "semver",
+      "autoReplaceStringTemplate": "# renovate: datasource={{{datasource}}} depName={{{depName}}}\nregistry_url = \"https://raw.githubusercontent.com/aquaproj/aqua-registry/{{{newDigest}}}/registry.yaml\" # {{{newValue}}}"
     }
+  ],
+  "gitIgnoredAuthors": [
+    "dependency-preparation@igou-devenv.invalid",
+    "41898282+github-actions[bot]@users.noreply.github.com"
   ]
 }
