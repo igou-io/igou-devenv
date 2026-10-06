@@ -138,18 +138,18 @@ checksum = "sha256:86584a54def73570558f66f5111cc53dfed56689637ae32c1201205d494f5
 url = "https://get.helm.sh/helm-v4.3.0-linux-amd64.tar.gz"
 
 [[tools."http:code-server"]]
-version = "4.123.0"
+version = "4.139.1"
 backend = "http:code-server"
 
 [tools."http:code-server".options]
 strip_components = "1"
 
 [tools."http:code-server"."platforms.linux-arm64"]
-url = "https://github.com/coder/code-server/releases/download/v4.123.0/code-server-4.123.0-linux-arm64.tar.gz"
+url = "https://github.com/coder/code-server/releases/download/v4.139.1/code-server-4.139.1-linux-arm64.tar.gz"
 
 [tools."http:code-server"."platforms.linux-x64"]
-checksum = "blake3:5ccbf2bb252e1ba2dcba24e4a7ab4c14586feca77dd69dc09c884757d6561326"
-url = "https://github.com/coder/code-server/releases/download/v4.123.0/code-server-4.123.0-linux-amd64.tar.gz"
+checksum = "blake3:6cc4f93a069dd6ace1c8359d6160b56f64754588400555c1d1e8497c554dc609"
+url = "https://github.com/coder/code-server/releases/download/v4.139.1/code-server-4.139.1-linux-amd64.tar.gz"
 
 [[tools."http:gws"]]
 version = "0.22.5"
@@ -163,43 +163,43 @@ checksum = "blake3:ddcecc669ac646ca870d32817dc56f2b581982fe76f880e37fe595a0ee9da
 url = "https://github.com/googleworkspace/cli/releases/download/v0.22.5/google-workspace-cli-x86_64-unknown-linux-gnu.tar.gz"
 
 [[tools."http:kube-burner"]]
-version = "2.6.1"
+version = "2.8.6"
 backend = "http:kube-burner"
 
 [tools."http:kube-burner".options]
 strip_components = "0"
 
 [tools."http:kube-burner"."platforms.linux-arm64"]
-url = "https://github.com/cloud-bulldozer/kube-burner/releases/download/v2.6.1/kube-burner-V2.6.1-linux-arm64.tar.gz"
+url = "https://github.com/cloud-bulldozer/kube-burner/releases/download/v2.8.6/kube-burner-V2.8.6-linux-arm64.tar.gz"
 
 [tools."http:kube-burner"."platforms.linux-x64"]
-checksum = "blake3:c515fc3bada5a01a6496ae358bfbeed52cc882409e0b01964caf40e2fe2b2454"
-url = "https://github.com/cloud-bulldozer/kube-burner/releases/download/v2.6.1/kube-burner-V2.6.1-linux-x86_64.tar.gz"
+checksum = "blake3:0bfb7e16c1f716b9d6496c32568d6fdf0ad16771c162c79b6dcf2328cb7d37ad"
+url = "https://github.com/cloud-bulldozer/kube-burner/releases/download/v2.8.6/kube-burner-V2.8.6-linux-x86_64.tar.gz"
 
 [[tools."http:kube-burner-ocp"]]
-version = "1.11.11"
+version = "1.12.7"
 backend = "http:kube-burner-ocp"
 
 [tools."http:kube-burner-ocp".options]
 strip_components = "0"
 
 [tools."http:kube-burner-ocp"."platforms.linux-arm64"]
-url = "https://github.com/kube-burner/kube-burner-ocp/releases/download/v1.11.11/kube-burner-ocp-V1.11.11-linux-arm64.tar.gz"
+url = "https://github.com/kube-burner/kube-burner-ocp/releases/download/v1.12.7/kube-burner-ocp-V1.12.7-linux-arm64.tar.gz"
 
 [tools."http:kube-burner-ocp"."platforms.linux-x64"]
-checksum = "blake3:429021e6105e10ce3c3eb23e3d3a5d82be8b5a8553e499dd2e04ac8efe7a3402"
-url = "https://github.com/kube-burner/kube-burner-ocp/releases/download/v1.11.11/kube-burner-ocp-V1.11.11-linux-x86_64.tar.gz"
+checksum = "blake3:2cb394da71bc22ccc8a83416d654fb64df2b632b8329e08ff6243a4912a6f4b1"
+url = "https://github.com/kube-burner/kube-burner-ocp/releases/download/v1.12.7/kube-burner-ocp-V1.12.7-linux-x86_64.tar.gz"
 
 [[tools."http:oc"]]
-version = "4.21.16"
+version = "4.21.34"
 backend = "http:oc"
 
 [tools."http:oc"."platforms.linux-arm64"]
-url = "https://mirror.openshift.com/pub/openshift-v4/aarch64/clients/ocp/4.21.16/openshift-client-linux.tar.gz"
+url = "https://mirror.openshift.com/pub/openshift-v4/aarch64/clients/ocp/4.21.34/openshift-client-linux.tar.gz"
 
 [tools."http:oc"."platforms.linux-x64"]
-checksum = "blake3:0750313e14f2cc7c62404740e39027c9f0a6f8e2633d1f4a0a5a2cce29c5b870"
-url = "https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/4.21.16/openshift-client-linux.tar.gz"
+checksum = "blake3:3fa15210c00c321db8ff61ebfeeb44b5ee329849c276672bb52b017b03d0b084"
+url = "https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/4.21.34/openshift-client-linux.tar.gz"
 
 [[tools."http:openshell"]]
 version = "0.1.1"
@@ -213,26 +213,26 @@ checksum = "blake3:473e0f3031e7d930c2295f76588780efd7ef55c69e5502c8ba05e1d3b60ef
 url = "https://github.com/NVIDIA/OpenShell/releases/download/v0.1.1/openshell-x86_64-unknown-linux-musl.tar.gz"
 
 [[tools."http:rustfs-cli"]]
-version = "0.1.25"
+version = "0.1.36"
 backend = "http:rustfs-cli"
 
 [tools."http:rustfs-cli"."platforms.linux-arm64"]
-url = "https://github.com/rustfs/cli/releases/download/v0.1.25/rustfs-cli-linux-arm64-gnu-v0.1.25.tar.gz"
+url = "https://github.com/rustfs/cli/releases/download/v0.1.36/rustfs-cli-linux-arm64-gnu-v0.1.36.tar.gz"
 
 [tools."http:rustfs-cli"."platforms.linux-x64"]
-checksum = "blake3:9d79d1a1755544a247efe81f2378b09d26c1bdc7039f9f7fe4fd9c5ea49fd6a7"
-url = "https://github.com/rustfs/cli/releases/download/v0.1.25/rustfs-cli-linux-amd64-gnu-v0.1.25.tar.gz"
+checksum = "blake3:d1a537b70c028894502a92bc8b5b98adf5f1f37ebbf1b56b4fdc734f19b97565"
+url = "https://github.com/rustfs/cli/releases/download/v0.1.36/rustfs-cli-linux-amd64-gnu-v0.1.36.tar.gz"
 
 [[tools."http:virtctl"]]
-version = "1.8.2"
+version = "1.9.0"
 backend = "http:virtctl"
 
 [tools."http:virtctl"."platforms.linux-arm64"]
-url = "https://github.com/kubevirt/kubevirt/releases/download/v1.8.2/virtctl-v1.8.2-linux-arm64"
+url = "https://github.com/kubevirt/kubevirt/releases/download/v1.9.0/virtctl-v1.9.0-linux-arm64"
 
 [tools."http:virtctl"."platforms.linux-x64"]
-checksum = "blake3:26e61761d98747c8a4d22057116bcdbdf77000561234ae048e2b64d8182a036e"
-url = "https://github.com/kubevirt/kubevirt/releases/download/v1.8.2/virtctl-v1.8.2-linux-amd64"
+checksum = "blake3:e1a15ba4be751abf4c566d3c664f095e7b5f843b8605f3c5f9863c4a22f6bac7"
+url = "https://github.com/kubevirt/kubevirt/releases/download/v1.9.0/virtctl-v1.9.0-linux-amd64"
 
 [[tools.kind]]
 version = "0.33.0"
@@ -263,16 +263,16 @@ url = "https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform
 url_api = "https://api.github.com/repos/yannh/kubeconform/releases/assets/438612666"
 
 [[tools.kubectl]]
-version = "1.37.0"
+version = "1.37.1"
 backend = "aqua:kubernetes/kubernetes/kubectl"
 
 [tools.kubectl."platforms.linux-arm64"]
-checksum = "sha256:922df28df248cc00a9e025f947704f1d1482de64ece54cfe57e61f19eaf1eef3"
-url = "https://dl.k8s.io/v1.37.0/bin/linux/arm64/kubectl"
+checksum = "sha256:ff749f4b78d9c4f1ec87307df9b50119ed819e2094aa9810cb9acffc3286c8c7"
+url = "https://dl.k8s.io/v1.37.1/bin/linux/arm64/kubectl"
 
 [tools.kubectl."platforms.linux-x64"]
-checksum = "sha256:6129359f4e1f3848a5572ccb0b26cf28b8ca08cef38c95a765b2f64a2c961a2f"
-url = "https://dl.k8s.io/v1.37.0/bin/linux/amd64/kubectl"
+checksum = "sha256:65691ff77eb6fa44c908b77a1082c9f092c3b9733b5cefabec0d1104890e21a8"
+url = "https://dl.k8s.io/v1.37.1/bin/linux/amd64/kubectl"
 
 [[tools.kubeseal]]
 version = "0.40.0"
@@ -303,15 +303,15 @@ url = "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/
 url_api = "https://api.github.com/repos/kubernetes-sigs/kustomize/releases/assets/353160972"
 
 [[tools.node]]
-version = "26.9.0"
+version = "26.10.0"
 backend = "aqua:nodejs/node"
 
 [tools.node."platforms.linux-arm64"]
-url = "https://nodejs.org/dist/v26.9.0/node-v26.9.0-linux-arm64.tar.gz"
+url = "https://nodejs.org/dist/v26.10.0/node-v26.10.0-linux-arm64.tar.gz"
 
 [tools.node."platforms.linux-x64"]
-checksum = "blake3:9e23a27184e8b167f7805bdd71216ad418a3f0549d77662bb1f13497e4e58d72"
-url = "https://nodejs.org/dist/v26.9.0/node-v26.9.0-linux-x64.tar.gz"
+checksum = "blake3:99794b5216102119c6f28c43a2d948ffbd19a98d9cb3a9c0672610adfab22450"
+url = "https://nodejs.org/dist/v26.10.0/node-v26.10.0-linux-x64.tar.gz"
 
 [[tools."npm:t3"]]
 version = "0.0.45"
@@ -355,27 +355,27 @@ url_api = "https://api.github.com/repos/getsops/sops/releases/assets/486808201"
 url = "https://github.com/getsops/sops/releases/download/v3.13.3/sops-v3.13.3.intoto.jsonl"
 
 [[tools.tekton-cli]]
-version = "0.46.0"
+version = "0.46.1"
 backend = "aqua:tektoncd/cli"
 
 [tools.tekton-cli."platforms.linux-arm64"]
-checksum = "sha256:1aecaf783da733feccaab84240581529a62f91df11596ab536717d92a0a9c8a2"
-url = "https://github.com/tektoncd/cli/releases/download/v0.46.0/tkn_0.46.0_Linux_aarch64.tar.gz"
-url_api = "https://api.github.com/repos/tektoncd/cli/releases/assets/502223563"
+checksum = "sha256:85144fc34f40bc1b19be48434327044f306e66cc2814663d7abd2092845b0948"
+url = "https://github.com/tektoncd/cli/releases/download/v0.46.1/tkn_0.46.1_Linux_aarch64.tar.gz"
+url_api = "https://api.github.com/repos/tektoncd/cli/releases/assets/580113264"
 
 [tools.tekton-cli."platforms.linux-x64"]
-checksum = "sha256:4a69c3884b40a370bf6faff620ee719adb3a4b4c1820c2edba93520e54268419"
-url = "https://github.com/tektoncd/cli/releases/download/v0.46.0/tkn_0.46.0_Linux_x86_64.tar.gz"
-url_api = "https://api.github.com/repos/tektoncd/cli/releases/assets/502223564"
+checksum = "sha256:bc9fe51595af87cee422ae19a62ab46c8cdcb0a74f7157ffa8b9a9ef39b3d390"
+url = "https://github.com/tektoncd/cli/releases/download/v0.46.1/tkn_0.46.1_Linux_x86_64.tar.gz"
+url_api = "https://api.github.com/repos/tektoncd/cli/releases/assets/580113257"
 
 [[tools.terraform]]
-version = "1.16.3"
+version = "1.16.4"
 backend = "aqua:hashicorp/terraform"
 
 [tools.terraform."platforms.linux-arm64"]
-checksum = "sha256:b6b293550af7a6a7ffd867a04900ce161db86ec9407b234a636c2adbae2ca9f0"
-url = "https://releases.hashicorp.com/terraform/1.16.3/terraform_1.16.3_linux_arm64.zip"
+checksum = "sha256:8263f301cb1a24489a4adeed147bf28504053f77237b3ea97a0ef2972659de30"
+url = "https://releases.hashicorp.com/terraform/1.16.4/terraform_1.16.4_linux_arm64.zip"
 
 [tools.terraform."platforms.linux-x64"]
-checksum = "sha256:093b6ae9a2228af5029c41606bc96eb583553528aad1bfe7e0b4d62fc91e25d8"
-url = "https://releases.hashicorp.com/terraform/1.16.3/terraform_1.16.3_linux_amd64.zip"
+checksum = "sha256:dc94af0eef1147718ad7c8daea792ed199e3e0492eec180d0adafa2a65a879df"
+url = "https://releases.hashicorp.com/terraform/1.16.4/terraform_1.16.4_linux_amd64.zip"
