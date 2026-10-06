@@ -57,7 +57,7 @@ node = "aqua:nodejs/node"
 
 [tools]
 # Canary tool — proves the integration shape end-to-end before adding the rest.
-kubectl = "1.37.0"
+kubectl = "1.37.1"
 
 # Task 2.1 — SHA256-verified tools (aqua-registry per-tool checksums.txt).
 gh = "2.101.0"
@@ -66,7 +66,7 @@ kubeseal = "0.40.0"
 kubeconform = "0.8.0"
 kind = "0.33.0"
 act = "0.2.89"
-tekton-cli = "0.46.0"   # binary is `tkn`; mise registry key is tekton-cli
+tekton-cli = "0.46.1"   # binary is `tkn`; mise registry key is tekton-cli
 # Pipelines-as-Code CLI (binary: tkn-pac). No short alias in mise's registry,
 # so use the explicit aqua: key form.
 "aqua:tektoncd/pipelines-as-code" = "0.51.0"
@@ -79,7 +79,7 @@ age = "1.3.2"
 # `node` dependency; upstream provides no SHASUMS in the aqua definition, so
 # mise falls back to blake3 TOFU (strictly better than the prior unverified
 # `curl | tar`).
-node = "26.9.0"
+node = "26.10.0"
 
 # Task 2.2 — cosign-keyless-verified tools.
 flux2 = "2.9.5"
@@ -103,7 +103,7 @@ version = "4.3.0"
 postinstall = "/etc/mise/aqua-registry/helm-postinstall.sh"
 
 [tools.terraform]
-version = "1.16.3"
+version = "1.16.4"
 postinstall = "/etc/mise/aqua-registry/terraform-postinstall.sh"
 
 # Task 3.1 — off-registry tools via mise's http backend.
@@ -119,7 +119,7 @@ postinstall = "/etc/mise/aqua-registry/terraform-postinstall.sh"
 
 # renovate: datasource=github-releases depName=kubevirt/kubevirt
 [tools."http:virtctl"]
-version = "1.8.2"
+version = "1.9.0"
 
 [tools."http:virtctl".platforms]
 linux-x64   = { url = "https://github.com/kubevirt/kubevirt/releases/download/v{{ version }}/virtctl-v{{ version }}-linux-amd64" }
@@ -127,7 +127,7 @@ linux-arm64 = { url = "https://github.com/kubevirt/kubevirt/releases/download/v{
 
 # renovate: datasource=github-releases depName=cloud-bulldozer/kube-burner
 [tools."http:kube-burner"]
-version = "2.6.1"
+version = "2.8.6"
 
 [tools."http:kube-burner".platforms]
 linux-x64   = { url = "https://github.com/cloud-bulldozer/kube-burner/releases/download/v{{ version }}/kube-burner-V{{ version }}-linux-x86_64.tar.gz", strip_components = 0 }
@@ -135,7 +135,7 @@ linux-arm64 = { url = "https://github.com/cloud-bulldozer/kube-burner/releases/d
 
 # renovate: datasource=github-releases depName=kube-burner/kube-burner-ocp
 [tools."http:kube-burner-ocp"]
-version = "1.11.11"
+version = "1.12.7"
 
 [tools."http:kube-burner-ocp".platforms]
 linux-x64   = { url = "https://github.com/kube-burner/kube-burner-ocp/releases/download/v{{ version }}/kube-burner-ocp-V{{ version }}-linux-x86_64.tar.gz", strip_components = 0 }
@@ -161,7 +161,7 @@ linux-arm64 = { url = "https://github.com/NVIDIA/OpenShell/releases/download/v{{
 # downgrade we'd otherwise take by abandoning the inline block is avoided.
 # renovate: datasource=custom.openshift-mirror depName=oc
 [tools."http:oc"]
-version = "4.21.16"
+version = "4.21.34"
 postinstall = "/etc/mise/aqua-registry/oc-postinstall.sh"
 
 [tools."http:oc".platforms]
@@ -184,7 +184,7 @@ linux-arm64 = { url = "https://mirror.openshift.com/pub/openshift-v4/aarch64/cli
 # symlink, so /usr/local/bin/code-server works).
 # renovate: datasource=github-releases depName=coder/code-server
 [tools."http:code-server"]
-version = "4.123.0"
+version = "4.139.1"
 bin_path = "bin"
 
 [tools."http:code-server".platforms]
@@ -230,7 +230,7 @@ allow_builds = ["node-pty"]
 # tests/mise-expected-verification.toml points at `rc`.
 # renovate: datasource=github-releases depName=rustfs/cli
 [tools."http:rustfs-cli"]
-version = "0.1.25"
+version = "0.1.36"
 
 [tools."http:rustfs-cli".platforms]
 linux-x64   = { url = "https://github.com/rustfs/cli/releases/download/v{{ version }}/rustfs-cli-linux-amd64-gnu-v{{ version }}.tar.gz" }
