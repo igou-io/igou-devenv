@@ -26,7 +26,7 @@ REPO="igou-io/igou-devenv"
 BRANCH="renovate/coding-agent-clis"
 DOCKERFILE=".devcontainer/Dockerfile"
 
-pr="$(gh pr list --repo "$REPO" --state open --head "$BRANCH" --json number --jq '.[0].number // empty')"
+pr="$(gh pr list --repo "$REPO" --state open --head "$BRANCH" --json number,author,isCrossRepository --jq 'map(select(.author.login == "app/renovate" and .isCrossRepository == false))[0].number // empty')"
 if [ -z "$pr" ]; then
   echo "No open coding-agent CLI PR ($BRANCH) — nothing to prepare."
   exit 0
@@ -88,9 +88,12 @@ done
 if git diff --quiet -- "$DOCKERFILE"; then
   echo "SHA ARGs already in sync; no commit needed."
 else
-  git config user.name "github-actions[bot]"
-  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-  git commit -am "chore(clis): recapture coding-agent CLI SHA256 pins"
+  # renovate.json recognizes this generated-artifact author, allowing Renovate
+  # to refresh the branch later. Human edits still freeze it.
+  git config user.name "devenv dependency preparation"
+  git config user.email "dependency-preparation@igou-devenv.invalid"
+  git add -- "$DOCKERFILE"
+  git commit -m "chore(clis): recapture coding-agent CLI SHA256 pins"
   git push
 fi
 

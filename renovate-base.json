@@ -11,12 +11,17 @@
   "automerge": true,
   "automergeType": "pr",
   "minimumReleaseAge": "10 days",
-  "schedule": ["before 11pm on sunday"],
+  "schedule": [
+    "before 11pm on sunday"
+  ],
   "separateMajorMinor": false,
   "packageRules": [
     {
       "description": "The age gate is unsatisfiable for digest updates: a floating tag's current digest is always the tip (often <10d old), and action digests resolve without a release timestamp so the stability check pends forever. Let digests ride the weekly schedule; versioned updates keep the 10-day lag.",
-      "matchUpdateTypes": ["digest", "pinDigest"],
+      "matchUpdateTypes": [
+        "digest",
+        "pinDigest"
+      ],
       "minimumReleaseAge": null
     }
   ],
@@ -25,7 +30,7 @@
       "defaultRegistryUrlTemplate": "https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/stable-4.21/release.txt",
       "format": "plain",
       "transformTemplates": [
-        "{ \"releases\": [ { \"version\": $match($, /^Version:\\s+(\\S+)/).groups[0] } ] }"
+        "($version := releases[$match(version, /^\\s*Version:/)].version; $created := releases[$match(version, /^Created:/)].version; $assert($count($version) = 1 and $count($created) = 1, 'Expected one Version and Created line'); { \"releases\": [{ \"version\": $trim($substringAfter($version, 'Version:')), \"releaseTimestamp\": $trim($substringAfter($created, 'Created:')) }] })"
       ]
     }
   }

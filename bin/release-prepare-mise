@@ -15,7 +15,7 @@ set -euo pipefail
 REPO="igou-io/igou-devenv"
 BRANCH="renovate/mise-managed-cli-tools"
 
-pr="$(gh pr list --repo "$REPO" --state open --head "$BRANCH" --json number --jq '.[0].number // empty')"
+pr="$(gh pr list --repo "$REPO" --state open --head "$BRANCH" --json number,author,isCrossRepository --jq 'map(select(.author.login == "app/renovate" and .isCrossRepository == false))[0].number // empty')"
 if [ -z "$pr" ]; then
   echo "No open mise PR ($BRANCH) — nothing to prepare."
   exit 0
@@ -29,9 +29,12 @@ make mise-lock
 if git diff --quiet -- mise.lock; then
   echo "mise.lock already in sync; no commit needed."
 else
-  git config user.name "github-actions[bot]"
-  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-  git commit -am "chore(mise): regenerate mise.lock"
+  # renovate.json recognizes this generated-artifact author, allowing Renovate
+  # to refresh the branch later. Human edits still freeze it.
+  git config user.name "devenv dependency preparation"
+  git config user.email "dependency-preparation@igou-devenv.invalid"
+  git add -- mise.lock
+  git commit -m "chore(mise): regenerate mise.lock"
   git push
 fi
 

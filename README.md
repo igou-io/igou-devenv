@@ -683,8 +683,9 @@ What carries over, and how:
 All tool versions are pinned and managed by [Renovate](https://docs.renovatebot.com/):
 
 - **Dockerfile base image** — pinned by digest, updated by Renovate's Docker manager
-- **Mise-managed CLI tools** (27 binaries) — pinned in `mise.toml`, per-asset checksums in `mise.lock`. Renovate's native `mise` manager bumps versions; because the hosted Mend app cannot run `postUpgradeTasks`, its PRs are stale and fail the `mise-lockfile-check` guard until you regenerate the lock with `make mise-lock` and push.
-- **aqua-registry pin** — the upstream registry that mise consumes is pinned to a specific git SHA in `mise.toml`. Renovate bumps it; `tests/test-mise.sh` gates the bump by asserting no per-tool verification method silently downgraded.
+- **Mise-managed CLI tools** — pinned in `mise.toml`, per-asset checksums in `mise.lock`. Renovate's native `mise` manager handles aqua/npm tools; a custom regex handles all annotated `http:` tables. Both use the `mise-managed cli tools` group, whose preparation workflow regenerates the lock before enabling auto-merge.
+- **OpenShift CLI** — the shared `openshift-mirror` datasource reads `Version:` and `Created:` from Red Hat's release metadata. Its release timestamp preserves the 10-day age gate.
+- **aqua-registry pin** — the registry URL contains an immutable release commit SHA, with its tag alongside it. Renovate's `github-tags` datasource updates both together in a separate group with automerge disabled; `tests/test-mise.sh` checks for per-tool verification downgrades.
 - **Mise itself** + Claude Code + Cursor agent + opencode — pinned in `.devcontainer/Dockerfile` ARG blocks with `# renovate:` comments and the `github-releases` datasource (custom regex manager). Verified at build time: mise and Claude Code via pinned-fingerprint GPG signatures, Cursor agent and opencode via SHA256.
 - **Python packages** — pinned in `.devcontainer/requirements.txt`, updated by `pip_requirements` manager.
 
@@ -695,8 +696,20 @@ routine tool bumps.
 To test Renovate config locally:
 ```bash
 make renovate-validate                     # validate config syntax
-GITHUB_TOKEN=ghp_... make renovate-dry-run # see what would be updated
+GITHUB_TOKEN="$(ghapp token --repo igou-io/igou-devenv --permission contents=read)" make renovate-dry-run
 ```
+
+The `Renovate coverage` PR check exercises Renovate's real extraction and
+replacement engine against every HTTP tool and the registry tag/SHA, verifies
+the lockfile handoff rules, and tests OpenShift feed timestamps offline. It
+reads the candidate `renovate-base.json` directly, so it tests shared-preset
+changes before they reach `main`. Local dry-runs resolve the published preset.
+
+Preparation commits use `dependency-preparation@igou-devenv.invalid`, which
+`gitIgnoredAuthors` recognizes so Renovate can refresh generated lock/checksum
+branches. The former GitHub Actions author remains recognized for existing
+prepared PRs. Human edits still freeze a branch, and GitHub's required CI and
+review rules still apply to auto-merge.
 
 ### Weekly release
 
@@ -708,6 +721,8 @@ changes:
 - `release-prepare.yaml` (06:30 Eastern) regenerates `mise.lock` on the week's
   Renovate mise PR and enables GitHub auto-merge (it can't merge itself — the
   hosted app can't regenerate the lock); GitHub merges it once `build` passes.
+  It also runs when Renovate opens or updates the same-repository mise group
+  PR, so time-sensitive tools do not wait for the weekly schedule.
 - `release.yaml` (08:00 Eastern) promotes the tested `:latest` digest to
   `ghcr.io/igou-io/igou-devenv:YYYY.MM.DD` (no rebuild — byte-identical to what
   CI tested), tags `vYYYY.MM.DD`, and creates a GitHub Release with notes + SBOM.

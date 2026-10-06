@@ -1,7 +1,7 @@
 # Single source of truth for CLI tools in the devcontainer Dockerfile.
 # See docs/superpowers/specs/2026-05-16-mise-tool-management-design.md
 #
-# Renovate manages versions via the native mise manager.
+# Renovate manages aqua/npm versions natively and annotated http tools via regex.
 # After any version bump: `make mise-lock && make test`
 
 [settings]
@@ -41,10 +41,10 @@ cosign = true
 slsa = true
 minisign = true
 github_attestations = true
-# Pin upstream registry to a specific SHA. Bumped by Renovate; PR review
+# Pin upstream registry to a release commit. Renovate updates the tag and SHA; PR review
 # + tests/test-mise.sh audit catch verification downgrades.
-# renovate: datasource=github-releases depName=aquaproj/aqua-registry
-registry_url = "https://github.com/aquaproj/aqua-registry"
+# renovate: datasource=github-tags depName=aquaproj/aqua-registry
+registry_url = "https://raw.githubusercontent.com/aquaproj/aqua-registry/7711ee6d74a4cdd1a51f99f3caf50f46c1942f76/registry.yaml" # v4.560.0
 
 [tool_alias]
 # npm: backend tools (t3) declare a dependency on a tool literally named

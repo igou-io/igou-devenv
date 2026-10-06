@@ -24,7 +24,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --debug     Enable debug logging (default: info)"
             echo "  REPO_DIR    Directory to scan (default: current directory)"
             echo ""
-            echo "Requires GITHUB_TOKEN, GH_TOKEN, or gh auth for datasource lookups."
+            echo "Requires GITHUB_TOKEN or GH_TOKEN for datasource lookups."
             exit 0
             ;;
         *)
@@ -45,9 +45,6 @@ else
 fi
 
 TOKEN="${GITHUB_TOKEN:-${GH_TOKEN:-}}"
-if [[ -z "$TOKEN" ]] && command -v gh &>/dev/null; then
-    TOKEN="$(gh auth token 2>/dev/null || true)"
-fi
 if [[ -z "$TOKEN" ]]; then
     echo "GITHUB_TOKEN or GH_TOKEN required for github-releases datasource lookups" >&2
     exit 1
@@ -57,6 +54,7 @@ exec "$RUNTIME" run --rm \
     -v "$REPO_DIR:/repo" \
     -w /repo \
     -e GITHUB_COM_TOKEN="$TOKEN" \
+    -e RENOVATE_TOKEN="$TOKEN" \
     -e RENOVATE_DRY_RUN=lookup \
     -e LOG_LEVEL="$LOG_LEVEL" \
     docker.io/renovate/renovate \
