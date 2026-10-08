@@ -18,11 +18,13 @@ assert_lacks(){ case "$2" in *"$1"*) fail "$3 (present: $1)" ;; *) ok "$3" ;; es
 
 TESTDIR=$(mktemp -d)
 trap 'rm -rf "$TESTDIR"' EXIT
+export MOCK_PODMAN_CALLS="$TESTDIR/podman-calls"
 
 mkdir -p "$TESTDIR/bin"
 cp "$SCRIPT_DIR/mock-op.sh" "$TESTDIR/bin/op"
 cat > "$TESTDIR/bin/podman" << 'PODMAN'
 #!/usr/bin/env bash
+printf '%s\n' "$*" >> "$MOCK_PODMAN_CALLS"
 [ "${1:-}" = "image" ] && [ "${2:-}" = "exists" ] && exit 0
 echo "mock-podman: unexpected call: $*" >&2
 exit 1
@@ -32,12 +34,10 @@ export PATH="$TESTDIR/bin:$PATH"
 
 # Isolated HOME so per-scope homes and shims land in the test dir.
 export HOME="$TESTDIR/home"
-mkdir -p "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" "$HOME/.t3/userdata/attachments"
+mkdir -p "$HOME/.claude" "$HOME/.config/opencode" "$HOME/.t3/userdata/attachments"
 echo '{"model":"opus","permissions":{"allow":["Bash(ls*)"]}}' > "$HOME/.claude/settings.json"
 echo '{"oauthAccount":"x"}' > "$HOME/.claude.json"
 echo '{"claudeAiOauth":{"accessToken":"x"}}' > "$HOME/.claude/.credentials.json"
-printf 'model_reasoning_effort = "high"\n' > "$HOME/.codex/config.toml"
-echo '{"tokens":"x"}' > "$HOME/.codex/auth.json"
 
 export MOCK_OP_SECRETS_FILE="$TESTDIR/mock-secrets"
 KEYFILE="$TESTDIR/fake-key"; printf -- '-----BEGIN OPENSSH PRIVATE KEY-----\nfake\n-----END OPENSSH PRIVATE KEY-----\n' > "$KEYFILE"
@@ -111,17 +111,6 @@ fi
 [ -f "$CH/.claude-state.json" ] && ok "claude.json snapshot seeded" || fail "claude.json snapshot seeded"
 if [ -f "$CH/.credentials.json" ] && [ "$(stat -c %a "$CH/.credentials.json")" = "600" ]; then ok "OAuth credentials seeded into scoped home (0600)"; else fail "OAuth credentials seeded into scoped home (0600)"; fi
 
-echo "==> codex: inferred from app-server, CODEX_HOME, config overlay"
-out=$(run_dry ocp-cluster-reader app-server --listen stdio://)
-assert_has  "ghcr.io/igou-io/codex:latest codex app-server --listen stdio://" "$out" "driver inferred + args forwarded"
-assert_has  " -i "                    "$out" "stdio: -i"
-assert_has  ".codex-ocp-cluster-reader:/home/igou/.codex:Z" "$out" "per-scope codex home"
-assert_has  "-e CODEX_HOME=/home/igou/.codex" "$out" "CODEX_HOME set"
-CX="$HOME/.codex-ocp-cluster-reader"
-[ -f "$CX/auth.json" ] && ok "codex auth.json seeded" || fail "codex auth.json seeded"
-if grep -q 'model_reasoning_effort' "$CX/config.toml" && grep -q 'sandbox_mode = "read-only"' "$CX/config.toml"; then ok "config.toml = host + readonly overlay"; else fail "config.toml = host + readonly overlay"; fi
-grep -q 'Session scope' "$CX/AGENTS.md" && ok "scope note in AGENTS.md" || fail "scope note in AGENTS.md"
-
 echo "==> opencode: inferred from serve, host network, config content"
 out=$(run_dry ocp-cluster-reader serve --hostname=127.0.0.1 --port=5000)
 assert_has  "--network=host"          "$out" "host network"
@@ -154,16 +143,20 @@ assert_has  ".claude-read-only:"      "$out" "bundle name is the home slug"
 if grep -q 'get-contexts' "$HOME/.claude-read-only/CLAUDE.md"; then ok "scope note explains multi-context KUBECONFIG"; else fail "scope note explains multi-context KUBECONFIG"; fi
 
 echo "==> explicit driver + shell"
-out=$(AGENT_SANDBOX_DRIVER=codex run_dry none --shell)
+out=$(AGENT_SANDBOX_DRIVER=claude run_dry none --shell)
 assert_has  " -it "                   "$out" "--shell gets a tty"
-assert_has  "ghcr.io/igou-io/codex:latest bash" "$out" "--shell runs bash"
+assert_has  "ghcr.io/igou-io/claude-code:latest bash" "$out" "--shell runs bash"
 
 echo "==> failure modes"
 if AGENT_SANDBOX_PROFILES=does-not-exist "$LAUNCH" --dry-run >/dev/null 2>&1; then fail "unknown profile exits non-zero"; else ok "unknown profile exits non-zero"; fi
-for d in claude codex opencode; do
+for d in claude opencode; do
     if AGENT_SANDBOX_DRIVER=$d AGENT_SANDBOX_PROFILES=bad-perms "$LAUNCH" --dry-run >/dev/null 2>&1; then fail "$d: unknown permission level exits non-zero"; else ok "$d: unknown permission level exits non-zero"; fi
 done
 if AGENT_SANDBOX_DRIVER=nope "$LAUNCH" --dry-run >/dev/null 2>&1; then fail "unknown driver exits non-zero"; else ok "unknown driver exits non-zero"; fi
+: > "$MOCK_PODMAN_CALLS"
+if AGENT_SANDBOX_DRIVER=codex "$LAUNCH" --version >/dev/null 2>&1; then fail "removed Codex driver cannot start a pull"; else ok "removed Codex driver cannot start a pull"; fi
+if "$LAUNCH" app-server >/dev/null 2>&1; then fail "Codex app-server cannot fall back to Claude"; else ok "Codex app-server cannot fall back to Claude"; fi
+[ ! -s "$MOCK_PODMAN_CALLS" ] && ok "removed Codex requests never invoke Podman" || fail "removed Codex requests never invoke Podman"
 if [ "$(AGENT_SANDBOX_PROFILES=does-not-exist "$LAUNCH" --dry-run 2>/dev/null | wc -c)" = "0" ]; then ok "failure prints nothing on stdout"; else fail "failure prints nothing on stdout"; fi
 
 echo "==> --install-shim"

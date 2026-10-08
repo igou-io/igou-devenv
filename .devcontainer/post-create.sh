@@ -99,7 +99,7 @@ if [ -x /home/igou/.local/bin/agent-sandbox-launch ]; then
     if command -v podman >/dev/null 2>&1; then
         echo "==> Pre-pulling agent sandbox images in the background (~/.local/share/containers/agent-image-pull.log)"
         mkdir -p /home/igou/.local/share/containers
-        (for img in claude-code codex opencode; do
+        (for img in claude-code opencode; do
             podman pull "ghcr.io/igou-io/${img}:latest"
         done) > /home/igou/.local/share/containers/agent-image-pull.log 2>&1 &
         disown || true

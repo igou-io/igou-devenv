@@ -11,7 +11,6 @@ an `envs/*.env` profile and applied by `agent-sandbox-launch` (adr/0006):
 | file            | consumed as                                                             |
 |-----------------|-------------------------------------------------------------------------|
 | `claude.json`   | merged over `~/.claude/settings.json` into the per-scope Claude home     |
-| `codex.toml`    | appended to the per-scope `CODEX_HOME/config.toml`                       |
 | `opencode.json` | merged into `OPENCODE_CONFIG_CONTENT`                                    |
 
 The credential's RBAC is the hard boundary; these are the soft one (clear
