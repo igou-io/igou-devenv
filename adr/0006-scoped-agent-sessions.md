@@ -4,6 +4,11 @@
 
 Accepted
 
+Amended 2026-10-08: scoped Codex support was removed at the operator's request.
+T3's 10-second Codex app-server checks repeatedly interrupted cold image pulls,
+leaving tens of GiB of staging files. The launcher now supports Claude and
+OpenCode; ordinary Codex sessions run directly in the devcontainer.
+
 ## Date
 
 2026-08-29
@@ -33,10 +38,11 @@ session is created, not escalated from inside.
 - **One resolver.** `bin/resolve-profile` is the single implementation of env-file
   resolution (atomic: nothing printed and no temp files on failure). `use()`, every
   `bin/*-run` and the launcher all call it.
-- **One launcher for three drivers.** `.devcontainer/agent-sandbox-launch` (baked to
-  `~/.local/bin`) runs claude, codex or opencode in the hardened rootless container
+- **One launcher for two drivers.** `.devcontainer/agent-sandbox-launch` (baked to
+  `~/.local/bin`) runs claude or opencode in the hardened rootless container
   from ADR-0005, with the driver inferred from t3's own arguments
-  (`app-server` → codex, `serve` → opencode, otherwise claude). t3 provider instances
+  (`serve` → opencode, otherwise claude). Codex `app-server` calls are rejected.
+  t3 provider instances
   point `binaryPath` at it and select the scope with `AGENT_SANDBOX_PROFILES` in the
   instance environment. Everything t3 passes is forwarded verbatim; stdout is the
   agent protocol, diagnostics go to stderr.
@@ -50,7 +56,7 @@ session is created, not escalated from inside.
   session's keys are never visible to another.
 - **Two layers of permission.** The credential's RBAC is the hard boundary. The
   `PERMISSIONS` level is the soft one: per-driver fragments in `envs/permissions/`
-  (Claude `settings.json` deny/ask lists, Codex `sandbox_mode`/`approval_policy`,
+  (Claude `settings.json` deny/ask lists,
   opencode `permission` block) applied into a per-scope home so mutations are denied
   (`readonly`) or ask in the t3 UI (`guarded`).
 - **The Claude sandbox is a container-only layer.** The bwrap/seccomp `sandbox`
@@ -61,22 +67,23 @@ session is created, not escalated from inside.
   the scope (Anthropic, GitHub, the cluster/API hosts the profile reaches).
 - **The agent knows its scope.** The launcher writes a scope note (profiles,
   permission level, "there is no `use`/`op` here; ask for a different session") into
-  the per-scope Claude `CLAUDE.md` / `CODEX_HOME/AGENTS.md` / an opencode
+  the per-scope Claude `CLAUDE.md` / an opencode
   `instructions` file, and exports `AGENT_PROFILE`.
-- **Per-scope homes.** `~/.claude-<profiles>` and `~/.codex-<profiles>` (auth seeded
+- **Per-scope homes.** `~/.claude-<profiles>` (auth seeded
   from the real home, history and state not shared); opencode keeps its shared
   config/state because it has no per-home auth.
 
 ## Consequences
 
 - t3 gets one provider instance per scope (`Claude ▸ OCP read-only`,
-  `Codex ▸ OCP read-only`, `Claude ▸ rk8s admin + ansible`, …) next to the stock
+  `opencode ▸ OCP read-only`, `Claude ▸ rk8s admin + ansible`, …) next to the stock
   full-power providers, which stay as they are.
 - opencode still needs one shim per profile (`agent-sandbox-launch --install-shim
   <profile>`) because t3 keeps a single shared `opencode serve` per `binaryPath`;
-  Claude and Codex select by env.
-- A Codex runtime image (`ghcr.io/igou-io/codex`) must exist for the codex driver
-  (igou-containers `apps/codex`, same shape as `apps/opencode`).
+  Claude selects by env.
+- Codex provider instances using this launcher must be removed from T3 settings.
+  Codex permission overlays and automatic Codex image pulls are no longer shipped
+  by the scoped-session implementation.
 - `opencode-sandbox-launch` remains as a back-compat shim mapping
   `OPENCODE_SANDBOX_*` to `AGENT_SANDBOX_*`.
 - `envs/rk8s.env` is admin-only; a read-only rk8s profile needs a published SA token

@@ -485,7 +485,7 @@ tuning rationale (flash attention, q8 KV cache, jinja chat template, etc.).
 ## Scoped Agent Sessions for t3 (profiles)
 
 `agent-sandbox-launch` (`.devcontainer/`, baked to `~/.local/bin`, also on PATH via
-`bin/`) runs **claude, codex or opencode** in the hardened rootless container with a
+`bin/`) runs **claude or opencode** in the hardened rootless container with a
 credential scope fixed at launch — see [ADR-0006](adr/0006-scoped-agent-sessions.md).
 t3 provider instances point `binaryPath` at it and pick the scope through the
 instance environment:
@@ -498,7 +498,6 @@ instance environment:
   "config": { "binaryPath": "/home/igou/.local/bin/agent-sandbox-launch" },
   "environment": [{ "name": "AGENT_SANDBOX_PROFILES", "value": "ocp-cluster-reader", "sensitive": false }]
 },
-"codex-ocp-ro":      { "driver": "codex", "displayName": "Codex ▸ OCP read-only", /* same binaryPath + env */ },
 "claude-rk8s-admin": { "driver": "claudeAgent", "displayName": "Claude ▸ rk8s admin + ansible",
                        "config": { "binaryPath": "/home/igou/.local/bin/agent-sandbox-launch" },
                        "environment": [{ "name": "AGENT_SANDBOX_PROFILES", "value": "rk8s,ansible", "sensitive": false }] }
@@ -509,18 +508,19 @@ opencode instances need one binary per profile (t3 keeps one shared server per
 `~/.local/bin/agent-sandbox-launch-ocp-cluster-reader` to use as `binaryPath`.
 `post-create.sh` regenerates a shim for every kubeconfig-bearing profile and
 every `INCLUDE=` bundle on each build (`~/.local/bin` is ephemeral), so instances
-keep working across rebuilds. It also pre-pulls the three agent images in the
+keep working across rebuilds. It also pre-pulls the Claude and OpenCode images in the
 background (log: `~/.local/share/containers/agent-image-pull.log`): the rootless
 podman store is ephemeral too, and t3's health probe (`binaryPath --version`,
 4 s timeout, every 5 min) cannot wait for a pull. The launcher answers a bare
 `--version` without resolving profiles; if the image is still missing it starts
 the pull and reports the host binary's version so the instance is selectable.
-Codex instances should pin `AGENT_SANDBOX_DRIVER=codex` in their environment
-(t3 probes Codex with `app-server`, which the launcher infers, but pinning it
-keeps the instance working if that ever changes).
+Scoped Codex support was removed on 2026-10-08. T3's 10-second `app-server`
+provider checks repeatedly interrupted cold image pulls and left staging files
+behind. Use the ordinary Codex provider; remove any Codex instance whose
+`binaryPath` points at `agent-sandbox-launch` from T3 Settings → Providers.
 
-Current instance set (`~/.t3/userdata/settings.json`): `Claude ▸ read-only`,
-`Codex ▸ read-only`, `opencode ▸ read-only` (all on the `read-only` bundle).
+The remaining scoped instances are `Claude ▸ read-only` and
+`opencode ▸ read-only` (both on the `read-only` bundle).
 Unscoped sessions get their guidance from `/workspace/AGENTS.md`
 ("Credentials and session scope"): check `$AGENT_PROFILE`, else `use <profile> && …`.
 

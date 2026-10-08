@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2016,SC2054,SC2317
-# Launch an agent CLI (claude, codex or opencode) inside a hardened rootless
+# Launch an agent CLI (claude or opencode) inside a hardened rootless
 # podman container with a FIXED credential scope: one or more envs/*.env
 # profiles resolved on the host by bin/resolve-profile and injected as env
 # vars / read-only mounts. The container never sees ~/.config/op, so the
@@ -11,20 +11,19 @@
 # the instance's environment (AGENT_SANDBOX_PROFILES). Every argument t3
 # passes is forwarded verbatim to the agent binary inside the container:
 #   claude   — spawned by the Claude Agent SDK over stdio  (podman run -i)
-#   codex    — `codex app-server` over stdio               (podman run -i)
 #   opencode — `opencode serve` HTTP server                (--network=host)
 # All diagnostics go to stderr; stdout belongs to the agent protocol.
 #
 # Usage:
-#   agent-sandbox-launch [--driver claude|codex|opencode] [--profiles a,b]
+#   agent-sandbox-launch [--driver claude|opencode] [--profiles a,b]
 #                        [--dry-run] [--shell] [--] <agent args...>
 #   agent-sandbox-launch --install-shim PROFILE   # write ~/.local/bin/agent-sandbox-launch-PROFILE
 #
 # Env (t3 instance `environment` or shell):
-#   AGENT_SANDBOX_DRIVER     claude|codex|opencode (default: inferred from the
-#                            first forwarded arg — app-server→codex, serve→opencode, else claude)
+#   AGENT_SANDBOX_DRIVER     claude|opencode (default: inferred from the
+#                            first forwarded arg — serve→opencode, else claude)
 #   AGENT_SANDBOX_PROFILES   comma-separated envs/*.env names, later wins ("none" = no creds)
-#   AGENT_SANDBOX_IMAGE      override image (default ghcr.io/igou-io/<claude-code|codex|opencode>:latest)
+#   AGENT_SANDBOX_IMAGE      override image (default ghcr.io/igou-io/<claude-code|opencode>:latest)
 #   AGENT_SANDBOX_ENVDIR     env-file catalog (default /workspace/igou-devenv/envs)
 #   AGENT_SANDBOX_PERMDIR    permission fragments (default <ENVDIR>/permissions)
 #   AGENT_SANDBOX_WORKSPACE  mount (default /workspace)
@@ -34,7 +33,7 @@
 #   SSH_KEYS=item1,item2   1Password lab_ssh items loaded into a PER-SESSION
 #                          ssh-agent inside the container (host agent never mounted)
 #   PERMISSIONS=readonly|guarded   per-driver tool-permission layer from
-#                          envs/permissions/<level>/{claude.json,codex.toml,opencode.json}
+#                          envs/permissions/<level>/{claude.json,opencode.json}
 set -euo pipefail
 
 log() { echo "agent-sandbox-launch: $*" >&2; }
@@ -66,8 +65,8 @@ done
 
 # ---------------------------------------------------------------------------
 # --install-shim: opencode instances need one binaryPath per profile because
-# t3 keeps a single shared `opencode serve` per binaryPath (claude/codex select
-# by env and don't need this).
+# t3 keeps a single shared `opencode serve` per binaryPath (claude selects
+# by env and does not need this).
 # ---------------------------------------------------------------------------
 if [ -n "$INSTALL_SHIM" ]; then
     shimdir="${AGENT_SANDBOX_SHIM_DIR:-$HOME/.local/bin}"
@@ -92,16 +91,15 @@ fi
 # ---------------------------------------------------------------------------
 if [ -z "$DRIVER" ]; then
     case "${AGENT_ARGS[0]:-}" in
-        app-server) DRIVER=codex ;;
+        app-server) log "scoped Codex sessions have been removed; use the ordinary Codex provider"; exit 1 ;;
         serve)      DRIVER=opencode ;;
         *)          DRIVER=claude ;;
     esac
 fi
 case "$DRIVER" in
     claude)   IMAGE_DEFAULT="ghcr.io/igou-io/claude-code:latest"; BIN=claude ;;
-    codex)    IMAGE_DEFAULT="ghcr.io/igou-io/codex:latest";       BIN=codex ;;
     opencode) IMAGE_DEFAULT="ghcr.io/igou-io/opencode:latest";    BIN=opencode ;;
-    *) log "unknown driver '$DRIVER' (claude|codex|opencode)"; exit 1 ;;
+    *) log "unknown driver '$DRIVER' (claude|opencode)"; exit 1 ;;
 esac
 IMAGE="${AGENT_SANDBOX_IMAGE:-$IMAGE_DEFAULT}"
 
@@ -262,21 +260,6 @@ case "$DRIVER" in
         fi
         HOME_ARGS+=(-v "$CLAUDE_HOME:/home/igou/.claude:Z")
         ;;
-    codex)
-        if [ "$SCOPE" = "none" ]; then CODEX_HOME_DIR="$HOME/.codex"; else CODEX_HOME_DIR="$HOME/.codex-${SCOPE_SLUG}"; fi
-        mkdir -p "$CODEX_HOME_DIR"
-        if [ "$SCOPE" != "none" ]; then
-            # auth only; sqlite state/history stay per scope by not being copied
-            [ -f "$HOME/.codex/auth.json" ] && cp "$HOME/.codex/auth.json" "$CODEX_HOME_DIR/auth.json"
-            pf=$(perm_file codex.toml) || exit 1
-            { [ -f "$HOME/.codex/config.toml" ] && cat "$HOME/.codex/config.toml"
-              if [ -n "$pf" ]; then echo; echo "# --- permission level: ${PERMISSIONS} (agent-sandbox-launch) ---"; cat "$pf"; fi
-              true
-            } > "$CODEX_HOME_DIR/config.toml"
-            { scope_note; [ -s "$HOME/.codex/AGENTS.md" ] && { echo; cat "$HOME/.codex/AGENTS.md"; }; } > "$CODEX_HOME_DIR/AGENTS.md"
-        fi
-        HOME_ARGS+=(-v "$CODEX_HOME_DIR:/home/igou/.codex:Z" -e CODEX_HOME=/home/igou/.codex)
-        ;;
     opencode)
         OPENCODE_CONFIG="${OPENCODE_CONFIG:-$HOME/.config/opencode}"
         OPENCODE_STATE="${OPENCODE_STATE:-$HOME/.local/share/opencode}"
@@ -340,7 +323,7 @@ if command -v catatonit &>/dev/null || [ -x /usr/libexec/podman/catatonit ]; the
     RUN_ARGS+=(--init)
 fi
 # Host networking for every driver: opencode's `serve` must be reachable by t3
-# at the 127.0.0.1:PORT it prints, and t3 hands claude/codex an MCP endpoint on
+# at the 127.0.0.1:PORT it prints, and t3 hands claude an MCP endpoint on
 # 127.0.0.1:3773 (the t3-code preview tools) that must resolve to the host too.
 # Isolation still comes from cap-drop/userns/no-new-privileges and the absence
 # of ~/.config/op, not from the network namespace.
