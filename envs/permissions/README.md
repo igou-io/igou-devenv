@@ -1,7 +1,7 @@
 # Permission levels
 
 Per-driver tool-permission fragments selected by a `PERMISSIONS=<level>` line in
-an `envs/*.env` profile and applied by `agent-sandbox-launch` (adr/0006):
+an `envs/*.env` profile and applied by `agent-sandbox-launch` (igou-docs/devenv/Devenv Environment and Credential Decisions.md):
 
 | level      | intent                                                                 |
 |------------|------------------------------------------------------------------------|

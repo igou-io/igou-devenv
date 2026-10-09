@@ -2,7 +2,7 @@
 # Sourced by ~/.bashrc for EVERY shell (interactive and not), so agent tool calls
 # and scripts get these functions too. Keep it free of prompt/tty assumptions.
 
-# Environment switching via 1Password (see adr/0001)
+# Environment switching via 1Password (see igou-docs/devenv/Devenv Environment and Credential Decisions.md)
 # Resolves op:// secrets via "op inject" and exports them in the current shell.
 # Use unuse() to remove an environment's variables.
 _use_sanitize() { echo "${1//-/_}"; }

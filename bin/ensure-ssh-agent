@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Ensure a container-local ssh-agent is listening on the fixed socket path
-# (adr/0004). Idempotent: reuses a live agent, replaces a dead/stale socket.
+# (igou-docs/devenv/Devenv Environment and Credential Decisions.md). Idempotent: reuses a live agent, replaces a dead/stale socket.
 # The agent starts EMPTY — load keys on demand from 1Password with ssh-use
 # (dotfiles/.bashrc); never load keys here, or a privileged credential would
 # be ambient at all times again.

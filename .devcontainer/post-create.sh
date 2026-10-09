@@ -80,7 +80,7 @@ ln -sfn /workspace/igou-devenv/bin /home/igou/bin
 /workspace/igou-devenv/bin/link-skills
 
 # ---------------------------------------------------------------------------
-# Per-profile opencode shims for scoped t3 instances (adr/0006). t3 keeps one
+# Per-profile opencode shims for scoped t3 instances (igou-docs/devenv/Devenv Environment and Credential Decisions.md). t3 keeps one
 # shared `opencode serve` per binaryPath, so each profile needs its own
 # binary; ~/.local/bin is ephemeral, so regenerate on every build. One shim per
 # env profile that carries a kubeconfig or is an INCLUDE= bundle of profiles

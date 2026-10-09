@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# In-cluster scoped sessions (Hermes kubernetes terminal backend, adr/0006):
+# In-cluster scoped sessions (Hermes kubernetes terminal backend, igou-docs/devenv/Devenv Environment and Credential Decisions.md):
 # the pod carries AGENT_PROFILE plus an env-file catalog rendered by an
 # ExternalSecret at $AGENT_PROFILE_ENVDIR (same envs/*.env format, literal
 # values, no 1Password). Activate it once per pod and cache the exports so

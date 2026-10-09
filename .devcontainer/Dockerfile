@@ -155,7 +155,7 @@ RUN rm -f /etc/pam.d/system-auth && \
 # Mise — declarative tool manager. The bootstrap binary is verified against
 # mise's GPG-signed release checksums; once installed, mise verifies all
 # subsequent tools via aqua-registry's per-tool config (cosign/SLSA/GPG/SHA256).
-# See docs/superpowers/specs/2026-05-16-mise-tool-management-design.md
+# See igou-docs/devenv/Devenv Design Decisions and History.md
 #
 # Trust anchor is the pinned key fingerprint below (rsa4096, expires 2028-01-02):
 # the key is fetched from mise's HTTPS endpoint at build time but rejected unless
@@ -423,18 +423,18 @@ ARG OPENCODE_SHA256_ARM64="bbdb3f00c2c51e42e315525233151309724226a8776da8e9145e3
 # above); the ARG is only the local-build fallback and is left empty in CI so the
 # published image carries no token.
 ARG GITHUB_TOKEN=""
-# opencode 1Password sandbox shim (see adr/0005-opencode-1password-sandbox.md).
+# opencode 1Password sandbox shim (see igou-docs/devenv/Devenv Environment and Credential Decisions.md).
 # Installed as the ~/.local/bin/opencode symlink target in the RUN below, so
 # every opencode invocation — including the servers t3 spawns — runs the real
 # binary inside a mount namespace that masks ~/.config/op.
 COPY --chown=igou:igou .devcontainer/opencode-1password-sandbox /home/igou/.local/bin/opencode-sandbox
 # Container launcher backing the ADDITIONAL, credential-injecting t3 opencode
 # provider instance (does not replace the default opencode). Referenced by the
-# instance's binaryPath; see adr/0005-opencode-1password-sandbox.md.
+# instance's binaryPath; see igou-docs/devenv/Devenv Environment and Credential Decisions.md.
 COPY --chown=igou:igou .devcontainer/opencode-sandbox-launch /home/igou/.local/bin/opencode-sandbox-launch
-# Driver-agnostic scoped-session launcher (claude / codex / opencode) backing
+# Driver-agnostic scoped-session launcher (claude / opencode) backing
 # t3 provider instances with a fixed credential scope; opencode-sandbox-launch
-# is now a back-compat shim over it. See adr/0006-scoped-agent-sessions.md.
+# is now a back-compat shim over it. See igou-docs/devenv/Devenv Environment and Credential Decisions.md.
 COPY --chown=igou:igou .devcontainer/agent-sandbox-launch /home/igou/.local/bin/agent-sandbox-launch
 # Shell functions + the profile resolver baked into the image so NON-devcontainer
 # consumers (Hermes kubernetes-backend session pods run this image with

@@ -3,7 +3,7 @@
 Reproducible development environment for homelab infrastructure work.
 Runs as a devcontainer via Cursor or the `devcontainer` CLI. SSH keys are
 loaded on demand from 1Password into a container-local agent (no host agent
-forwarding — see [ADR-0004](adr/0004-ssh-keys-from-1password.md)).
+forwarding — see [ADR-0004](https://github.com/igou-io/igou-docs/blob/main/devenv/Devenv%20Environment%20and%20Credential%20Decisions.md)).
 
 ## Execution Models
 
@@ -19,7 +19,7 @@ This repo has multiple execution models with different capabilities:
 
 Do not assume those models share privilege, persistence, nested Podman, Docker
 socket access, `/dev` mounts, credential handling, or sandbox support. See
-[docs/execution-models.md](docs/execution-models.md) and [AGENTS.md](AGENTS.md)
+[igou-docs/devenv/Devenv Runtime Models and Capability Validation.md](https://github.com/igou-io/igou-docs/blob/main/devenv/Devenv%20Runtime%20Models%20and%20Capability%20Validation.md) and [AGENTS.md](AGENTS.md)
 before making runtime capability claims.
 
 ## What's Inside
@@ -189,7 +189,7 @@ Open the workspace via **File > Open Workspace from File** → `/workspace/homel
 ## Environment Switching
 
 The `use` shell function switches between infrastructure environments using
-1Password for secret resolution. See [ADR-0001](adr/0001-environment-switching-with-1password.md)
+1Password for secret resolution. See [ADR-0001](https://github.com/igou-io/igou-docs/blob/main/devenv/Devenv%20Environment%20and%20Credential%20Decisions.md)
 for full details.
 
 ```bash
@@ -486,7 +486,7 @@ tuning rationale (flash attention, q8 KV cache, jinja chat template, etc.).
 
 `agent-sandbox-launch` (`.devcontainer/`, baked to `~/.local/bin`, also on PATH via
 `bin/`) runs **claude or opencode** in the hardened rootless container with a
-credential scope fixed at launch — see [ADR-0006](adr/0006-scoped-agent-sessions.md).
+credential scope fixed at launch — see [ADR-0006](https://github.com/igou-io/igou-docs/blob/main/devenv/Devenv%20Environment%20and%20Credential%20Decisions.md).
 t3 provider instances point `binaryPath` at it and pick the scope through the
 instance environment:
 
@@ -560,7 +560,7 @@ AGENT_SANDBOX_PROFILES=ocp-cluster-reader agent-sandbox-launch serve  # what t3 
 ## SSH Keys from 1Password
 
 There is no host SSH agent forwarding and no private key on disk (see
-[ADR-0004](adr/0004-ssh-keys-from-1password.md)). `post-start.sh` starts an
+[ADR-0004](https://github.com/igou-io/igou-docs/blob/main/devenv/Devenv%20Environment%20and%20Credential%20Decisions.md)). `post-start.sh` starts an
 **empty** container-local ssh-agent on `/tmp/ssh-agent.sock` (the fixed path
 `devcontainer.json` exports as `SSH_AUTH_SOCK`); every terminal shares it.
 Keys are stored as native SSH Key items in 1Password and loaded on demand:
@@ -676,7 +676,7 @@ What carries over, and how:
   host network, Docker socket, or `/dev` passthrough: libvirt/qemu-kvm
   molecule scenarios do not run here. Agent CLI auth state
   starts fresh (no host bind mounts) and then persists on the PVC. See
-  [docs/execution-models.md](docs/execution-models.md).
+  [igou-docs/devenv/Devenv Runtime Models and Capability Validation.md](https://github.com/igou-io/igou-docs/blob/main/devenv/Devenv%20Runtime%20Models%20and%20Capability%20Validation.md).
 
 ## Dependency Management (Renovate)
 
@@ -778,8 +778,8 @@ reads the GitHub App key from 1Password at mint time, so without it
 use with 1Password CLI".
 
 Use the `use` function for environment switching — see
-[ADR-0001](adr/0001-environment-switching-with-1password.md) and
-[ADR-0003](adr/0003-default-to-1password-connect.md).
+[ADR-0001](https://github.com/igou-io/igou-docs/blob/main/devenv/Devenv%20Environment%20and%20Credential%20Decisions.md) and
+[ADR-0003](https://github.com/igou-io/igou-docs/blob/main/devenv/Devenv%20Environment%20and%20Credential%20Decisions.md).
 
 ### Secrets Management
 
