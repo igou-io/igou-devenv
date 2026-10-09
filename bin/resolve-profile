@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2011
-# Resolve one or more envs/<name>.env profiles into KEY=VALUE lines (adr/0001).
+# Resolve one or more envs/<name>.env profiles into KEY=VALUE lines (igou-docs/devenv/Devenv Environment and Credential Decisions.md).
 #
 # This is the single implementation of profile resolution shared by the `use`
 # shell function (dotfiles/.bashrc.d/10-use.sh) and every container launcher

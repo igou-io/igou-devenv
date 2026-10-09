@@ -1,5 +1,5 @@
 # Single source of truth for CLI tools in the devcontainer Dockerfile.
-# See docs/superpowers/specs/2026-05-16-mise-tool-management-design.md
+# See igou-docs/devenv/Devenv Design Decisions and History.md
 #
 # Renovate manages aqua/npm versions natively and annotated http tools via regex.
 # After any version bump: `make mise-lock && make test`

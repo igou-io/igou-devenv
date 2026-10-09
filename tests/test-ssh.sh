@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Test SSH key loading from 1Password (ssh-use/ssh-unuse, adr/0004) and the
+# Test SSH key loading from 1Password (ssh-use/ssh-unuse, igou-docs/devenv/Devenv Environment and Credential Decisions.md) and the
 # container-local agent bootstrap (bin/ensure-ssh-agent).
 # Uses mock-op.sh to intercept 1Password CLI calls and a real ssh-agent on a
 # test-private socket. Runs standalone and in CI (no interactive shell needed

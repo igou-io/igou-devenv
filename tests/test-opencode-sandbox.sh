@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Verifies the opencode 1Password sandbox shim (adr/0005) is wired and effective.
+# Verifies the opencode 1Password sandbox shim (igou-docs/devenv/Devenv Environment and Credential Decisions.md) is wired and effective.
 #
 # Static checks (always): the ~/.local/bin/opencode symlink resolves to the shim,
 # and the shim is an executable, syntactically valid script.

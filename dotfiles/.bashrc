@@ -13,7 +13,7 @@ fi
 
 # The VS Code Dev Containers extension injects its own forwarded agent socket
 # (/tmp/vscode-ssh-auth-*.sock) into shells, overriding the container-local
-# agent devcontainer.json exports (adr/0004). The forward goes stale on editor
+# agent devcontainer.json exports (igou-docs/devenv/Devenv Environment and Credential Decisions.md). The forward goes stale on editor
 # reconnect — it can still list keys but fails to sign, and the resulting auth
 # failures trip sshd per-source penalties on targets. Pin back to the
 # container-local socket. Before the interactive check: agent tool calls and

@@ -28,7 +28,7 @@ wait_for_listen() {
 }
 
 # ---------------------------------------------------------------------------
-# Container-local SSH agent (adr/0004)
+# Container-local SSH agent (igou-docs/devenv/Devenv Environment and Credential Decisions.md)
 # No host agent forwarding: a dedicated agent listens on the fixed socket
 # path devcontainer.json exports as SSH_AUTH_SOCK. It starts empty — load
 # keys on demand from 1Password with ssh-use (dotfiles/.bashrc).

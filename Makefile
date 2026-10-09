@@ -114,7 +114,7 @@ test-tools:
 test-sandbox-primitives:
 	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) /workspace/igou-devenv/tests/test-sandbox-primitives.sh
 
-## Verify the opencode 1Password sandbox shim is wired and effective (adr/0005)
+## Verify the opencode 1Password sandbox shim is wired and effective (igou-docs/devenv/Devenv Environment and Credential Decisions.md)
 test-opencode-sandbox:
 	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) /workspace/igou-devenv/tests/test-opencode-sandbox.sh
 
@@ -126,7 +126,7 @@ test-openshell-codex:
 test-openshell-gateway-config:
 	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) /workspace/igou-devenv/tests/test-openshell-gateway-config.sh
 
-## Verify the credential-injecting opencode container launcher (adr/0005)
+## Verify the credential-injecting opencode container launcher (igou-docs/devenv/Devenv Environment and Credential Decisions.md)
 test-opencode-instance:
 	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) /workspace/igou-devenv/tests/test-opencode-instance.sh
 
@@ -138,7 +138,7 @@ test-podman:
 test-env:
 	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) bash -i /workspace/igou-devenv/tests/test-env.sh
 
-## Test SSH key loading from 1Password + container-local agent (adr/0004)
+## Test SSH key loading from 1Password + container-local agent (igou-docs/devenv/Devenv Environment and Credential Decisions.md)
 test-ssh:
 	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) bash /workspace/igou-devenv/tests/test-ssh.sh
 

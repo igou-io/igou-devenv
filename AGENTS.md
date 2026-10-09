@@ -27,15 +27,15 @@ are built in `igou-containers`, not here.
   Avoid tight coupling to the `igou-devenv` directory layout when functionality
   may later move to its own repo.
 - Before changing release automation, mise management, QEMU/devcontainer
-  behavior, or code-server behavior, check the matching design or plan in
-  `docs/superpowers/{specs,plans}` when one exists.
+  behavior, or code-server behavior, consult the relevant `igou-docs/devenv/`
+  note and verify it against the current implementation.
 - For Codex: use the `adding-a-mise-tool` skill when adding or changing
   mise-managed CLI tools in this repo.
 
 ## Execution Models
 
 Do not assume all paths through this repo have the same runtime capabilities.
-See [docs/execution-models.md](docs/execution-models.md) for the detailed
+See [igou-docs/devenv/Devenv Runtime Models and Capability Validation.md](https://github.com/igou-io/igou-docs/blob/main/devenv/Devenv%20Runtime%20Models%20and%20Capability%20Validation.md) for the detailed
 matrix.
 
 | Model | Entry point | Capability summary |
@@ -106,7 +106,7 @@ dotfiles/                # .bashrc, .bashrc.d/ (shell functions, sourced non-int
 bin/                     # local helper scripts and wrapper launchers
 envs/                    # 1Password env files with op:// references only; envs/permissions/ = per-driver tool-permission levels
 tests/                   # devcontainer and helper-script tests
-docs/                    # runtime model docs and design records
+igou-docs/devenv/         # operational documentation and decision records (companion repo)
 mise.toml / mise.lock    # mise-managed tool versions and per-asset checksums
 renovate.json            # Renovate config
 ```
@@ -118,7 +118,7 @@ Lifecycle hooks:
 | `initializeCommand` | Host | `.devcontainer/init.sh` | Create mount directories before build/start |
 | `onCreateCommand` | Container | inline in `devcontainer.json` | Install Python requirements |
 | `postCreateCommand` | Container | `.devcontainer/post-create.sh` | Configure shell, tmux, workspace, default code-server config |
-| `postStartCommand` | Container | `.devcontainer/post-start.sh` | Start container-local ssh-agent (adr/0004), libvirt/dbus/code-server, sync code-server settings |
+| `postStartCommand` | Container | `.devcontainer/post-start.sh` | Start container-local ssh-agent (igou-docs/devenv/Devenv Environment and Credential Decisions.md), libvirt/dbus/code-server, sync code-server settings |
 
 ## Where To Add Dependencies
 
@@ -253,3 +253,12 @@ Manual release targets are `make release`, `make release-dry-run`, and
 ```bash
 shellcheck .devcontainer/post-create.sh .devcontainer/post-start.sh .devcontainer/hygiene.sh .devcontainer/init.sh dotfiles/.bashrc dotfiles/.bashrc.d/*.sh tests/*.sh bin/resolve-profile .devcontainer/agent-sandbox-launch bin/claude-run bin/cursor-run bin/opencode-run bin/ensure-ssh-agent .devcontainer/opencode-sandbox-launch
 ```
+
+## Documentation ownership
+
+Operational runbooks and durable architecture decisions belong in
+`/workspace/igou-docs`. Keep implementation plans in the conversation; if a
+persistent record is needed, write a concise decision note in that vault.
+Do not create `docs/superpowers/` or repository-local agent execution plans.
+Keep public API/collection documentation, READMEs, and agent instructions
+beside the code. Update the relevant vault note when behavior changes.

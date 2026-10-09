@@ -2,7 +2,7 @@
 # Sourced by ~/.bashrc for EVERY shell (interactive and not), so agent tool calls
 # and scripts get these functions too. Keep it free of prompt/tty assumptions.
 
-# SSH keys from 1Password (see adr/0004)
+# SSH keys from 1Password (see igou-docs/devenv/Devenv Environment and Credential Decisions.md)
 # A container-local ssh-agent listens on $SSH_AUTH_SOCK (started empty by
 # post-start.sh via bin/ensure-ssh-agent — no host agent forwarding).
 # ssh-use pipes a private key from 1Password straight into agent memory —

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Back-compat shim: the opencode t3 provider instance historically pointed its
-# binaryPath here (adr/0005). The launcher is now driver-agnostic —
-# agent-sandbox-launch (adr/0006) — and this just maps the old env names.
+# binaryPath here (igou-docs/devenv/Devenv Environment and Credential Decisions.md). The launcher is now driver-agnostic —
+# agent-sandbox-launch (igou-docs/devenv/Devenv Environment and Credential Decisions.md) — and this just maps the old env names.
 #   OPENCODE_SANDBOX_PROFILE   -> AGENT_SANDBOX_PROFILES
 #   OPENCODE_SANDBOX_IMAGE     -> AGENT_SANDBOX_IMAGE
 #   OPENCODE_SANDBOX_ENVDIR    -> AGENT_SANDBOX_ENVDIR

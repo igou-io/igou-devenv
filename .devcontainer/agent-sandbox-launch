@@ -5,7 +5,7 @@
 # profiles resolved on the host by bin/resolve-profile and injected as env
 # vars / read-only mounts. The container never sees ~/.config/op, so the
 # session cannot escalate beyond the profiles it was launched with.
-# See adr/0006-scoped-agent-sessions.md.
+# See igou-docs/devenv/Devenv Environment and Credential Decisions.md.
 #
 # t3 uses this as a provider instance's binaryPath and selects the scope via
 # the instance's environment (AGENT_SANDBOX_PROFILES). Every argument t3

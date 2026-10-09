@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Tests .devcontainer/agent-sandbox-launch — the driver-agnostic scoped-session
-# launcher behind t3 provider instances (adr/0006). Mock op + mock podman +
+# launcher behind t3 provider instances (igou-docs/devenv/Devenv Environment and Credential Decisions.md). Mock op + mock podman +
 # --dry-run: no 1Password, image, or container needed (CI-safe).
 # shellcheck disable=SC2015,SC2016
 set -u
