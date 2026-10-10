@@ -414,7 +414,7 @@ USER root
 #   (repeat for arm64)
 # MINIMUM_RELEASE_AGE_DAYS is inherited from the ARG declared above the Cursor block.
 # renovate: datasource=github-releases depName=anomalyco/opencode
-ARG OPENCODE_VERSION="v1.18.34"
+ARG OPENCODE_VERSION="v1.18.35"
 ARG OPENCODE_SHA256_X64="0f22479647226d1d2dd99595d20082ee7bda3870b62dc6a90b41efc1a71d7e9a"
 ARG OPENCODE_SHA256_ARM64="bbdb3f00c2c51e42e315525233151309724226a8776da8e9145e3b0fa3d5310f"
 # GITHUB_TOKEN authenticates the release-age API call below. Without it the
@@ -510,7 +510,7 @@ USER root
 # Codex bypasses the release-age delay; per-architecture SHA256 verification
 # and the required build/tests remain the install gate.
 # renovate: datasource=github-releases depName=openai/codex extractVersion=^rust-v(?<version>.+)$
-ARG CODEX_VERSION="0.160.1"
+ARG CODEX_VERSION="0.162.1"
 ARG CODEX_SHA256_X64="340801565906a7028f6baaa9ab6853addaef221f0016a1417a7c1ffdd96c21f0"
 ARG CODEX_SHA256_ARM64="dff0954438fa455c2197ddb1f421d8d68625d98de610f76bedb6e5bc837ea35b"
 USER igou
