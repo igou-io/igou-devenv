@@ -23,9 +23,10 @@ PY
 # Reject additional dependency conflicts while documenting the one tested
 # override. A future upstream fix can remove both this exception and the
 # second requirements file/install step.
+omnigent_version=$(/opt/omnigent/bin/python -c 'from importlib.metadata import version; print(version("omnigent"))')
 if check=$(/opt/omnigent/bin/pip check 2>&1); then
     echo "Omnigent dependencies are consistent"
-elif [[ "$check" == "omnigent 0.15.0 has requirement websockets<15,>=10.4, but you have websockets 15.0.1." ]]; then
+elif [[ "$check" == "omnigent ${omnigent_version} has requirement websockets<15,>=10.4, but you have websockets 15.0.1." ]]; then
     echo "Only the documented OpenShell websockets override is present"
 else
     printf '%s\n' "$check" >&2
