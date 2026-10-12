@@ -145,6 +145,7 @@ test-ssh:
 ## Audit mise-managed tools: each tool resolves to its expected verification method.
 ## Runs inside the devcontainer (needs mise + installed tools).
 test-mise:
+	bash $(CURDIR)/tests/test-mise-platform-verification.sh
 	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) bash /workspace/igou-devenv/tests/test-mise.sh
 
 ## Verify QEMU userspace and libvirt stack
@@ -169,11 +170,12 @@ test-mise-lockfile:
 ## rate limit, network blip) doesn't wipe the committed mise.lock.
 mise-lock:
 	@[ -f mise.lock ] && cp mise.lock mise.lock.bak || touch mise.lock
-	@if MISE_LOCKED=0 "$(CURDIR)/bin/run-pinned-mise" mise install --yes && [ -s mise.lock ]; then \
+	@if MISE_LOCKED=0 "$(CURDIR)/bin/run-pinned-mise" mise lock --global --platform linux-x64,linux-arm64 && \
+		MISE_LOCKED=0 "$(CURDIR)/bin/run-pinned-mise" mise install --yes && [ -s mise.lock ]; then \
 		rm -f mise.lock.bak; \
 		echo "mise.lock regenerated. Commit both mise.toml and mise.lock together."; \
 	else \
-		echo "mise install failed or produced empty mise.lock; restoring previous mise.lock"; \
+		echo "mise lock/install failed or produced empty mise.lock; restoring previous mise.lock"; \
 		[ -f mise.lock.bak ] && mv mise.lock.bak mise.lock; \
 		exit 1; \
 	fi
