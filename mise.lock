@@ -90,39 +90,39 @@ url = "https://github.com/direnv/direnv/releases/download/v2.37.1/direnv.linux-a
 url_api = "https://api.github.com/repos/direnv/direnv/releases/assets/274610548"
 
 [[tools.flux2]]
-version = "2.9.5"
+version = "2.9.6"
 backend = "aqua:fluxcd/flux2"
 
 [tools.flux2."platforms.linux-arm64"]
-checksum = "sha256:f3e159af616ec0b9bd0a405c2185cf09d06b74652c1de3c7f377e8166826651a"
-url = "https://github.com/fluxcd/flux2/releases/download/v2.9.5/flux_2.9.5_linux_arm64.tar.gz"
-url_api = "https://api.github.com/repos/fluxcd/flux2/releases/assets/538282890"
+checksum = "sha256:6663c154755b732f43dc993d72321f71c2fc1ff0bcb94b2696e0a8638fa562b4"
+url = "https://github.com/fluxcd/flux2/releases/download/v2.9.6/flux_2.9.6_linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/fluxcd/flux2/releases/assets/602941235"
 
 [tools.flux2."platforms.linux-arm64".provenance.slsa]
-url = "https://github.com/fluxcd/flux2/releases/download/v2.9.5/provenance.intoto.jsonl"
+url = "https://github.com/fluxcd/flux2/releases/download/v2.9.6/provenance.intoto.jsonl"
 
 [tools.flux2."platforms.linux-x64"]
-checksum = "sha256:b853df82adfd7736f580692f9f734473d571606307139f8fd20c2a80dd1ff473"
-url = "https://github.com/fluxcd/flux2/releases/download/v2.9.5/flux_2.9.5_linux_amd64.tar.gz"
-url_api = "https://api.github.com/repos/fluxcd/flux2/releases/assets/538282891"
+checksum = "sha256:b4d22673e9246cbd628881f1a9ef3b090085dced291e42d804555cee8e8d42c5"
+url = "https://github.com/fluxcd/flux2/releases/download/v2.9.6/flux_2.9.6_linux_amd64.tar.gz"
+url_api = "https://api.github.com/repos/fluxcd/flux2/releases/assets/602941244"
 
 [tools.flux2."platforms.linux-x64".provenance.slsa]
-url = "https://github.com/fluxcd/flux2/releases/download/v2.9.5/provenance.intoto.jsonl"
+url = "https://github.com/fluxcd/flux2/releases/download/v2.9.6/provenance.intoto.jsonl"
 
 [[tools.gh]]
-version = "2.101.0"
+version = "2.102.0"
 backend = "aqua:cli/cli"
 
 [tools.gh."platforms.linux-arm64"]
-checksum = "sha256:b57e8063f18862647c9d22727c32e9da1b963f8bf9db648fe123a6975695640f"
-url = "https://github.com/cli/cli/releases/download/v2.101.0/gh_2.101.0_linux_arm64.tar.gz"
-url_api = "https://api.github.com/repos/cli/cli/releases/assets/565857147"
+checksum = "sha256:7862c86c72f43df3a2d93ddde6f473285b4e2af61b494849846827e513ef6484"
+url = "https://github.com/cli/cli/releases/download/v2.102.0/gh_2.102.0_linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/cli/cli/releases/assets/599854680"
 provenance = "github-attestations"
 
 [tools.gh."platforms.linux-x64"]
-checksum = "sha256:9bca2d1c16825f109907a23307628a2f0698fbf99662b73a5cf0b020293072b8"
-url = "https://github.com/cli/cli/releases/download/v2.101.0/gh_2.101.0_linux_amd64.tar.gz"
-url_api = "https://api.github.com/repos/cli/cli/releases/assets/565857134"
+checksum = "sha256:bb766f710eef8ede859c18578c72c327597cd4c8a85b06001b1f3843c6019386"
+url = "https://github.com/cli/cli/releases/download/v2.102.0/gh_2.102.0_linux_amd64.tar.gz"
+url_api = "https://api.github.com/repos/cli/cli/releases/assets/599854672"
 provenance = "github-attestations"
 
 [[tools.helm]]
@@ -138,18 +138,18 @@ checksum = "sha256:86584a54def73570558f66f5111cc53dfed56689637ae32c1201205d494f5
 url = "https://get.helm.sh/helm-v4.3.0-linux-amd64.tar.gz"
 
 [[tools."http:code-server"]]
-version = "4.139.1"
+version = "4.140.0"
 backend = "http:code-server"
 
 [tools."http:code-server".options]
 strip_components = "1"
 
 [tools."http:code-server"."platforms.linux-arm64"]
-url = "https://github.com/coder/code-server/releases/download/v4.139.1/code-server-4.139.1-linux-arm64.tar.gz"
+url = "https://github.com/coder/code-server/releases/download/v4.140.0/code-server-4.140.0-linux-arm64.tar.gz"
 
 [tools."http:code-server"."platforms.linux-x64"]
-checksum = "blake3:6cc4f93a069dd6ace1c8359d6160b56f64754588400555c1d1e8497c554dc609"
-url = "https://github.com/coder/code-server/releases/download/v4.139.1/code-server-4.139.1-linux-amd64.tar.gz"
+checksum = "blake3:00e233fec0501d8a99371eeb08f46c4748dedfcc307618ae4428e9b96f1c4e96"
+url = "https://github.com/coder/code-server/releases/download/v4.140.0/code-server-4.140.0-linux-amd64.tar.gz"
 
 [[tools."http:gws"]]
 version = "0.22.5"
@@ -191,26 +191,26 @@ checksum = "blake3:2cb394da71bc22ccc8a83416d654fb64df2b632b8329e08ff6243a4912a6f
 url = "https://github.com/kube-burner/kube-burner-ocp/releases/download/v1.12.7/kube-burner-ocp-V1.12.7-linux-x86_64.tar.gz"
 
 [[tools."http:oc"]]
-version = "4.21.34"
+version = "4.21.35"
 backend = "http:oc"
 
 [tools."http:oc"."platforms.linux-arm64"]
-url = "https://mirror.openshift.com/pub/openshift-v4/aarch64/clients/ocp/4.21.34/openshift-client-linux.tar.gz"
+url = "https://mirror.openshift.com/pub/openshift-v4/aarch64/clients/ocp/4.21.35/openshift-client-linux.tar.gz"
 
 [tools."http:oc"."platforms.linux-x64"]
-checksum = "blake3:3fa15210c00c321db8ff61ebfeeb44b5ee329849c276672bb52b017b03d0b084"
-url = "https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/4.21.34/openshift-client-linux.tar.gz"
+checksum = "blake3:f92f7de84d6c5c42fa13762d124b36bd18dd0a148bc430e8c23044e5eb1bc188"
+url = "https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/4.21.35/openshift-client-linux.tar.gz"
 
 [[tools."http:openshell"]]
-version = "0.1.1"
+version = "0.1.2"
 backend = "http:openshell"
 
 [tools."http:openshell"."platforms.linux-arm64"]
-url = "https://github.com/NVIDIA/OpenShell/releases/download/v0.1.1/openshell-aarch64-unknown-linux-musl.tar.gz"
+url = "https://github.com/NVIDIA/OpenShell/releases/download/v0.1.2/openshell-aarch64-unknown-linux-musl.tar.gz"
 
 [tools."http:openshell"."platforms.linux-x64"]
-checksum = "blake3:473e0f3031e7d930c2295f76588780efd7ef55c69e5502c8ba05e1d3b60ef8d5"
-url = "https://github.com/NVIDIA/OpenShell/releases/download/v0.1.1/openshell-x86_64-unknown-linux-musl.tar.gz"
+checksum = "blake3:3535e6a0a3edbc9d1000aa2acf5010bab37709bedd7a748aecc90d991f66db42"
+url = "https://github.com/NVIDIA/OpenShell/releases/download/v0.1.2/openshell-x86_64-unknown-linux-musl.tar.gz"
 
 [[tools."http:rustfs-cli"]]
 version = "0.1.36"
@@ -289,18 +289,18 @@ url = "https://github.com/bitnami/sealed-secrets/releases/download/v0.40.0/kubes
 url_api = "https://api.github.com/repos/bitnami/sealed-secrets/releases/assets/555346331"
 
 [[tools.kustomize]]
-version = "5.8.1"
+version = "5.8.2"
 backend = "aqua:kubernetes-sigs/kustomize"
 
 [tools.kustomize."platforms.linux-arm64"]
-checksum = "sha256:0953ea3e476f66d6ddfcd911d750f5167b9365aa9491b2326398e289fef2c142"
-url = "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/v5.8.1/kustomize_v5.8.1_linux_arm64.tar.gz"
-url_api = "https://api.github.com/repos/kubernetes-sigs/kustomize/releases/assets/353160971"
+checksum = "sha256:0991957191951cb7dddd142403b5bb98a1fcd6378ba0079dddc1e2c309080a7f"
+url = "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/v5.8.2/kustomize_v5.8.2_linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/kubernetes-sigs/kustomize/releases/assets/600925223"
 
 [tools.kustomize."platforms.linux-x64"]
-checksum = "sha256:029a7f0f4e1932c52a0476cf02a0fd855c0bb85694b82c338fc648dcb53a819d"
-url = "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/v5.8.1/kustomize_v5.8.1_linux_amd64.tar.gz"
-url_api = "https://api.github.com/repos/kubernetes-sigs/kustomize/releases/assets/353160972"
+checksum = "sha256:06af0a202c2b831207d0173f9c9cdb1b30abceca0747cb3fbb72792d26055c95"
+url = "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/v5.8.2/kustomize_v5.8.2_linux_amd64.tar.gz"
+url_api = "https://api.github.com/repos/kubernetes-sigs/kustomize/releases/assets/600925225"
 
 [[tools.node]]
 version = "26.10.0"
@@ -369,13 +369,13 @@ url = "https://github.com/tektoncd/cli/releases/download/v0.46.1/tkn_0.46.1_Linu
 url_api = "https://api.github.com/repos/tektoncd/cli/releases/assets/580113257"
 
 [[tools.terraform]]
-version = "1.16.4"
+version = "1.16.5"
 backend = "aqua:hashicorp/terraform"
 
 [tools.terraform."platforms.linux-arm64"]
-checksum = "sha256:8263f301cb1a24489a4adeed147bf28504053f77237b3ea97a0ef2972659de30"
-url = "https://releases.hashicorp.com/terraform/1.16.4/terraform_1.16.4_linux_arm64.zip"
+checksum = "sha256:61a50b00485ee4810cf20581ef080fc54d34d666e175c58d9a10501c65c1ccde"
+url = "https://releases.hashicorp.com/terraform/1.16.5/terraform_1.16.5_linux_arm64.zip"
 
 [tools.terraform."platforms.linux-x64"]
-checksum = "sha256:dc94af0eef1147718ad7c8daea792ed199e3e0492eec180d0adafa2a65a879df"
-url = "https://releases.hashicorp.com/terraform/1.16.4/terraform_1.16.4_linux_amd64.zip"
+checksum = "sha256:2bc2fcfff033265c9e02ca0351f01794eb122f62a9b2a49a3294b9e49eaab5e4"
+url = "https://releases.hashicorp.com/terraform/1.16.5/terraform_1.16.5_linux_amd64.zip"
