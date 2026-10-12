@@ -423,19 +423,6 @@ ARG OPENCODE_SHA256_ARM64="f7f2ba59ee8aa94d388f9696575a32d20e71c2ee48def9f80fc69
 # above); the ARG is only the local-build fallback and is left empty in CI so the
 # published image carries no token.
 ARG GITHUB_TOKEN=""
-# opencode 1Password sandbox shim (see igou-docs/devenv/Devenv Environment and Credential Decisions.md).
-# Installed as the ~/.local/bin/opencode symlink target in the RUN below, so
-# every opencode invocation — including the servers t3 spawns — runs the real
-# binary inside a mount namespace that masks ~/.config/op.
-COPY --chown=igou:igou .devcontainer/opencode-1password-sandbox /home/igou/.local/bin/opencode-sandbox
-# Container launcher backing the ADDITIONAL, credential-injecting t3 opencode
-# provider instance (does not replace the default opencode). Referenced by the
-# instance's binaryPath; see igou-docs/devenv/Devenv Environment and Credential Decisions.md.
-COPY --chown=igou:igou .devcontainer/opencode-sandbox-launch /home/igou/.local/bin/opencode-sandbox-launch
-# Driver-agnostic scoped-session launcher (claude / opencode) backing
-# t3 provider instances with a fixed credential scope; opencode-sandbox-launch
-# is now a back-compat shim over it. See igou-docs/devenv/Devenv Environment and Credential Decisions.md.
-COPY --chown=igou:igou .devcontainer/agent-sandbox-launch /home/igou/.local/bin/agent-sandbox-launch
 # Shell functions + the profile resolver baked into the image so NON-devcontainer
 # consumers (Hermes kubernetes-backend session pods run this image with
 # BASH_ENV=/home/igou/.bashrc and no /workspace/igou-devenv checkout) get
@@ -487,13 +474,10 @@ RUN --mount=type=secret,id=github_token set -eux; \
     mkdir -p "$DEST" "$HOME/.local/bin"; \
     tar -xzf "$TARBALL" -C "$DEST"; \
     chmod +x "$DEST/opencode"; \
-    chmod +x "$HOME/.local/bin/opencode-sandbox" "$HOME/.local/bin/opencode-sandbox-launch" "$HOME/.local/bin/agent-sandbox-launch" "$HOME/.local/bin/resolve-profile" "$HOME/.local/bin/truenas-ro" "$HOME/.local/bin/routeros-ro" "$HOME/.local/bin/ocp-alerts" "$HOME/.local/bin/ocp-logs"; \
-    ln -sfn "$HOME/.local/bin/opencode-sandbox" "$HOME/.local/bin/opencode"; \
+    chmod +x "$HOME/.local/bin/resolve-profile" "$HOME/.local/bin/truenas-ro" "$HOME/.local/bin/routeros-ro" "$HOME/.local/bin/ocp-alerts" "$HOME/.local/bin/ocp-logs"; \
+    ln -sfn "$DEST/opencode" "$HOME/.local/bin/opencode"; \
     cd / && rm -rf "$WORK"; \
-    # Verify the real binary directly: the build environment may not permit user
-    # namespaces, and the sandbox shim is fail-closed. The shim is exercised at
-    # runtime by tests/test-opencode-sandbox.sh.
-    "$DEST/opencode" --version
+    "$HOME/.local/bin/opencode" --version
 USER root
 
 # codex CLI (OpenAI) — pinned + SHA256-verified from the

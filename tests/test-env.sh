@@ -900,7 +900,7 @@ if [ "$_left" = "0" ] && [ -z "${KUBECONFIG:-}" ]; then ok "bundle: unuse remove
 echo ""
 echo "==> Testing op-less resolution + AGENT_PROFILE hook..."
 _ic=$(mktemp -d); mkdir -p "$_ic/envs" "$_ic/bin"
-printf 'KUBECONFIG_TOKEN=literal-token\nKUBECONFIG_HOST=https://a:6443\nPERMISSIONS=readonly\n' > "$_ic/envs/ocp-cluster-reader.env"
+printf 'KUBECONFIG_TOKEN=literal-token\nKUBECONFIG_HOST=https://a:6443\n' > "$_ic/envs/ocp-cluster-reader.env"
 printf 'ROUTEROS_USERNAME=mktxp\n' > "$_ic/envs/routeros-ro.env"
 printf 'INCLUDE=ocp-cluster-reader,routeros-ro\n' > "$_ic/envs/read-only.env"
 printf '#!/bin/sh\necho "op must not be called" >&2; exit 1\n' > "$_ic/bin/op"; chmod +x "$_ic/bin/op"
@@ -927,14 +927,14 @@ rm -rf "$_ic"
 # =========================================================================
 #  Real env catalog hygiene: every envs/*.env ends with a newline and has one
 #  KEY=VALUE per line (a missing trailing newline once glued an appended
-#  PERMISSIONS= onto KUBECONFIG_HOST and broke the synthesized kubeconfig).
+#  key onto KUBECONFIG_HOST and broke the synthesized kubeconfig).
 # =========================================================================
 echo ""
 echo "==> Testing envs/*.env hygiene..."
 _bad=""
 for _f in "$REPO_DIR"/envs/*.env; do
     [ -n "$(tail -c1 "$_f")" ] && _bad="$_bad $(basename "$_f"):no-trailing-newline"
-    if grep -qE '[^[:space:]](KUBECONFIG_[A-Z]+|REGISTRY_[A-Z]+|PERMISSIONS|SSH_KEYS)=' "$_f"; then
+    if grep -qE '[^[:space:]](KUBECONFIG_[A-Z]+|REGISTRY_[A-Z]+)=' "$_f"; then
         _bad="$_bad $(basename "$_f"):glued-key"
     fi
 done

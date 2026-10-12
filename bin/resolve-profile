@@ -3,10 +3,10 @@
 # Resolve one or more envs/<name>.env profiles into KEY=VALUE lines (igou-docs/devenv/Devenv Environment and Credential Decisions.md).
 #
 # This is the single implementation of profile resolution shared by the `use`
-# shell function (dotfiles/.bashrc.d/10-use.sh) and every container launcher
-# (bin/*-run, .devcontainer/*-sandbox-launch). It never exports anything and
-# never mutates the caller's shell: it prints resolved lines to stdout and the
-# caller decides what to do with them (export, `-e` into podman, ...).
+# shell function (dotfiles/.bashrc.d/10-use.sh) and the in-cluster
+# AGENT_PROFILE hook (dotfiles/.bashrc.d/05-agent-profile.sh). It never exports
+# anything or mutates the caller's shell: it prints resolved lines to stdout,
+# and the caller decides how to export them.
 #
 # Usage:
 #   resolve-profile NAME [NAME...]     resolve and print KEY=VALUE lines
@@ -24,8 +24,6 @@
 #                                  (all three required)
 #   INCLUDE=a,b                    resolve those profiles first (bundles, e.g.
 #                                  read-only = ocp + rk8s + routeros readers)
-# Reserved passthrough keys (plain values the launchers interpret; harmless as
-# env vars): SSH_KEYS, PERMISSIONS.
 #
 # Output contract:
 #   KEY=VALUE            one per resolved key, in file order, profiles in arg order

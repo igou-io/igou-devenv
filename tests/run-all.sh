@@ -12,24 +12,6 @@ echo "========================================="
 
 echo ""
 echo "========================================="
-echo "  test-opencode-sandbox"
-echo "========================================="
-"$DIR/test-opencode-sandbox.sh"
-
-echo ""
-echo "========================================="
-echo "  test-opencode-instance"
-echo "========================================="
-"$DIR/test-opencode-instance.sh"
-
-echo ""
-echo "========================================="
-echo "  test-agent-instance"
-echo "========================================="
-"$DIR/test-agent-instance.sh"
-
-echo ""
-echo "========================================="
 echo "  test-podman"
 echo "========================================="
 "$DIR/test-podman.sh"
@@ -56,18 +38,6 @@ echo "========================================="
 # Runs in CI too: sources dotfiles/.bashrc.d itself and uses a
 # private ssh-agent, so it needs no interactive shell or post-create setup.
 bash "$DIR/test-ssh.sh"
-
-echo ""
-echo "========================================="
-echo "  test-run-scripts"
-echo "========================================="
-bash "$DIR/test-run-scripts.sh"
-
-echo ""
-echo "========================================="
-echo "  test-openshell-codex"
-echo "========================================="
-bash "$DIR/test-openshell-codex.sh"
 
 echo ""
 echo "========================================="
