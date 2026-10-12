@@ -91,6 +91,7 @@ echo ""
 echo "========================================="
 echo "  test-mise (in-container)"
 echo "========================================="
+bash "$DIR/test-mise-platform-verification.sh"
 "$DIR/test-mise.sh"
 
 echo ""
