@@ -138,18 +138,18 @@ checksum = "sha256:86584a54def73570558f66f5111cc53dfed56689637ae32c1201205d494f5
 url = "https://get.helm.sh/helm-v4.3.0-linux-amd64.tar.gz"
 
 [[tools."http:code-server"]]
-version = "4.139.1"
+version = "4.140.0"
 backend = "http:code-server"
 
 [tools."http:code-server".options]
 strip_components = "1"
 
 [tools."http:code-server"."platforms.linux-arm64"]
-url = "https://github.com/coder/code-server/releases/download/v4.139.1/code-server-4.139.1-linux-arm64.tar.gz"
+url = "https://github.com/coder/code-server/releases/download/v4.140.0/code-server-4.140.0-linux-arm64.tar.gz"
 
 [tools."http:code-server"."platforms.linux-x64"]
-checksum = "blake3:6cc4f93a069dd6ace1c8359d6160b56f64754588400555c1d1e8497c554dc609"
-url = "https://github.com/coder/code-server/releases/download/v4.139.1/code-server-4.139.1-linux-amd64.tar.gz"
+checksum = "blake3:00e233fec0501d8a99371eeb08f46c4748dedfcc307618ae4428e9b96f1c4e96"
+url = "https://github.com/coder/code-server/releases/download/v4.140.0/code-server-4.140.0-linux-amd64.tar.gz"
 
 [[tools."http:gws"]]
 version = "0.22.5"
@@ -191,26 +191,26 @@ checksum = "blake3:2cb394da71bc22ccc8a83416d654fb64df2b632b8329e08ff6243a4912a6f
 url = "https://github.com/kube-burner/kube-burner-ocp/releases/download/v1.12.7/kube-burner-ocp-V1.12.7-linux-x86_64.tar.gz"
 
 [[tools."http:oc"]]
-version = "4.21.34"
+version = "4.21.35"
 backend = "http:oc"
 
 [tools."http:oc"."platforms.linux-arm64"]
-url = "https://mirror.openshift.com/pub/openshift-v4/aarch64/clients/ocp/4.21.34/openshift-client-linux.tar.gz"
+url = "https://mirror.openshift.com/pub/openshift-v4/aarch64/clients/ocp/4.21.35/openshift-client-linux.tar.gz"
 
 [tools."http:oc"."platforms.linux-x64"]
-checksum = "blake3:3fa15210c00c321db8ff61ebfeeb44b5ee329849c276672bb52b017b03d0b084"
-url = "https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/4.21.34/openshift-client-linux.tar.gz"
+checksum = "blake3:f92f7de84d6c5c42fa13762d124b36bd18dd0a148bc430e8c23044e5eb1bc188"
+url = "https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/4.21.35/openshift-client-linux.tar.gz"
 
 [[tools."http:openshell"]]
-version = "0.1.1"
+version = "0.1.2"
 backend = "http:openshell"
 
 [tools."http:openshell"."platforms.linux-arm64"]
-url = "https://github.com/NVIDIA/OpenShell/releases/download/v0.1.1/openshell-aarch64-unknown-linux-musl.tar.gz"
+url = "https://github.com/NVIDIA/OpenShell/releases/download/v0.1.2/openshell-aarch64-unknown-linux-musl.tar.gz"
 
 [tools."http:openshell"."platforms.linux-x64"]
-checksum = "blake3:473e0f3031e7d930c2295f76588780efd7ef55c69e5502c8ba05e1d3b60ef8d5"
-url = "https://github.com/NVIDIA/OpenShell/releases/download/v0.1.1/openshell-x86_64-unknown-linux-musl.tar.gz"
+checksum = "blake3:3535e6a0a3edbc9d1000aa2acf5010bab37709bedd7a748aecc90d991f66db42"
+url = "https://github.com/NVIDIA/OpenShell/releases/download/v0.1.2/openshell-x86_64-unknown-linux-musl.tar.gz"
 
 [[tools."http:rustfs-cli"]]
 version = "0.1.36"
