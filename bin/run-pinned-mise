@@ -8,7 +8,7 @@
 # image for every release tag.
 set -euo pipefail
 
-REPO="$(cd "$(dirname "$0")/.." && pwd)"
+REPO="${MISE_PROJECT_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
 DOCKERFILE="${REPO}/.devcontainer/Dockerfile"
 
 MISE_VERSION="$(awk -F'"' '/^ARG MISE_VERSION/{print $2; exit}' "$DOCKERFILE")"
@@ -26,6 +26,9 @@ if command -v mise >/dev/null 2>&1; then
     if [ "$installed" = "$MISE_VERSION_NO_V" ]; then
         cd "$REPO"
         export MISE_GLOBAL_CONFIG_FILE="${REPO}/mise.toml"
+        # The repo is the sole config root for lock generation. In a running
+        # devenv, inherited /etc/mise tools must not redirect writes there.
+        export MISE_SYSTEM_CONFIG_FILE="${REPO}/mise.toml"
         export MISE_TRUSTED_CONFIG_PATHS="${REPO}"
         mise trust --quiet --all >/dev/null 2>&1 || true
         exec "$@"
@@ -96,6 +99,7 @@ chmod +x /usr/local/bin/mise
 cd /work
 export PATH="/usr/local/bin:${PATH}"
 export MISE_GLOBAL_CONFIG_FILE=/work/mise.toml
+export MISE_SYSTEM_CONFIG_FILE=/work/mise.toml
 export MISE_TRUSTED_CONFIG_PATHS=/work
 mkdir -p /etc/mise
 ln -sfn /work/aqua-registry /etc/mise/aqua-registry

@@ -91,9 +91,8 @@ while IFS= read -r line; do
 done < "$EXPECTED"
 
 # For each tool we expect a verification method for, inspect mise.lock and
-# pull out the algorithm prefix from the checksum line. We require the
-# tool to have AT LEAST ONE platform-pinned checksum with the expected
-# prefix — both linux-x64 and linux-arm64 entries must agree.
+# require the expected checksum and provenance on each supported platform.
+# Each recorded platform must satisfy the full verification requirement.
 #
 # Special case: expected = "core" means we explicitly accept that this tool
 # uses a mise core backend (e.g. core:node) whose verification happens
@@ -108,8 +107,8 @@ for tool in "${!EXPECTED_MAP[@]}"; do
     # than the unquoted `[[tools.kubectl]]`. Pick the section header form
     # to look for by detecting whether the key contains TOML-special chars.
     case "$tool" in
-        *[!a-zA-Z0-9_-]*) section_open="[[tools.\"${tool}\"]"; section_dot="[tools.\"${tool}\".";;
-        *)               section_open="[[tools.${tool}]";      section_dot="[tools.${tool}.";;
+        *[!a-zA-Z0-9_-]*) section_open="[[tools.\"${tool}\"]";;
+        *)               section_open="[[tools.${tool}]";;
     esac
 
     # "core" and "npm" backends verify inside the backend tool itself (mise
@@ -171,80 +170,10 @@ for tool in "${!EXPECTED_MAP[@]}"; do
         continue
     fi
 
-    # Walk the lockfile's [tools.<key>...] sections and harvest two signals:
-    #   - the checksum algorithm prefix (text before the first ':' in the
-    #     quoted checksum string), and
-    #   - the presence of a `[tools.<key>...provenance.<KIND>]` subsection,
-    #     which records that mise additionally verified an upstream
-    #     attestation (e.g. SLSA L3 provenance for flux2/sops, GitHub
-    #     artifact attestations for gh/age).
-    # awk state machine: start capture on a section header that begins with
-    # either section_open ([[tools.<key>]]) or section_dot ([tools.<key>.X]),
-    # emit signal lines, stop on next [section] header that doesn't.
-    signals=$(awk -v open="$section_open" -v dot="$section_dot" '
-        function startswith(s, p) { return substr(s, 1, length(p)) == p }
-        /^\[/{
-            in_tool = startswith($0, open) || startswith($0, dot)
-            # Also catch `provenance.<KIND>` table headers (e.g.
-            # [tools.flux2."platforms.linux-x64".provenance.slsa])
-            if (in_tool && match($0, /\.provenance\.[a-zA-Z0-9_-]+/)) {
-                kind = substr($0, RSTART+12, RLENGTH-12)
-                gsub(/\]/, "", kind)
-                print "provenance:" kind
-            }
-        }
-        in_tool && /^checksum *= *"/{
-            match($0, /"[^:]+:/)
-            if (RLENGTH > 0) {
-                alg = substr($0, RSTART+1, RLENGTH-2)
-                print "checksum:" alg
-            }
-        }
-    ' "$LOCK" | sort -u)
-
-    algs=$(echo "$signals" | awk -F: '/^checksum:/{print $2}' | sort -u)
-    provs=$(echo "$signals" | awk -F: '/^provenance:/{print $2}' | sort -u)
-
-    if [ -z "$algs" ]; then
-        fail "${tool}: no checksum found in ${LOCK}"
-        continue
-    fi
-
-    # Expected may be a compound form "<alg>+<provenance>", e.g. "sha256+slsa",
-    # which asserts both the checksum prefix AND the presence of a matching
-    # provenance subsection on every covered platform.
-    case "$expected" in
-        *+*)
-            exp_alg="${expected%%+*}"
-            exp_prov="${expected#*+}"
-            ;;
-        *)
-            exp_alg="$expected"
-            exp_prov=""
-            ;;
-    esac
-
-    # Every platform's checksum prefix must equal exp_alg.
-    mismatch=""
-    for a in $algs; do
-        if [ "$a" != "$exp_alg" ]; then
-            mismatch="$a"
-            break
-        fi
-    done
-    if [ -n "$mismatch" ]; then
-        fail "${tool}: lockfile uses ${mismatch} (expected ${exp_alg})"
-        continue
-    fi
-
-    if [ -n "$exp_prov" ]; then
-        if ! echo "$provs" | grep -qFx "$exp_prov"; then
-            fail "${tool}: lockfile has no provenance.${exp_prov} entry (expected for compound ${expected})"
-            continue
-        fi
-        ok "${tool} verified via ${exp_alg} + ${exp_prov} provenance"
+    if result=$(bash "${REPO}/tests/check-mise-platform-verification.sh" "$LOCK" "$tool" "$expected" 2>&1); then
+        ok "${tool} verified via ${expected} on every recorded platform"
     else
-        ok "${tool} verified via ${exp_alg}"
+        fail "$result"
     fi
 done
 
