@@ -11,8 +11,6 @@ This repo has multiple execution models with different capabilities:
 
 - local full devcontainer via Cursor Dev Containers or `make up`
 - lightweight published-image path via `make run`
-- local wrapper-launched agent containers via `claude-run`, `cursor-run`, and
-  `opencode-run`
 - Hermes docker-terminal containers
 - OpenShift Dev Spaces workspace on the ocp cluster via `devfile.yaml`
 - CI/build containers
@@ -209,8 +207,8 @@ k8s-unset               # clear KUBECONFIG and K8S_AUTH_* vars
 Environment files live in `envs/` and contain only `op://` references — no
 secrets are stored in the repo.
 
-Resolution is implemented once, in `bin/resolve-profile`, and shared by `use`,
-the `bin/*-run` launchers and the t3 sandbox launchers. It prints `KEY=VALUE`
+Resolution is implemented in `bin/resolve-profile` and used by `use` and
+the in-cluster `AGENT_PROFILE` hook. It prints `KEY=VALUE`
 lines (plus temp-file paths for `KUBECONFIG` / `REGISTRY_AUTH_FILE`) and is
 atomic: on any failure nothing is printed and no temp files remain.
 
@@ -318,28 +316,7 @@ The host side of this (the devenv VM / physical devhost) installs the same
 | `make renovate-validate` | Validate `renovate.json` config |
 | `make renovate-dry-run` | Dry-run Renovate locally (requires `GITHUB_TOKEN`) |
 | `make sbom` | Generate SBOMs (SPDX + CycloneDX) for the built devcontainer image |
-| `make opencode-build` | Build the opencode container image from `../igou-containers/apps/opencode/` |
 | `make e2e` | Full end-to-end: rebuild devcontainer + run all tests |
-
-Local agent-container images (Claude, Cursor, opencode) are built and published
-by [`igou-containers`](https://github.com/igou-io/igou-containers), not this
-repo. The `claude-run`, `cursor-run`, and `opencode-run` launcher scripts in
-`bin/` pull and run those images from the local full devcontainer or another
-environment with working rootless Podman.
-
-## Agent Containers (Claude, Cursor, opencode)
-
-These are local-development convenience wrappers launched from the full
-devcontainer. They are not the Hermes execution model.
-
-The wrapped UBI10-based images run coding-agent sessions against infrastructure
-repos with selective per-session credential injection. **Images are built and
-published by [`igou-containers`](https://github.com/igou-io/igou-containers);
-this repo ships only the launcher scripts and `bin/` entry points.**
-
-Hermes uses its docker-terminal setting to enter a configured rootless Podman
-container. Do not assume Hermes uses these wrappers unless someone explicitly
-wires Hermes to call them and verifies that path.
 
 ## Omnigent host runtime
 
@@ -372,190 +349,21 @@ it does not select another image. Deployment configuration lives in
 `igou-openshift`, with the workflow documented in `igou-docs` under
 “Omnigent Managed Sandboxes and API Workflows.”
 
-## OpenShell Codex sandboxes
+## Agent CLIs and credential profiles
 
-`openshell-codex` creates a container sandbox on the registered `ocp` OpenShell
-gateway, uploads the current project, attaches the gateway-managed `opencode-go`
-provider, and launches
-Codex with the OpenCode Go endpoint configuration. The API key remains in
-OpenShell's encrypted provider storage and is not passed through the wrapper.
-OpenShell 0.1.1 uses a minimal Ubuntu gateway default. Pass `--image` or set
-`OPENSHELL_CODEX_IMAGE` to a fully qualified, preferably digest-pinned image
-containing Codex and its dependencies. The wrapper preserves the image's policy.
+Claude Code, Codex, Cursor agent, and OpenCode run directly from their installed
+binaries. This repo no longer ships agent launch wrappers or the OpenCode
+1Password masking shim. OpenCode now launches its installed binary directly,
+with the current shell's credentials and filesystem access.
 
-The non-secret `ocp` registration is managed from
-`dotfiles/openshell/gateways/ocp/metadata.json` and converged by `post-create`.
-`~/.config/openshell` is bind-mounted from the host, so the registration and
-per-user OIDC token survive devcontainer rebuilds. The token is runtime state;
-it is never copied into the repository or image.
+`use` and `unuse` still activate credential profiles for local shells. For
+in-cluster consumers, `dotfiles/.bashrc.d/05-agent-profile.sh` activates an
+ExternalSecret-rendered env catalog using `AGENT_PROFILE` and
+`AGENT_PROFILE_ENVDIR` (default `/etc/agent/envs`).
 
-Authenticate once before the first sandbox:
-
-```bash
-openshell gateway login ocp
-openshell-codex --image registry.example.com/agents/codex:1.0
-```
-
-Sandboxes are retained by default. Use `--ephemeral` to delete the sandbox when
-Codex exits, or pass a non-interactive Codex command after `--`:
-
-```bash
-openshell-codex --image registry.example.com/agents/codex:1.0 --ephemeral -- exec 'Review this repository'
-```
-
-### Usage
-
-```bash
-claude-run                          # launch claude with current directory mounted
-claude-run -e ocp-rosa              # resolve ocp-rosa secrets, inject as env vars
-claude-run -e ocp -e ansible        # stack multiple environments
-claude-run --shell                  # drop to bash instead of claude
-claude-run -e aws -- --resume       # pass flags through to claude
-
-cursor-run                          # same shape — launches the Cursor agent
-opencode-run                        # same shape — launches opencode
-```
-
-Credentials are resolved via `op inject` in the devcontainer before being
-passed as plain environment variables to the agent container. The agent
-container never has direct access to 1Password.
-
-### Differences from the devcontainer
-
-| | Local full devcontainer | Local wrapper-launched agent containers |
-|---|---|---|
-| Base image | CentOS Stream 10 | UBI10 (`ubi-micro` for Claude, `ubi-minimal` for Cursor/opencode) |
-| Container engine inside | podman, buildah, skopeo, Docker CLI | None (no nested containers) |
-| Privileged mode | Yes (for nested podman) | No (rootless via `--userns=keep-id`) |
-| Hardening | General-purpose trusted workstation container; not a sandbox | Wrapper flags such as `--cap-drop=ALL` and noexec `/tmp`; tool-specific sandboxing only where that tool supports it and runtime tests pass |
-| OpenCode isolation | Outer container only | OpenCode permissions are UX guardrails, not OS isolation |
-| Launched via | Cursor / `make up` | `claude-run` / `cursor-run` / `opencode-run` from inside devcontainer |
-
-### opencode-specific: pointing at the local Qwen endpoint
-
-`opencode-run` is the same shape as the other two launchers but is
-typically pointed at the Qwen3.6-35B-A3B endpoint hosted by
-`applications/llmkube/` in `igou-openshift` (or any OpenAI-compatible
-endpoint). The launcher bind-mounts `~/.config/opencode/` (config) and
-`~/.local/share/opencode/` (auth tokens, session history) so state persists
-across container runs and is shared with the devcontainer.
-
-`make opencode-build` is provided for fast local iteration on the image
-before pushing to `igou-containers` — the GHCR copy is produced by the
-`igou-containers` workflow on every push to its `main`.
-
-Example `~/.config/opencode/opencode.jsonc`:
-
-```jsonc
-{
-  "$schema": "https://opencode.ai/config.json",
-  "provider": {
-    "llama.cpp": {
-      "npm": "@ai-sdk/openai-compatible",
-      "name": "llama-server (igou.systems)",
-      "options": {
-        "baseURL": "https://qwen3-35b-a3b-llmkube-system.apps.ocp.igou.systems/v1"
-      },
-      "models": {
-        "qwen3.6-35b-a3b": {
-          "name": "Qwen3.6-35B-A3B (local)",
-          "limit": { "context": 65536, "output": 32768 },
-          "reasoning": true,
-          "tools": true,
-          "temperature": true,
-          "options": { "temperature": 0.7, "top_p": 0.8 }
-        }
-      }
-    }
-  },
-  "model": "llama.cpp/qwen3.6-35b-a3b"
-}
-```
-
-The InferenceService is scaled to 0 by default — scale up before use:
-
-```bash
-oc patch inferenceservice qwen3-35b-a3b -n llmkube-system \
-  --type merge -p '{"spec":{"replicas":1}}'
-```
-
-See `applications/llmkube/README.md` in `igou-openshift` for the full server-side
-tuning rationale (flash attention, q8 KV cache, jinja chat template, etc.).
-
-## Scoped Agent Sessions for t3 (profiles)
-
-`agent-sandbox-launch` (`.devcontainer/`, baked to `~/.local/bin`, also on PATH via
-`bin/`) runs **claude or opencode** in the hardened rootless container with a
-credential scope fixed at launch — see [ADR-0006](https://github.com/igou-io/igou-docs/blob/main/devenv/Devenv%20Environment%20and%20Credential%20Decisions.md).
-t3 provider instances point `binaryPath` at it and pick the scope through the
-instance environment:
-
-```jsonc
-// ~/.t3/userdata/settings.json → providerInstances (Settings → Providers → Add)
-"claude-ocp-ro": {
-  "driver": "claudeAgent",
-  "displayName": "Claude ▸ OCP read-only",
-  "config": { "binaryPath": "/home/igou/.local/bin/agent-sandbox-launch" },
-  "environment": [{ "name": "AGENT_SANDBOX_PROFILES", "value": "ocp-cluster-reader", "sensitive": false }]
-},
-"claude-rk8s-admin": { "driver": "claudeAgent", "displayName": "Claude ▸ rk8s admin + ansible",
-                       "config": { "binaryPath": "/home/igou/.local/bin/agent-sandbox-launch" },
-                       "environment": [{ "name": "AGENT_SANDBOX_PROFILES", "value": "rk8s,ansible", "sensitive": false }] }
-```
-
-opencode instances need one binary per profile (t3 keeps one shared server per
-`binaryPath`): `agent-sandbox-launch --install-shim ocp-cluster-reader` writes
-`~/.local/bin/agent-sandbox-launch-ocp-cluster-reader` to use as `binaryPath`.
-`post-create.sh` regenerates a shim for every kubeconfig-bearing profile and
-every `INCLUDE=` bundle on each build (`~/.local/bin` is ephemeral), so instances
-keep working across rebuilds. It also pre-pulls the Claude and OpenCode images in the
-background (log: `~/.local/share/containers/agent-image-pull.log`): the rootless
-podman store is ephemeral too, and t3's health probe (`binaryPath --version`,
-4 s timeout, every 5 min) cannot wait for a pull. The launcher answers a bare
-`--version` without resolving profiles; if the image is still missing it starts
-the pull and reports the host binary's version so the instance is selectable.
-Scoped Codex support was removed on 2026-10-08. T3's 10-second `app-server`
-provider checks repeatedly interrupted cold image pulls and left staging files
-behind. Use the ordinary Codex provider; remove any Codex instance whose
-`binaryPath` points at `agent-sandbox-launch` from T3 Settings → Providers.
-
-The remaining scoped instances are `Claude ▸ read-only` and
-`opencode ▸ read-only` (both on the `read-only` bundle).
-Unscoped sessions get their guidance from `/workspace/AGENTS.md`
-("Credentials and session scope"): check `$AGENT_PROFILE`, else `use <profile> && …`.
-
-Inside the session `oc`/`kubectl` work for exactly that identity, `op`/`use`/`ssh-use`
-do not exist, `AGENT_PROFILE` names the scope, and a scope note in the agent's
-instructions tells it to ask for a different session rather than escalate.
-
-Profile keys the launcher interprets (on top of the ones `resolve-profile` handles):
-
-| key | effect |
-|-----|--------|
-| `SSH_KEYS=ansible,other` | keys read from `op://lab_ssh/<item>` into a **per-session** `ssh-agent` inside the container |
-| `PERMISSIONS=readonly\|guarded` | per-driver tool-permission layer from `envs/permissions/<level>/` (deny vs. ask on cluster-mutating commands) |
-| `INCLUDE=a,b` | bundle: resolve those profiles first. Kubeconfigs merge into one `KUBECONFIG` list with a context per profile (`kubectl --context rk8s-cluster-reader`); first one is current |
-
-**In-cluster (no 1Password)**: the same `envs/*.env` format works with literal values —
-an ExternalSecret renders the files into a pod (e.g. `/etc/agent/envs`) and
-`resolve-profile` skips `op` when no `op://` reference is present. The image bakes
-`~/.bashrc`, `~/.bashrc.d/` and `resolve-profile`; `05-agent-profile.sh` activates
-`AGENT_PROFILE` from `AGENT_PROFILE_ENVDIR` (default `/etc/agent/envs`) once per pod and
-caches the exports in `/tmp`. This is how Hermes session pods get the `read-only`
-bundle (igou-openshift `applications/hermes-sre`).
-
-Four read-only CLIs ship with the profiles (and the image): `ocp-alerts` (Alertmanager API / Thanos), `ocp-logs` (LokiStack LogQL, tenant-aware) — both with the kubeconfig token, `truenas-ro METHOD [JSON]`
-(JSON-RPC over WebSocket, API-key login, refuses mutating method names) and
-`routeros-ro HOST|all PATH [k=v]` (api-ssl via librouteros, JSON out). Agents get told
-about them in the scope note; humans can use them after `use read-only`.
-
-`envs/read-only.env` is the canonical bundle (`ocp-cluster-reader` + `rk8s-cluster-reader` + `routeros-ro` + `truenas-ro`, `PERMISSIONS=readonly`): one session that can inspect every cluster (`kubectl config get-contexts`), read the RouterOS fleet through the `mktxp` API identity (`librouteros`, api-ssl 8729; the device refuses writes) and read TrueNAS as `agent-ro` (`READONLY_ADMIN`) over the JSON-RPC WebSocket API (`websockets`; REST `/api/v2.0` is FULL_ADMIN-only on 25.x).
-
-```bash
-agent-sandbox-launch --profiles ocp-cluster-reader --shell          # poke around inside the scope
-agent-sandbox-launch --profiles rk8s,ansible --dry-run                # print the podman command
-AGENT_SANDBOX_PROFILES=ocp-cluster-reader agent-sandbox-launch serve  # what t3 does for opencode
-```
+`envs/read-only.env` bundles the OCP, rk8s, RouterOS, and TrueNAS readers.
+The `ocp-alerts`, `ocp-logs`, `routeros-ro`, and `truenas-ro` infrastructure
+helpers remain available after activating the appropriate profile.
 
 ## SSH Keys from 1Password
 
@@ -594,8 +402,8 @@ buildah bud -t myimage .
 Podman is configured with `fuse-overlayfs` for storage and `slirp4netns` for
 rootless networking in the full devcontainer. Docker CLI is also available there
 via the host socket (docker-outside-of-docker Feature). Do not infer nested
-Podman, host Docker socket access, or `/dev` access for `make run`, Hermes, CI,
-or wrapper-launched agent containers without testing that exact runtime.
+Podman, host Docker socket access, or `/dev` access for `make run`, Hermes, or
+CI without testing that exact runtime.
 
 ## Browser IDE (code-server)
 
@@ -758,9 +566,8 @@ does not necessarily provide those kernel/runtime capabilities.
 - **Custom scripts** → add to `bin/` (symlinked to `~/bin`, on PATH)
 - **Cursor extensions** → add to `customizations.vscode.extensions` in `devcontainer.json`
 
-Hermes dependencies must be added to the image Hermes actually enters. Patching
-only the local wrapper-launched agent images, or only these wrapper scripts, does
-not make that dependency available to Hermes.
+Hermes dependencies must be added to the image Hermes actually enters. Verify
+the installed dependency in that runtime.
 
 ### 1Password Integration
 

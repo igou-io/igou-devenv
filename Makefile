@@ -3,8 +3,7 @@ WORKSPACE    = $(CURDIR)
 
 .DEFAULT_GOAL := help
 
-.PHONY: link-skills build up up-release down restart exec shell run test test-all test-tools test-sandbox-primitives test-podman test-env test-mise test-ssh test-mise-lockfile test-openshell-gateway-config test-openshell-codex test-qemu clean rebuild help renovate-validate renovate-dry-run sbom sbom-devcontainer e2e opencode-build mise-lock release release-dry-run release-prepare release-prepare-clis release-watch
-
+.PHONY: link-skills build up up-release down restart exec shell run test test-all test-tools test-sandbox-primitives test-podman test-env test-mise test-ssh test-mise-lockfile test-openshell-gateway-config test-qemu clean rebuild help renovate-validate renovate-dry-run sbom sbom-devcontainer e2e mise-lock release release-dry-run release-prepare release-prepare-clis release-watch
 
 ## Build the devcontainer image (with cache)
 ## Runs: Dockerfile only (no lifecycle hooks)
@@ -101,7 +100,7 @@ up-release:
 	st=$$?; rm -rf "$$(dirname "$$cfg")"; exit $$st
 
 ## Run all tests (tools, podman, env, ssh, mise lockfile freshness + audit)
-test-all: test-tools test-podman test-env test-ssh test-mise-lockfile test-mise test-openshell-gateway-config test-openshell-codex test-qemu
+test-all: test-tools test-podman test-env test-ssh test-mise-lockfile test-mise test-openshell-gateway-config test-qemu
 
 ## Alias for test-all
 test: test-all
@@ -114,21 +113,9 @@ test-tools:
 test-sandbox-primitives:
 	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) /workspace/igou-devenv/tests/test-sandbox-primitives.sh
 
-## Verify the opencode 1Password sandbox shim is wired and effective (igou-docs/devenv/Devenv Environment and Credential Decisions.md)
-test-opencode-sandbox:
-	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) /workspace/igou-devenv/tests/test-opencode-sandbox.sh
-
-## Verify the OpenShell Codex wrapper command construction and cleanup behavior
-test-openshell-codex:
-	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) /workspace/igou-devenv/tests/test-openshell-codex.sh
-
 ## Verify declarative OpenShell gateway metadata and token preservation
 test-openshell-gateway-config:
 	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) /workspace/igou-devenv/tests/test-openshell-gateway-config.sh
-
-## Verify the credential-injecting opencode container launcher (igou-docs/devenv/Devenv Environment and Credential Decisions.md)
-test-opencode-instance:
-	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) /workspace/igou-devenv/tests/test-opencode-instance.sh
 
 ## Test podman pull, run, and build inside the devcontainer
 test-podman:
@@ -208,17 +195,6 @@ sbom-devcontainer:
 	echo "Generating SBOM for $$DEVCONTAINER_IMAGE..."; \
 	syft "$$DEVCONTAINER_IMAGE" -o spdx-json=sbom/devcontainer.spdx.json -o cyclonedx-json=sbom/devcontainer.cdx.json; \
 	echo "SBOMs written to sbom/devcontainer.{spdx,cdx}.json"
-
-## Build the opencode container from igou-containers/apps/opencode/
-## Tags as ghcr.io/igou-io/opencode:latest so opencode-run picks it up by default
-opencode-build:
-	@OPENCODE_DIR=$(CURDIR)/../igou-containers/apps/opencode; \
-	if [ ! -d "$$OPENCODE_DIR" ]; then \
-		echo "opencode build context not found at $$OPENCODE_DIR"; \
-		echo "expected igou-containers checked out next to igou-devenv"; \
-		exit 1; \
-	fi; \
-	podman build -t ghcr.io/igou-io/opencode:latest -f $$OPENCODE_DIR/Containerfile $$OPENCODE_DIR
 
 # ---------------------------------------------------------------------------
 # Release (CalVer) — dispatch the GitHub Actions release workflows on demand

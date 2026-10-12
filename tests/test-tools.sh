@@ -19,9 +19,7 @@ echo "==> Verifying CLI tools..."
 declare -A TOOLS=(
     [python3]="python3 --version"
     [claude]="claude --version"
-    # Real binary: the `opencode` symlink is the 1Password sandbox shim, which
-    # needs a user namespace (absent in the CI image build). igou-docs/devenv/Devenv Environment and Credential Decisions.md.
-    [opencode]="$HOME/.opencode/bin/opencode --version"
+    [opencode]="opencode --version"
     [codex]="codex --version"
     [agent]="agent --version"
     [ansible]="ansible --version"

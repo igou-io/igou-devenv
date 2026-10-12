@@ -11,10 +11,10 @@ infrastructure work with OpenShift, Kubernetes, Ansible, Terraform, podman,
 buildah, QEMU/libvirt, and related tooling.
 
 This repo owns the local devcontainer definition, lifecycle scripts, local
-launcher wrappers, and tests for that development environment. The actual
+helper commands, and tests for that development environment. The actual
 infrastructure project repos are expected to be cloned separately under
-`/workspace/`. The local agent container images launched by the wrapper scripts
-are built in `igou-containers`, not here.
+`/workspace/`. Agent CLIs run directly from their installed binaries; this
+repo does not ship agent launch wrappers.
 
 ## User Preferences
 
@@ -42,19 +42,16 @@ matrix.
 |---|---|---|
 | Local full devcontainer | Cursor Dev Containers or `make up` | Docker-launched, privileged, host networking, `/dev` bind mount, Docker socket, persistent host config mounts, nested Podman/buildah support. Intended for David's trusted local dev machine. Not a security sandbox for untrusted agent execution. |
 | Lightweight published image path | `make run` | Runs `ghcr.io/igou-io/igou-devenv` directly for code-server against a selected directory. Does not imply the same persistence, lifecycle hooks, privileged mode, or nested-container capability as `make up`. |
-| Local wrapper-launched agent containers | `bin/claude-run`, `bin/cursor-run`, `bin/opencode-run` | Convenience wrappers normally run from inside the local full devcontainer. They use rootless Podman to pull/run images built by `igou-containers`, resolve selected `envs/*.env` files through `op inject`, and pass plain environment variables to the agent container. |
-| Hermes docker-terminal container | Hermes docker terminal setting | Hermes enters whatever image Hermes is configured to use in a rootless Podman environment. It is not assumed to be this repo's full devcontainer and not assumed to run the local wrapper scripts. |
+| Hermes docker-terminal container | Hermes docker terminal setting | Hermes enters whatever image Hermes is configured to use in a rootless Podman environment. It is not assumed to be this repo's full devcontainer. |
 | CI/build environment | GitHub Actions/devcontainers CI | Builds and tests the devcontainer image. It should hard-fail on missing packages and broken commands, but should not hard-fail on namespace or bubblewrap runtime capabilities unless CI explicitly provides them. |
 
 Hard execution-model rules:
 
-- Do not treat `claude-run`, `cursor-run`, or `opencode-run` as Hermes paths.
-- Do not assume Hermes can run `claude-run`, `cursor-run`, or `opencode-run`.
 - Do not assume Hermes has privileged mode, host networking, the host Docker
-  socket, `/dev` bind mounts, nested Podman, or wrapper-launched agent
-  containers.
+  socket, `/dev` bind mounts, nested Podman, or the same installed tools as
+  the full devcontainer.
 - The outer container is the primary isolation boundary for Hermes.
-- When adding dependencies for Hermes, patch the image Hermes actually enters, not merely local wrapper-launched agent images.
+- When adding dependencies for Hermes, patch the image Hermes actually enters, rather than assuming the devenv image supplies them.
 - Runtime capabilities such as user namespaces, mount namespaces, seccomp,
   Landlock, and bubblewrap must be tested inside the actual container where the
   agent runs.
@@ -103,8 +100,8 @@ anyway.
 ├── code-server-sync.sh  # applies devcontainer.json VS Code customizations to code-server
 └── requirements.txt     # pinned Python packages
 dotfiles/                # .bashrc, .bashrc.d/ (shell functions, sourced non-interactively too), tmux, code-server config, workspace file
-bin/                     # local helper scripts and wrapper launchers
-envs/                    # 1Password env files with op:// references only; envs/permissions/ = per-driver tool-permission levels
+bin/                     # local infrastructure helper scripts
+envs/                    # credential profiles with op:// references or literal values
 tests/                   # devcontainer and helper-script tests
 igou-docs/devenv/         # operational documentation and decision records (companion repo)
 mise.toml / mise.lock    # mise-managed tool versions and per-asset checksums
@@ -130,15 +127,10 @@ Lifecycle hooks:
 | Standalone binaries without a dependency ecosystem | Dedicated `.devcontainer/Dockerfile` ARG/RUN block | Keep rare. Use Renovate annotations and cryptographic or checksum verification. |
 | Local helper scripts | `bin/` | These are symlinked into `~/bin` by `post-create.sh`. |
 | Runtime config files | `dotfiles/` or the owning repo | Avoid large heredocs or generated multi-line files embedded in shell scripts or Dockerfiles. |
-| Local wrapper-launched agent image dependencies | `igou-containers` | `bin/*-run` pulls those images; this repo does not build them. |
-| Hermes dependencies | The image Hermes actually enters | Do not patch only local wrappers or their images and claim Hermes has the dependency. |
+| Hermes dependencies | The image Hermes actually enters | Verify the dependency in that image. |
 
 Where not to add dependencies:
 
-- Do not add Hermes-only assumptions to `bin/claude-run`, `bin/cursor-run`, or
-  `bin/opencode-run`; they are local full-devcontainer wrappers.
-- Do not put local wrapper-launched agent image packages in this repo unless
-  the package is also required by the main devcontainer image.
 - Do not use inline generated file definitions when a standalone file can be
   copied or installed.
 
@@ -251,7 +243,7 @@ Manual release targets are `make release`, `make release-dry-run`, and
 ## Linting
 
 ```bash
-shellcheck .devcontainer/post-create.sh .devcontainer/post-start.sh .devcontainer/hygiene.sh .devcontainer/init.sh dotfiles/.bashrc dotfiles/.bashrc.d/*.sh tests/*.sh bin/resolve-profile .devcontainer/agent-sandbox-launch bin/claude-run bin/cursor-run bin/opencode-run bin/ensure-ssh-agent .devcontainer/opencode-sandbox-launch
+shellcheck .devcontainer/post-create.sh .devcontainer/post-start.sh .devcontainer/hygiene.sh .devcontainer/init.sh dotfiles/.bashrc dotfiles/.bashrc.d/*.sh tests/*.sh bin/resolve-profile bin/ensure-ssh-agent
 ```
 
 ## Documentation ownership
