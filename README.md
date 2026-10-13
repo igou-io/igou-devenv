@@ -55,10 +55,13 @@ mechanism. See [AGENTS.md](AGENTS.md) for the per-layer Renovate strategy.
 
 | Layer | What | Where to add |
 |---|---|---|
-| Dockerfile (dnf) | podman, buildah, skopeo, jq, direnv, gpg2, 1Password CLI, Docker CLI, base utilities | `.devcontainer/Dockerfile` |
+| Dockerfile (dnf) | podman, buildah, skopeo, jq, gnupg2, 1Password CLI, Docker CLI, base utilities | `.devcontainer/Dockerfile` |
 | Mise (`mise.toml` + `mise.lock`) | kubectl, helm, terraform, gh, argocd, kustomize, kubeseal, flux2, sops, kubeconform, kind, act, tkn, tkn-pac, rclone, direnv, age, node, oc, virtctl, kube-burner, kube-burner-ocp, openshell, code-server, rc, t3, gws | `mise.toml` (versions) + `mise.lock` (per-asset checksums) |
 | Dockerfile (binary downloads) | mise itself (GPG-signed checksums — trust anchor), Claude Code, Cursor agent, opencode | `.devcontainer/Dockerfile` (ARG + RUN) |
-| pip (onCreateCommand) | Ansible ecosystem, yq, mkdocs-material | `.devcontainer/requirements.txt` |
+| Dockerfile (pip) | Ansible ecosystem, yq, Kubernetes and API client libraries | `.devcontainer/requirements.txt` |
+
+Python requirements are installed during the image build. Rebuild the image
+after changing `.devcontainer/requirements.txt`.
 
 **Verification floor for mise-managed tools** (asserted by
 `tests/test-mise.sh` against `tests/mise-expected-verification.toml`):
@@ -103,7 +106,6 @@ mechanism. See [AGENTS.md](AGENTS.md) for the per-layer Renovate strategy.
    - `~/.config/op/service-account-token` — 1Password service account token
      (fallback when Connect creds are absent)
    - `~/.config/opencode/` — opencode config (bind-mounted into devcontainer + opencode container)
-   - `~/.terraform.d/` — Terraform plugin cache/credentials
    - `~/.claude/` and `~/.claude.json` — Claude Code config
 
 ### Open via Cursor
@@ -248,10 +250,8 @@ repository**, carries only the permissions the operation needs, expires within
 an hour, and is never written to disk — the App private key is read from
 1Password (`op read`) at mint time.
 
-This replaces the old `use claude-david-igou-github-token` / `use
-claude-igou-io-github-token` PAT flow. Those env files still exist but are
-**deprecated** (kept only as a fallback for gaps the App's permission ceiling
-can't cover, e.g. writing Actions secrets).
+The old static PAT profiles have been removed. Use `gh-app`, `ghapp`, or
+`ght` for repository-scoped GitHub authentication.
 
 The App (`igou-dev`) is installed on multiple accounts; the owner half of
 `OWNER/REPO` picks the installation, so `david-igou/*`, `igou-io/*`, and
@@ -607,7 +607,7 @@ sudo dnf install -y docker openssh-server
 sudo systemctl enable --now docker
 sudo usermod -aG docker "$USER"   # re-login so docker works without sudo
 
-mkdir -p ~/.ssh ~/.kube ~/.config/argocd ~/.config/op ~/.config/opencode ~/.config/openshell ~/.terraform.d ~/.claude
+mkdir -p ~/.ssh ~/.kube ~/.config/argocd ~/.config/op ~/.config/opencode ~/.config/openshell ~/.claude
 echo '{}' > ~/.claude.json
 touch ~/.gitconfig
 

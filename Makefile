@@ -11,19 +11,19 @@ build:
 	$(DEVCONTAINER) build --workspace-folder $(WORKSPACE)
 
 ## Build (cached) and start the devcontainer
-## Runs: init.sh → Dockerfile → onCreateCommand (pip) → post-create.sh → post-start.sh
+## Runs: init.sh → Dockerfile (including pip) → post-create.sh → post-start.sh
 ## On subsequent starts (container already exists): post-start.sh only
 ##
 up:
 	$(DEVCONTAINER) up --workspace-folder $(WORKSPACE)
 
 ## Restart the devcontainer (recreate without rebuilding image)
-## Runs: init.sh → onCreateCommand (pip) → post-create.sh → post-start.sh
+## Runs: init.sh → post-create.sh → post-start.sh
 ## Reuses cached image — Dockerfile does NOT rerun
 restart: down up
 
 ## Rebuild from scratch (no cache, removes existing container)
-## Runs: init.sh → Dockerfile (no cache) → onCreateCommand (pip) → post-create.sh → post-start.sh
+## Runs: init.sh → Dockerfile (no cache, including pip) → post-create.sh → post-start.sh
 rebuild:
 	$(DEVCONTAINER) up --workspace-folder $(WORKSPACE) \
 		--remove-existing-container \

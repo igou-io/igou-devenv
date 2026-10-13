@@ -113,9 +113,11 @@ Lifecycle hooks:
 | Hook | Runs on | Script | Purpose |
 |---|---|---|---|
 | `initializeCommand` | Host | `.devcontainer/init.sh` | Create mount directories before build/start |
-| `onCreateCommand` | Container | inline in `devcontainer.json` | Install Python requirements |
 | `postCreateCommand` | Container | `.devcontainer/post-create.sh` | Configure shell, tmux, workspace, default code-server config |
 | `postStartCommand` | Container | `.devcontainer/post-start.sh` | Start container-local ssh-agent (igou-docs/devenv/Devenv Environment and Credential Decisions.md), libvirt/dbus/code-server, sync code-server settings |
+
+Python requirements are installed by `.devcontainer/Dockerfile` during the
+image build. Rebuild the image after changing `.devcontainer/requirements.txt`.
 
 ## Where To Add Dependencies
 
@@ -181,7 +183,7 @@ after the relevant test has actually passed.
 - `use <env>` resolves 1Password references with `op inject` and exports them
   in the current shell; `unuse <env>` removes them. Environment files in `envs/`
   contain only `op://` references.
-- Python packages are installed directly with pip into the disposable container
+- Python packages are installed directly with pip during the image build
   rather than isolated with pipx.
 - The mise binary is bootstrapped by verifying release checksums with a pinned
   GPG fingerprint. Mise-managed tools are pinned in `mise.lock`, and
