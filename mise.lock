@@ -138,18 +138,18 @@ checksum = "sha256:86584a54def73570558f66f5111cc53dfed56689637ae32c1201205d494f5
 url = "https://get.helm.sh/helm-v4.3.0-linux-amd64.tar.gz"
 
 [[tools."http:code-server"]]
-version = "4.140.0"
+version = "4.141.0"
 backend = "http:code-server"
 
 [tools."http:code-server".options]
 strip_components = "1"
 
 [tools."http:code-server"."platforms.linux-arm64"]
-url = "https://github.com/coder/code-server/releases/download/v4.140.0/code-server-4.140.0-linux-arm64.tar.gz"
+url = "https://github.com/coder/code-server/releases/download/v4.141.0/code-server-4.141.0-linux-arm64.tar.gz"
 
 [tools."http:code-server"."platforms.linux-x64"]
-checksum = "blake3:00e233fec0501d8a99371eeb08f46c4748dedfcc307618ae4428e9b96f1c4e96"
-url = "https://github.com/coder/code-server/releases/download/v4.140.0/code-server-4.140.0-linux-amd64.tar.gz"
+checksum = "blake3:d4915052854802b95e8ddf6647bf656bf1fc579bf575a1c2249b5b3007d86869"
+url = "https://github.com/coder/code-server/releases/download/v4.141.0/code-server-4.141.0-linux-amd64.tar.gz"
 
 [[tools."http:gws"]]
 version = "0.22.5"
@@ -191,15 +191,15 @@ checksum = "blake3:2cb394da71bc22ccc8a83416d654fb64df2b632b8329e08ff6243a4912a6f
 url = "https://github.com/kube-burner/kube-burner-ocp/releases/download/v1.12.7/kube-burner-ocp-V1.12.7-linux-x86_64.tar.gz"
 
 [[tools."http:oc"]]
-version = "4.21.35"
+version = "4.21.36"
 backend = "http:oc"
 
 [tools."http:oc"."platforms.linux-arm64"]
-url = "https://mirror.openshift.com/pub/openshift-v4/aarch64/clients/ocp/4.21.35/openshift-client-linux.tar.gz"
+url = "https://mirror.openshift.com/pub/openshift-v4/aarch64/clients/ocp/4.21.36/openshift-client-linux.tar.gz"
 
 [tools."http:oc"."platforms.linux-x64"]
-checksum = "blake3:f92f7de84d6c5c42fa13762d124b36bd18dd0a148bc430e8c23044e5eb1bc188"
-url = "https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/4.21.35/openshift-client-linux.tar.gz"
+checksum = "blake3:f8281699ec5251f018c2e674c199c835566ca897676fa256fa8de496fbd37d4c"
+url = "https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/4.21.36/openshift-client-linux.tar.gz"
 
 [[tools."http:openshell"]]
 version = "0.1.2"
@@ -310,6 +310,7 @@ backend = "aqua:nodejs/node"
 url = "https://nodejs.org/dist/v26.11.1/node-v26.11.1-linux-arm64.tar.gz"
 
 [tools.node."platforms.linux-x64"]
+checksum = "blake3:b6b0b9c8590ecfdc77fe4cfcb3f2268bfd3bac008df49015abde10a60d9c4a99"
 url = "https://nodejs.org/dist/v26.11.1/node-v26.11.1-linux-x64.tar.gz"
 
 [[tools."npm:t3"]]
