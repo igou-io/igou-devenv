@@ -71,7 +71,7 @@ tekton-cli = "0.46.1"   # binary is `tkn`; mise registry key is tekton-cli
 # so use the explicit aqua: key form.
 "aqua:tektoncd/pipelines-as-code" = "0.51.0"
 rclone = "1.75.1"
-direnv = "2.37.1"
+direnv = "2.38.1"
 age = "1.3.2"
 # node — `core:node` does not record per-platform checksums in mise.lock, so
 # `locked = true` rejects it. Using aqua-registry's nodejs/node entry instead,
@@ -79,7 +79,7 @@ age = "1.3.2"
 # `node` dependency; upstream provides no SHASUMS in the aqua definition, so
 # mise falls back to blake3 TOFU (strictly better than the prior unverified
 # `curl | tar`).
-node = "26.10.0"
+node = "26.11.1"
 
 # SLSA signer pins match the Fulcio URI and issuer in these projects' release
 # provenance. Keep the exact generator ref; a publisher changing its signer
@@ -95,7 +95,7 @@ slsa_signer_identity = "https://github.com/slsa-framework/slsa-github-generator/
 slsa_signer_issuer = "https://token.actions.githubusercontent.com"
 
 [tools.argocd]
-version = "3.5.3"
+version = "3.5.4"
 slsa_signer_identity = "https://github.com/slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@refs/tags/v2.1.0"
 slsa_signer_issuer = "https://token.actions.githubusercontent.com"
 
@@ -172,7 +172,7 @@ linux-arm64 = { url = "https://github.com/NVIDIA/OpenShell/releases/download/v{{
 # downgrade we'd otherwise take by abandoning the inline block is avoided.
 # renovate: datasource=custom.openshift-mirror depName=oc
 [tools."http:oc"]
-version = "4.21.35"
+version = "4.21.36"
 postinstall = "/etc/mise/aqua-registry/oc-postinstall.sh"
 
 [tools."http:oc".platforms]
@@ -195,7 +195,7 @@ linux-arm64 = { url = "https://mirror.openshift.com/pub/openshift-v4/aarch64/cli
 # symlink, so /usr/local/bin/code-server works).
 # renovate: datasource=github-releases depName=coder/code-server
 [tools."http:code-server"]
-version = "4.140.0"
+version = "4.141.0"
 bin_path = "bin"
 
 [tools."http:code-server".platforms]
@@ -221,7 +221,7 @@ linux-arm64 = { url = "https://github.com/coder/code-server/releases/download/v{
 # blocked. The build needs gcc-c++/make/python3 (present in the Dockerfile
 # layer and the bin/run-pinned-mise bootstrap).
 [tools."npm:t3"]
-version = "0.0.45"
+version = "0.1.0"
 # Keep fresh t3 releases and their npm dependencies available immediately.
 minimum_release_age = "0s"
 allow_builds = ["node-pty"]
