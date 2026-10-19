@@ -19,7 +19,7 @@ jobs:
   coverage:
     runs-on: ubuntu-latest
     container:
-      image: docker.io/renovate/renovate:44.145.3@sha256:ee075762d2fc365d2a081e9fcce8c46792576ff0b025ab2474528cbccb778e87
+      image: docker.io/renovate/renovate:44.148.3@sha256:69e3c20b19f901ca7b02f609216d5ccf0fa700387001f099817852da3dfb617c
       options: --user 0
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
