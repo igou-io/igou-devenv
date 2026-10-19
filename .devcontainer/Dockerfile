@@ -368,8 +368,8 @@ ARG MINIMUM_RELEASE_AGE_DAYS=3
 #   (repeat for arm64)
 # renovate: datasource=custom.cursor-agent depName=cursor-agent versioning=loose
 ARG CURSOR_AGENT_VERSION="2026.10.16-e3cb207"
-ARG CURSOR_AGENT_SHA256_X64="a79726c6e644520e993970be4c45775a6889802b67abe461a677a53219ae28e8"
-ARG CURSOR_AGENT_SHA256_ARM64="785c5f6bf2a60eb1121e27ed8c14f5ee07ed1b5b6692324f2d9a997238245eb5"
+ARG CURSOR_AGENT_SHA256_X64="3aa3f48cd7a3909a98c9b3f2a4085f0c021088bf826690b22c61f424c843e552"
+ARG CURSOR_AGENT_SHA256_ARM64="4cf077f150eb8d1e270bf1dea69700184c39a4847fe192d523f5bb34d4b62597"
 USER igou
 RUN set -eux; \
     ARCH_RAW=$(uname -m); \
@@ -415,8 +415,8 @@ USER root
 # MINIMUM_RELEASE_AGE_DAYS is inherited from the ARG declared above the Cursor block.
 # renovate: datasource=github-releases depName=anomalyco/opencode
 ARG OPENCODE_VERSION="v1.19.1"
-ARG OPENCODE_SHA256_X64="7bb9e61ad6feacf2e89c10a6a2c1840e3de4220bb50ba1fc7110f31806076aec"
-ARG OPENCODE_SHA256_ARM64="e9841d43d3e1a8f36ed2691592d3b8b4fb097e606c8b559a277a1b845840e26b"
+ARG OPENCODE_SHA256_X64="6f1904b860bdbd32e90e679c9e1b0e64e78269a353e1497d5ea792dfa449538c"
+ARG OPENCODE_SHA256_ARM64="3840e9afb2462a666d31816b20bc13b91af9845c329cff660a972aa9cfaee3a2"
 # GITHUB_TOKEN authenticates the release-age API call below. Without it the
 # 60/hr unauthenticated quota gets exhausted on busy CI runners and the build
 # fails with HTTP 403. Provided via a BuildKit secret mount (see the mise block
