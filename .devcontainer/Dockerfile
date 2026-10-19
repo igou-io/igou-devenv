@@ -367,7 +367,7 @@ ARG MINIMUM_RELEASE_AGE_DAYS=3
 #   curl -sL "https://downloads.cursor.com/lab/<VER>/linux/x64/agent-cli-package.tar.gz" | sha256sum
 #   (repeat for arm64)
 # renovate: datasource=custom.cursor-agent depName=cursor-agent versioning=loose
-ARG CURSOR_AGENT_VERSION="2026.10.01-e373342"
+ARG CURSOR_AGENT_VERSION="2026.10.16-e3cb207"
 ARG CURSOR_AGENT_SHA256_X64="a79726c6e644520e993970be4c45775a6889802b67abe461a677a53219ae28e8"
 ARG CURSOR_AGENT_SHA256_ARM64="785c5f6bf2a60eb1121e27ed8c14f5ee07ed1b5b6692324f2d9a997238245eb5"
 USER igou
@@ -414,7 +414,7 @@ USER root
 #   (repeat for arm64)
 # MINIMUM_RELEASE_AGE_DAYS is inherited from the ARG declared above the Cursor block.
 # renovate: datasource=github-releases depName=anomalyco/opencode
-ARG OPENCODE_VERSION="v1.19.0"
+ARG OPENCODE_VERSION="v1.19.1"
 ARG OPENCODE_SHA256_X64="7bb9e61ad6feacf2e89c10a6a2c1840e3de4220bb50ba1fc7110f31806076aec"
 ARG OPENCODE_SHA256_ARM64="e9841d43d3e1a8f36ed2691592d3b8b4fb097e606c8b559a277a1b845840e26b"
 # GITHUB_TOKEN authenticates the release-age API call below. Without it the
