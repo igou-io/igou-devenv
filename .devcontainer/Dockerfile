@@ -414,9 +414,9 @@ USER root
 #   (repeat for arm64)
 # MINIMUM_RELEASE_AGE_DAYS is inherited from the ARG declared above the Cursor block.
 # renovate: datasource=github-releases depName=anomalyco/opencode
-ARG OPENCODE_VERSION="v1.19.1"
-ARG OPENCODE_SHA256_X64="6f1904b860bdbd32e90e679c9e1b0e64e78269a353e1497d5ea792dfa449538c"
-ARG OPENCODE_SHA256_ARM64="3840e9afb2462a666d31816b20bc13b91af9845c329cff660a972aa9cfaee3a2"
+ARG OPENCODE_VERSION="v1.19.3"
+ARG OPENCODE_SHA256_X64="13a8fb2978302071b86f9d7e00da9c8895f9cd846978379c3bdc6a5333536c9b"
+ARG OPENCODE_SHA256_ARM64="7900818a6a98881edbbadab4b7525940eff3b9750040c200481f9f56cacee405"
 # GITHUB_TOKEN authenticates the release-age API call below. Without it the
 # 60/hr unauthenticated quota gets exhausted on busy CI runners and the build
 # fails with HTTP 403. Provided via a BuildKit secret mount (see the mise block
@@ -494,9 +494,9 @@ USER root
 # Codex bypasses the release-age delay; per-architecture SHA256 verification
 # and the required build/tests remain the install gate.
 # renovate: datasource=github-releases depName=openai/codex extractVersion=^rust-v(?<version>.+)$
-ARG CODEX_VERSION="0.163.0"
-ARG CODEX_SHA256_X64="582646c6bf0561eb0de540f7fc85b9121b0091a826bc6e96830b7f1722122182"
-ARG CODEX_SHA256_ARM64="9d8ecf2d19d3e184877983902d6c85de48b3888dcb72c382a8a0c975845927fb"
+ARG CODEX_VERSION="0.164.0"
+ARG CODEX_SHA256_X64="3ec55053109608d5038f7e50750f7d25f768dfd740fef071aa710e2559b63aac"
+ARG CODEX_SHA256_ARM64="5918add6c7e9cf1e14a9af1b4c0f4bf1d24a43903faac26df5dc4c019ea91bd5"
 USER igou
 RUN set -eux; \
     ARCH_RAW=$(uname -m); \
