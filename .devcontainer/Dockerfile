@@ -367,7 +367,7 @@ ARG MINIMUM_RELEASE_AGE_DAYS=3
 #   curl -sL "https://downloads.cursor.com/lab/<VER>/linux/x64/agent-cli-package.tar.gz" | sha256sum
 #   (repeat for arm64)
 # renovate: datasource=custom.cursor-agent depName=cursor-agent versioning=loose
-ARG CURSOR_AGENT_VERSION="2026.10.16-e3cb207"
+ARG CURSOR_AGENT_VERSION="2026.10.22-27dcf5f"
 ARG CURSOR_AGENT_SHA256_X64="3aa3f48cd7a3909a98c9b3f2a4085f0c021088bf826690b22c61f424c843e552"
 ARG CURSOR_AGENT_SHA256_ARM64="4cf077f150eb8d1e270bf1dea69700184c39a4847fe192d523f5bb34d4b62597"
 USER igou
@@ -414,7 +414,7 @@ USER root
 #   (repeat for arm64)
 # MINIMUM_RELEASE_AGE_DAYS is inherited from the ARG declared above the Cursor block.
 # renovate: datasource=github-releases depName=anomalyco/opencode
-ARG OPENCODE_VERSION="v1.19.1"
+ARG OPENCODE_VERSION="v1.19.4"
 ARG OPENCODE_SHA256_X64="6f1904b860bdbd32e90e679c9e1b0e64e78269a353e1497d5ea792dfa449538c"
 ARG OPENCODE_SHA256_ARM64="3840e9afb2462a666d31816b20bc13b91af9845c329cff660a972aa9cfaee3a2"
 # GITHUB_TOKEN authenticates the release-age API call below. Without it the
@@ -494,7 +494,7 @@ USER root
 # Codex bypasses the release-age delay; per-architecture SHA256 verification
 # and the required build/tests remain the install gate.
 # renovate: datasource=github-releases depName=openai/codex extractVersion=^rust-v(?<version>.+)$
-ARG CODEX_VERSION="0.163.0"
+ARG CODEX_VERSION="0.164.0"
 ARG CODEX_SHA256_X64="582646c6bf0561eb0de540f7fc85b9121b0091a826bc6e96830b7f1722122182"
 ARG CODEX_SHA256_ARM64="9d8ecf2d19d3e184877983902d6c85de48b3888dcb72c382a8a0c975845927fb"
 USER igou
