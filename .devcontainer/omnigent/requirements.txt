@@ -1,2 +1,2 @@
 # Match the deployed Omnigent server; review host/server compatibility on bumps.
-omnigent==0.17.0
+omnigent==0.18.0
