@@ -75,7 +75,7 @@
                 "ms-python.python"
             ],
             "settings": {
-                "ansible.python.interpreterPath": "/usr/bin/python3",
+                "ansible.python.interpreterPath": "/usr/bin/python3.14",
                 "files.trimTrailingWhitespace": true,
                 "files.associations": {
                     "**/group_vars/**/*": "ansible",

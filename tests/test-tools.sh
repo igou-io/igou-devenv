@@ -16,6 +16,13 @@ fail() { echo "  [FAIL] $1"; FAIL=$((FAIL + 1)); }
 # ---------------------------------------------------------------------------
 echo "==> Verifying CLI tools..."
 
+if python3 -c 'import sys; assert sys.version_info[:2] == (3, 14), sys.version' && \
+   python -c 'import sys; assert sys.version_info[:2] == (3, 14), sys.version'; then
+    ok "python and python3 use Python 3.14"
+else
+    fail "python and python3 use Python 3.14"
+fi
+
 declare -A TOOLS=(
     [python3]="python3 --version"
     [claude]="claude --version"

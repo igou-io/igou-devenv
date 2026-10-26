@@ -21,7 +21,7 @@ RUN dnf install -y epel-release && \
 # Packages dropped vs Ubuntu (not available in CentOS Stream 10 + EPEL):
 #   adb (android-tools), iozone3, arp-scan
 # yamllint installed via pip (ansible-lint dependency) — EPEL build is broken on CS10
-RUN dnf install -y \
+RUN dnf --enablerepo=crb install -y \
     bubblewrap \
     git \
     wget \
@@ -29,8 +29,12 @@ RUN dnf install -y \
     dbus-daemon \
     tar \
     xz \
-    python3 \
-    python3-pip \
+    python3.14 \
+    python3.14-pip \
+    python3.14-devel \
+    gcc \
+    libvirt-devel \
+    pkgconf-pkg-config \
     podman \
     buildah \
     skopeo \
@@ -80,8 +84,6 @@ RUN dnf install -y \
     nmap \
     nmap-ncat \
     parted \
-    python3-libvirt \
-    python3-netaddr \
     qemu-img \
     qemu-kvm \
     smartmontools \
@@ -97,6 +99,12 @@ RUN dnf install -y \
     && rm -rf /var/cache/dnf \
     && rm -rf /usr/share/doc /usr/share/man /usr/share/i18n/locales /usr/share/locale \
     && chmod u+s /usr/bin/newuidmap /usr/bin/newgidmap
+
+# Keep distro Python available for OS tools; interactive Python and pip use 3.14.
+RUN ln -sf /usr/bin/python3.14 /usr/local/bin/python3 && \
+    ln -sf /usr/bin/python3.14 /usr/local/bin/python && \
+    ln -sf /usr/bin/pip3.14 /usr/local/bin/pip && \
+    ln -sf /usr/bin/pip3.14 /usr/local/bin/pip3
 
 # Libvirt packages create libvirt + kvm groups at install time. Add igou
 # so it can talk to /var/run/libvirt/virtqemud-sock and open /dev/kvm
@@ -224,7 +232,9 @@ ENV MISE_DATA_DIR=/opt/mise \
 # is acceptable. (Build args leak into image history; secrets do not.)
 ARG GITHUB_TOKEN=""
 RUN --mount=type=secret,id=github_token set -eux; \
+    set +x; \
     export GITHUB_TOKEN="$(cat /run/secrets/github_token 2>/dev/null || printf '%s' "${GITHUB_TOKEN}")"; \
+    set -x; \
     # gcc-c++: node-gyp toolchain for node-pty, the one allow_builds package of
     # npm:t3 (no linux prebuild shipped). Build-time only — removed below so
     # the image doesn't grow a C++ compiler. make/python3 are image packages.
@@ -258,7 +268,7 @@ RUN --mount=type=secret,id=github_token set -eux; \
 # Python packages — pinned versions managed by Renovate (requirements.txt)
 # ---------------------------------------------------------------------------
 COPY .devcontainer/requirements.txt /tmp/requirements.txt
-RUN pip install --break-system-packages --ignore-installed -r /tmp/requirements.txt && \
+RUN python3.14 -m pip install --break-system-packages --ignore-installed -r /tmp/requirements.txt && \
     rm /tmp/requirements.txt
 
 # Omnigent host runtime: separate from the Ansible Python dependency set.
@@ -281,7 +291,7 @@ RUN python3 -m venv /opt/omnigent && \
 # time, never baked here. See README "GitHub Authentication (ghapp)".
 # renovate: datasource=github-tags depName=david-igou/hermes_github_app_plugin
 ARG GHAPP_VERSION="v0.3.0"
-RUN pip install --break-system-packages \
+RUN python3.14 -m pip install --break-system-packages \
       "hermes-github-app-plugin @ git+https://github.com/david-igou/hermes_github_app_plugin@${GHAPP_VERSION}"
 
 # Wire the ghapp git credential helper for github.com at the SYSTEM scope: the
@@ -450,10 +460,13 @@ RUN --mount=type=secret,id=github_token set -eux; \
     # Release-age gate: fetch the release's published_at from the GitHub API.
     # Authenticated when GITHUB_TOKEN is set (5000/hr), else unauthenticated (60/hr).
     META_URL="https://api.github.com/repos/anomalyco/opencode/releases/tags/${OPENCODE_VERSION}"; \
+    set +x; \
     GH_TOKEN_RESOLVED="$(cat /run/secrets/github_token 2>/dev/null || printf '%s' "${GITHUB_TOKEN}")"; \
     AUTH_HEADER=""; \
     [ -n "$GH_TOKEN_RESOLVED" ] && AUTH_HEADER="Authorization: Bearer $GH_TOKEN_RESOLVED"; \
     PUBLISHED_AT=$(curl -fsSL ${AUTH_HEADER:+-H "$AUTH_HEADER"} "$META_URL" | jq -r '.published_at'); \
+    unset GH_TOKEN_RESOLVED AUTH_HEADER; \
+    set -x; \
     if [ -z "$PUBLISHED_AT" ] || [ "$PUBLISHED_AT" = "null" ]; then \
       echo "Failed to fetch published_at for opencode ${OPENCODE_VERSION} from $META_URL" >&2; \
       exit 1; \

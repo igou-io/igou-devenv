@@ -9,9 +9,12 @@ omnigent host --help >/dev/null
 /opt/omnigent/bin/python - <<'PY'
 import inspect
 import sys
+
 from importlib.metadata import version
 
 from websockets.asyncio.client import connect
+
+assert sys.version_info[:2] == (3, 14), sys.version
 
 assert sys.prefix == "/opt/omnigent", sys.prefix
 assert version("omnigent-client") == version("omnigent")

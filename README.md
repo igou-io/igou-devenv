@@ -60,6 +60,8 @@ mechanism. See [AGENTS.md](AGENTS.md) for the per-layer Renovate strategy.
 | Dockerfile (binary downloads) | mise itself (GPG-signed checksums — trust anchor), Claude Code, Cursor agent, opencode | `.devcontainer/Dockerfile` (ARG + RUN) |
 | Dockerfile (pip) | Ansible ecosystem, yq, Kubernetes and API client libraries | `.devcontainer/requirements.txt` |
 
+Python 3.14 is the development runtime for `python`, `python3`, pip tooling, and the isolated Omnigent environment. Distro Python remains available for OS utilities. Renovate keeps managed Python updates within the 3.14 series.
+
 Python requirements are installed during the image build. Rebuild the image
 after changing `.devcontainer/requirements.txt`.
 
