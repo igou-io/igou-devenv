@@ -29,9 +29,6 @@ RUN dnf --enablerepo=crb install -y \
     dbus-daemon \
     tar \
     xz \
-    python3.14 \
-    python3.14-pip \
-    python3.14-devel \
     gcc \
     libvirt-devel \
     pkgconf-pkg-config \
@@ -100,11 +97,9 @@ RUN dnf --enablerepo=crb install -y \
     && rm -rf /usr/share/doc /usr/share/man /usr/share/i18n/locales /usr/share/locale \
     && chmod u+s /usr/bin/newuidmap /usr/bin/newgidmap
 
-# Keep distro Python available for OS tools; interactive Python and pip use 3.14.
-RUN ln -sf /usr/bin/python3.14 /usr/local/bin/python3 && \
-    ln -sf /usr/bin/python3.14 /usr/local/bin/python && \
-    ln -sf /usr/bin/pip3.14 /usr/local/bin/pip && \
-    ln -sf /usr/bin/pip3.14 /usr/local/bin/pip3
+# Keep distro Python available for OS tools; interactive Python and pip use 3.15.
+COPY .devcontainer/install-python.sh /tmp/install-python.sh
+RUN bash /tmp/install-python.sh /usr/bin/dnf readline-devel && rm /tmp/install-python.sh
 
 # Libvirt packages create libvirt + kvm groups at install time. Add igou
 # so it can talk to /var/run/libvirt/virtqemud-sock and open /dev/kvm
@@ -268,18 +263,23 @@ RUN --mount=type=secret,id=github_token set -eux; \
 # Python packages — pinned versions managed by Renovate (requirements.txt)
 # ---------------------------------------------------------------------------
 COPY .devcontainer/requirements.txt /tmp/requirements.txt
-RUN python3.14 -m pip install --break-system-packages --ignore-installed -r /tmp/requirements.txt && \
+RUN python3.15 -m pip install --break-system-packages --ignore-installed -r /tmp/requirements.txt && \
     rm /tmp/requirements.txt
 
 # Omnigent host runtime: separate from the Ansible Python dependency set.
 # websockets 15 supplies HTTP-proxy support required inside OpenShell; install
 # that tested exception after resolving Omnigent's declared websockets<15 cap.
 COPY .devcontainer/omnigent/ /tmp/omnigent/
-RUN python3 -m venv /opt/omnigent && \
-    /opt/omnigent/bin/pip install --no-cache-dir -r /tmp/omnigent/requirements.txt && \
+# google-re2 has no CPython 3.15 wheel yet; compile it against the distro RE2.
+RUN dnf --enablerepo=crb install -y gcc-c++ re2-devel && \
+    python3 -m venv /opt/omnigent && \
+    /opt/omnigent/bin/pip install --no-cache-dir -r /tmp/omnigent/requirements-build.txt && \
+    CPLUS_INCLUDE_PATH="$(/opt/omnigent/bin/python -c 'import pybind11; print(pybind11.get_include())')" \
+      /opt/omnigent/bin/pip install --no-cache-dir -r /tmp/omnigent/requirements.txt && \
     /opt/omnigent/bin/pip install --no-cache-dir --no-deps -r /tmp/omnigent/proxy/requirements.txt && \
     ln -s /opt/omnigent/bin/omnigent /usr/local/bin/omnigent && \
-    rm -rf /tmp/omnigent
+    rm -rf /tmp/omnigent && \
+    dnf remove -y gcc-c++ && dnf clean all
 
 # ---------------------------------------------------------------------------
 # ghapp — runtime-minted, repo-scoped GitHub App tokens (credential helper +
@@ -291,7 +291,7 @@ RUN python3 -m venv /opt/omnigent && \
 # time, never baked here. See README "GitHub Authentication (ghapp)".
 # renovate: datasource=github-tags depName=david-igou/hermes_github_app_plugin
 ARG GHAPP_VERSION="v0.3.0"
-RUN python3.14 -m pip install --break-system-packages \
+RUN python3.15 -m pip install --break-system-packages \
       "hermes-github-app-plugin @ git+https://github.com/david-igou/hermes_github_app_plugin@${GHAPP_VERSION}"
 
 # Wire the ghapp git credential helper for github.com at the SYSTEM scope: the

@@ -16,11 +16,11 @@ fail() { echo "  [FAIL] $1"; FAIL=$((FAIL + 1)); }
 # ---------------------------------------------------------------------------
 echo "==> Verifying CLI tools..."
 
-if python3 -c 'import sys; assert sys.version_info[:2] == (3, 14), sys.version' && \
-   python -c 'import sys; assert sys.version_info[:2] == (3, 14), sys.version'; then
-    ok "python and python3 use Python 3.14"
+if python3 -c 'import sys; assert sys.version_info[:2] == (3, 15), sys.version' && \
+   python -c 'import sys; assert sys.version_info[:2] == (3, 15), sys.version'; then
+    ok "python and python3 use Python 3.15"
 else
-    fail "python and python3 use Python 3.14"
+    fail "python and python3 use Python 3.15"
 fi
 
 declare -A TOOLS=(
@@ -95,6 +95,19 @@ for pkg in "${PIP_PACKAGES[@]}"; do
         fail "pip: $pkg"
     fi
 done
+
+# Check the imported core as well as the presence of its package metadata.
+if python3 -c 'import ansible.release; assert ansible.release.__version__ == "2.22.0rc1", ansible.release.__version__'; then
+    ok "Ansible core is 2.22.0rc1"
+else
+    fail "Ansible core is 2.22.0rc1"
+fi
+
+if python3 -m pip check; then
+    ok "Python package dependencies are consistent"
+else
+    fail "Python package dependencies are consistent"
+fi
 
 # ---------------------------------------------------------------------------
 # User and permissions

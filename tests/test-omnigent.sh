@@ -12,9 +12,11 @@ import sys
 
 from importlib.metadata import version
 
+import re2
 from websockets.asyncio.client import connect
 
-assert sys.version_info[:2] == (3, 14), sys.version
+assert sys.version_info[:2] == (3, 15), sys.version
+assert re2.fullmatch(r"a+", "aaa"), "RE2 native binding must work on Python 3.15"
 
 assert sys.prefix == "/opt/omnigent", sys.prefix
 assert version("omnigent-client") == version("omnigent")

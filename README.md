@@ -60,7 +60,7 @@ mechanism. See [AGENTS.md](AGENTS.md) for the per-layer Renovate strategy.
 | Dockerfile (binary downloads) | mise itself (GPG-signed checksums — trust anchor), Claude Code, Cursor agent, opencode | `.devcontainer/Dockerfile` (ARG + RUN) |
 | Dockerfile (pip) | Ansible ecosystem, yq, Kubernetes and API client libraries | `.devcontainer/requirements.txt` |
 
-Python 3.14 is the development runtime for `python`, `python3`, pip tooling, and the isolated Omnigent environment. Distro Python remains available for OS utilities. Renovate keeps managed Python updates within the 3.14 series.
+Python 3.15 is the development runtime for `python`, `python3`, pip tooling, and the isolated Omnigent environment, with `ansible-core==2.22.0rc1` staged for evaluation. Until native RPMs are available, `.devcontainer/install-python.sh` builds Python 3.15.0 from the checksum-pinned python.org source. Distro Python remains available for OS utilities. Renovate keeps managed Python updates within the 3.15 series; source updates require reviewing the matching SHA-256.
 
 Python requirements are installed during the image build. Rebuild the image
 after changing `.devcontainer/requirements.txt`.
