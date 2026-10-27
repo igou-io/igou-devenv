@@ -508,8 +508,8 @@ USER root
 # and the required build/tests remain the install gate.
 # renovate: datasource=github-releases depName=openai/codex extractVersion=^rust-v(?<version>.+)$
 ARG CODEX_VERSION="0.165.0"
-ARG CODEX_SHA256_X64="3ec55053109608d5038f7e50750f7d25f768dfd740fef071aa710e2559b63aac"
-ARG CODEX_SHA256_ARM64="5918add6c7e9cf1e14a9af1b4c0f4bf1d24a43903faac26df5dc4c019ea91bd5"
+ARG CODEX_SHA256_X64="e97c4463d7f146692a955d7b0e1c8cf48f97cd4d616cd45c5dcab2e8d9743316"
+ARG CODEX_SHA256_ARM64="c8b2844fdef57498572db960344aee8c836ce9f75c203379da0a9c3a334fc3b7"
 USER igou
 RUN set -eux; \
     ARCH_RAW=$(uname -m); \
