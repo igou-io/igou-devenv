@@ -65,8 +65,8 @@ Fedora 45 supplies native Python 3.15 for `python`, `python3`, and pip tooling, 
 Python requirements are installed during the image build. Rebuild the image
 after changing `.devcontainer/requirements.txt`.
 
-**Verification for mise-managed tools** (configured by `mise.toml`,
-`mise.lock`, and GPG postinstall hooks):
+**Verification floor for mise-managed tools** (asserted by
+`tests/test-mise.sh` against `tests/mise-expected-verification.toml`):
 
 - **GPG (pinned fingerprint, via `aqua-registry/<tool>-postinstall.sh`)**: helm, terraform, oc
 - **SLSA L3 attestation + sha256**: flux2, sops, argocd
@@ -306,11 +306,19 @@ The host side of this (the devenv VM / physical devhost) installs the same
 | `make down` | Stop and remove the container |
 | `make shell` | Open a bash shell in the running container |
 | `make exec CMD="..."` | Run a one-off command in the container |
+| `make test` | Run all tests (alias for `test-all`) |
+| `make test-tools` | Verify CLI tools, Python packages, and user config |
+| `make test-sandbox-primitives` | Diagnostic user-namespace and bubblewrap smoke test; runtime failures are non-fatal unless `REQUIRE_SANDBOX_PRIMITIVES=true` |
+| `make test-podman` | Test podman pull, run, and build |
+| `make test-env` | Test environment switching functions |
+| `make test-mise` | Audit mise-managed tools' verification methods against `tests/mise-expected-verification.toml` |
+| `make test-mise-lockfile` | Verify `mise.lock` is in sync with `mise.toml` (host mise, else a throwaway `ghcr.io/jdx/mise` container) |
 | `make mise-lock` | Regenerate `mise.lock` against the current `mise.toml` (uses `ghcr.io/jdx/mise`; run inside the devcontainer or CI; atomic restore on failure) |
 | `make clean` | Down + prune dangling images |
 | `make renovate-validate` | Validate `renovate.json` config |
 | `make renovate-dry-run` | Dry-run Renovate locally (requires `GITHUB_TOKEN`) |
 | `make sbom` | Generate SBOMs (SPDX + CycloneDX) for the built devcontainer image |
+| `make e2e` | Full end-to-end: rebuild devcontainer + run all tests |
 
 ## Agent CLIs and credential profiles
 
@@ -453,10 +461,10 @@ What carries over, and how:
 
 All tool versions are pinned and managed by [Renovate](https://docs.renovatebot.com/):
 
-- **Dockerfile base image** — the selected Fedora release tag floats; Renovate proposes OS release upgrades for review
+- **Dockerfile base image** — pinned by digest, updated by Renovate's Docker manager
 - **Mise-managed CLI tools** — pinned in `mise.toml`, per-asset checksums in `mise.lock`. Renovate's native `mise` manager handles aqua/npm tools; a custom regex handles all annotated `http:` tables. Both use the `mise-managed cli tools` group, whose preparation workflow regenerates the lock before enabling auto-merge.
 - **OpenShift CLI** — the shared `openshift-mirror` datasource reads `Version:` and `Created:` from Red Hat's release metadata. Its release timestamp preserves the 10-day age gate.
-- **aqua-registry pin** — the registry URL contains an immutable release commit SHA, with its tag alongside it. Renovate's `github-tags` datasource updates both together in a separate group with automerge disabled. Review verification changes alongside registry updates.
+- **aqua-registry pin** — the registry URL contains an immutable release commit SHA, with its tag alongside it. Renovate's `github-tags` datasource updates both together in a separate group with automerge disabled; `tests/test-mise.sh` checks for per-tool verification downgrades.
 - **Mise itself** + Claude Code + Cursor agent + opencode — pinned in `.devcontainer/Dockerfile` ARG blocks with `# renovate:` comments and the `github-releases` datasource (custom regex manager). Verified at build time: mise and Claude Code via pinned-fingerprint GPG signatures, Cursor agent and opencode via SHA256.
 - **Python packages** — pinned in `.devcontainer/requirements.txt`, updated by `pip_requirements` manager.
 
@@ -488,19 +496,19 @@ A Monday pipeline cuts a dated release of the devcontainer, with all schedules
 using the `America/New_York` time zone so they track Eastern daylight-saving
 changes:
 
-- `build.yaml` (06:00 Eastern) builds and publishes `:latest`.
+- `build.yaml` (06:00 Eastern) builds, tests, and publishes `:latest`.
 - `release-prepare.yaml` (06:30 Eastern) regenerates `mise.lock` on the week's
   Renovate mise PR and enables GitHub auto-merge (it can't merge itself — the
   hosted app can't regenerate the lock); GitHub merges it once `build` passes.
   It also runs when Renovate opens or updates the same-repository mise group
   PR, so time-sensitive tools do not wait for the weekly schedule.
-- `release.yaml` (08:00 Eastern) promotes the built `:latest` digest to
+- `release.yaml` (08:00 Eastern) promotes the tested `:latest` digest to
   `ghcr.io/igou-io/igou-devenv:YYYY.MM.DD` (no rebuild — byte-identical to what
-  CI built), tags `vYYYY.MM.DD`, and creates a GitHub Release with notes + SBOM.
+  CI tested), tags `vYYYY.MM.DD`, and creates a GitHub Release with notes + SBOM.
 
-`:latest` tracks `main` via `build.yaml` (which builds + pushes it on
+`:latest` tracks `main` via `build.yaml` (which builds + tests + pushes it on
 every push to `main`); the `:YYYY.MM.DD` tags are immutable weekly snapshots —
-promoted from that same built `:latest` digest — to pin or roll back to. Needs
+promoted from that same tested `:latest` digest — to pin or roll back to. Needs
 the `RELEASE_PAT` secret.
 
 `release.yaml` can also be run on demand (`gh workflow run release.yaml`):
@@ -509,18 +517,20 @@ to cut a throwaway test promotion.
 
 ## CI
 
-GitHub Actions builds the Dockerfile with `docker buildx` on pushes and PRs to
-`main`, plus the weekly schedule. Build logs include Python/Core versions and
-`pip check`. Successful main builds publish `:latest` with SBOM and provenance;
-release promotion reuses that image by digest. Renovate configuration is
-checked with its native validator. The repository has no test suite or
-post-build runtime test gate.
+GitHub Actions builds the devcontainer on every push and PR to `main` using
+[devcontainers/ci](https://github.com/devcontainers/ci). The workflow builds
+the full image (Dockerfile + Features + lifecycle hooks) and runs the full
+test suite (`tests/run-all.sh`) inside the container.
+
+CI should hard-fail when required packages or commands are missing. Runtime
+namespace and bubblewrap capability checks are diagnostic by default because CI
+does not necessarily provide those kernel/runtime capabilities.
 
 ## Customization
 
 ### Adding Tools
 
-- **CLI binaries managed by `mise`** (preferred for new tools) → add to `mise.toml`, run `make mise-lock`, commit both. If the tool isn't in aqua-registry, use the `http:` backend with explicit per-platform URLs (see existing entries for `virtctl`, `kube-burner`, etc.). If the tool needs additional GPG verification beyond aqua-registry's defaults, add a postinstall hook in `aqua-registry/<tool>-postinstall.sh` (see `oc-postinstall.sh` for the pattern).
+- **CLI binaries managed by `mise`** (preferred for new tools) → add to `mise.toml`, run `make mise-lock`, commit both. If the tool isn't in aqua-registry, use the `http:` backend with explicit per-platform URLs (see existing entries for `virtctl`, `kube-burner`, etc.). If the tool needs additional GPG verification beyond aqua-registry's defaults, add a postinstall hook in `aqua-registry/<tool>-postinstall.sh` (see `oc-postinstall.sh` for the pattern) and update `tests/mise-expected-verification.toml` to `"postinstall-gpg"`.
 - **dnf packages** → add to `.devcontainer/Dockerfile` (under the existing `dnf install` block)
 - **Python packages** → add to `.devcontainer/requirements.txt` (pinned for Renovate)
 - **Binaries not in aqua-registry that need custom verification logic** (Claude Code, Cursor agent, opencode pattern) → add a dedicated `ARG <NAME>_VERSION` + `RUN` block in `.devcontainer/Dockerfile` with a `# renovate:` comment. Keep these rare — prefer mise's `http:` backend when possible.

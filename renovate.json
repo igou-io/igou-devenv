@@ -14,13 +14,6 @@
   },
   "packageRules": [
     {
-      "description": "Review core release candidates before promoting the staged runtime",
-      "matchDatasources": ["pypi"],
-      "matchPackageNames": ["ansible-core"],
-      "ignoreUnstable": false,
-      "automerge": false
-    },
-    {
       "matchManagers": [
         "pip_requirements"
       ],
@@ -166,6 +159,24 @@
         "aquaproj/aqua-registry"
       ],
       "groupName": "aqua-registry SHA pin (trust anchor)",
+      "automerge": false
+    },
+    {
+      "description": "Track Ansible Core prereleases and stable releases promptly; review before merging",
+      "matchDatasources": [
+        "pypi"
+      ],
+      "matchPackageNames": [
+        "ansible-core"
+      ],
+      "versioning": "pep440",
+      "ignoreUnstable": false,
+      "respectLatest": false,
+      "minimumReleaseAge": "0 days",
+      "schedule": [
+        "at any time"
+      ],
+      "groupName": "ansible-core",
       "automerge": false
     }
   ],

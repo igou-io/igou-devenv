@@ -1,4 +1,4 @@
-name: Renovate configuration
+name: Renovate coverage
 
 on:
   pull_request:
@@ -8,6 +8,7 @@ on:
       - renovate.json
       - renovate-base.json
       - mise.toml
+      - tests/test-renovate.mjs
       - .github/workflows/renovate-check.yaml
   workflow_dispatch: {}
 
@@ -15,7 +16,7 @@ permissions:
   contents: read
 
 jobs:
-  validate:
+  coverage:
     runs-on: ubuntu-latest
     container:
       image: docker.io/renovate/renovate:44.184.0@sha256:94cffc10fabc766716a4f37cd8ab2a75481da9d9b5a36dabe91630bd7b971b9a
@@ -27,3 +28,5 @@ jobs:
           RENOVATE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_COM_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: renovate-config-validator renovate.json renovate-base.json
+      - name: Check extraction, replacements, handoff, and release timestamps
+        run: node tests/test-renovate.mjs

@@ -12,6 +12,7 @@ doc/
 docs/
 dotfiles/
 envs/
+tests/
 README.md
 CLAUDE.md
 Makefile

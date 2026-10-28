@@ -1,13 +1,13 @@
 name: release (weekly CalVer)
 
-# Monday 08:00 Eastern. PROMOTES the already-built :latest image
-# (build.yaml builds+pushes :latest on every push to main) to an immutable
+# Monday 08:00 Eastern. PROMOTES the already-built, already-tested :latest image
+# (build.yaml builds+tests+pushes :latest on every push to main) to an immutable
 # dated tag by digest — no rebuild — so the released image is byte-identical to
-# what CI built. Then pushes git tag vYYYY.MM.DD and a GitHub Release with auto
+# what CI tested. Then pushes git tag vYYYY.MM.DD and a GitHub Release with auto
 # notes + SBOM. Idempotent; skips weeks with no changes.
 #
-# The build gate lives in build.yaml, which only pushes :latest on success;
-# release.yaml trusts that green and promotes it.
+# The test gate lives in build.yaml (push-to-main build runs tests/run-all.sh and
+# only pushes :latest on success); release.yaml trusts that green and promotes it.
 #
 # Also manually runnable (Actions tab / `gh workflow run release.yaml`):
 #   dry_run  — resolve + plan only; no promote/tag/release
@@ -80,7 +80,7 @@ jobs:
         if: steps.plan.outputs.proceed == 'true'
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
-      - name: Resolve the built :latest digest
+      - name: Resolve the tested :latest digest
         id: img
         if: steps.plan.outputs.proceed == 'true'
         run: |
@@ -111,7 +111,7 @@ jobs:
             if [ "${{ inputs.force }}" = "true" ]; then
               echo "::warning:::latest revision $revision != main HEAD $head — proceeding due to force=true."
             else
-              echo "::error:::latest revision $revision != main HEAD $head — the HEAD build likely hasn't pushed yet. Re-run once it finishes, or use force to promote the older built image."
+              echo "::error:::latest revision $revision != main HEAD $head — the HEAD build likely hasn't pushed yet. Re-run once it finishes, or use force to promote the older tested image."
               exit 1
             fi
           fi
@@ -168,7 +168,7 @@ jobs:
             --repo igou-io/igou-devenv \
             --title "v${{ steps.plan.outputs.version }}" \
             --generate-notes \
-            --notes "$(printf '**Image:** \`ghcr.io/igou-io/igou-devenv:%s\`\n**Digest:** \`%s\` (pull-by-digest; wraps built :latest manifest \`%s\`)\n\n---\n' \
+            --notes "$(printf '**Image:** \`ghcr.io/igou-io/igou-devenv:%s\`\n**Digest:** \`%s\` (pull-by-digest; wraps tested :latest manifest \`%s\`)\n\n---\n' \
               "${{ steps.plan.outputs.version }}" \
               "${{ steps.rel.outputs.digest }}" \
               "${{ steps.img.outputs.digest }}")" \

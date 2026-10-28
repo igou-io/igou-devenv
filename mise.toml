@@ -2,7 +2,7 @@
 # See igou-docs/devenv/Devenv Design Decisions and History.md
 #
 # Renovate manages aqua/npm versions natively and annotated http tools via regex.
-# After any version bump: `make mise-lock && make build`
+# After any version bump: `make mise-lock && make test`
 
 [settings]
 # Verification controls — defense in depth (see spec section "Supply-chain mitigations")
@@ -34,13 +34,15 @@ trusted_config_paths = ["/etc/mise/mise.toml"]
 package_manager = "npm"
 
 [settings.aqua]
-# Aqua-backend verification (defaults are true but pinned here for documentation).
+# Aqua-backend verification (defaults are true but pinned here for documentation
+# and audit trail). The audit test in tests/test-mise.sh asserts that each
+# tool resolves to its expected verification method.
 cosign = true
 slsa = true
 minisign = true
 github_attestations = true
-# Pin upstream registry to a release commit. Renovate updates the tag and SHA;
-# review checksum and provenance changes alongside registry updates.
+# Pin upstream registry to a release commit. Renovate updates the tag and SHA; PR review
+# + tests/test-mise.sh audit catch verification downgrades.
 # renovate: datasource=github-tags depName=aquaproj/aqua-registry
 registry_url = "https://raw.githubusercontent.com/aquaproj/aqua-registry/c970a7a900bef7ab37210cfc5ad26ab488331212/registry.yaml" # v4.575.0
 
@@ -103,7 +105,9 @@ slsa_signer_issuer = "https://token.actions.githubusercontent.com"
 # via postinstall hooks: each script re-runs the same trust-anchor flow the
 # inline Dockerfile blocks did (fetch upstream KEYS, assert pinned fingerprint,
 # verify detached signature on either the tarball itself or the SHA256SUMS
-# file, then confirm sha matches). Preserve these hooks when updating tools.
+# file, then confirm sha matches). The audit ("postinstall-gpg" in
+# tests/mise-expected-verification.toml) asserts the hook is wired and
+# references gpg, so the script can't be silently dropped on a future bump.
 
 [tools.helm]
 version = "4.3.1"
@@ -205,7 +209,8 @@ linux-arm64 = { url = "https://github.com/coder/code-server/releases/download/v{
 # work — the npm backend runs `npm install`, which verifies each package
 # against the registry's per-tarball sha512 integrity metadata. That
 # verification happens inside npm and is not recorded in mise.lock (the entry
-# is version+backend only, like core:). `locked = true` still pins the exact
+# is version+backend only, like core:), so the audit value is "npm" in
+# tests/mise-expected-verification.toml. `locked = true` still pins the exact
 # version fail-closed. Depends on `node` above (the [tool_alias] name is what
 # lets the npm backend find node/npm at resolve and install time).
 #
@@ -230,9 +235,10 @@ allow_builds = ["node-pty"]
 # floor accepted for virtctl/kube-burner/code-server. The global
 # minimum_release_age = "10d" gate still applies.
 #
-# The gnu (glibc) artifacts match the Fedora devcontainer. The tarball
+# The gnu (glibc) artifacts match the CentOS Stream 10 devcontainer. The tarball
 # is a flat archive whose single binary is named `rc` (not rustfs-cli), so no
-# strip_components/bin_path is needed.
+# strip_components/bin_path is needed and the launch-check binary override in
+# tests/mise-expected-verification.toml points at `rc`.
 # renovate: datasource=github-releases depName=rustfs/cli
 [tools."http:rustfs-cli"]
 version = "0.1.36"
@@ -248,9 +254,10 @@ linux-arm64 = { url = "https://github.com/rustfs/cli/releases/download/v{{ versi
 # in mise.lock is the floor, same as virtctl/kube-burner/rustfs-cli. The global
 # minimum_release_age = "10d" gate still applies.
 #
-# The gnu (glibc) artifacts match the Fedora devcontainer. The tarball
+# The gnu (glibc) artifacts match the CentOS Stream 10 devcontainer. The tarball
 # is a flat archive whose single binary is named `gws`, so no strip_components/
-# bin_path is needed.
+# bin_path is needed; the launch check in tests/mise-expected-verification.toml
+# runs `gws` directly.
 # renovate: datasource=github-releases depName=googleworkspace/cli
 [tools."http:gws"]
 version = "0.22.5"
