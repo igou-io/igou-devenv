@@ -235,7 +235,7 @@ allow_builds = ["node-pty"]
 # floor accepted for virtctl/kube-burner/code-server. The global
 # minimum_release_age = "10d" gate still applies.
 #
-# The gnu (glibc) artifacts match the CentOS Stream 10 devcontainer. The tarball
+# The gnu (glibc) artifacts match the Fedora devcontainer. The tarball
 # is a flat archive whose single binary is named `rc` (not rustfs-cli), so no
 # strip_components/bin_path is needed and the launch-check binary override in
 # tests/mise-expected-verification.toml points at `rc`.
@@ -254,7 +254,7 @@ linux-arm64 = { url = "https://github.com/rustfs/cli/releases/download/v{{ versi
 # in mise.lock is the floor, same as virtctl/kube-burner/rustfs-cli. The global
 # minimum_release_age = "10d" gate still applies.
 #
-# The gnu (glibc) artifacts match the CentOS Stream 10 devcontainer. The tarball
+# The gnu (glibc) artifacts match the Fedora devcontainer. The tarball
 # is a flat archive whose single binary is named `gws`, so no strip_components/
 # bin_path is needed; the launch check in tests/mise-expected-verification.toml
 # runs `gws` directly.

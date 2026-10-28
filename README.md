@@ -461,7 +461,8 @@ What carries over, and how:
 
 All tool versions are pinned and managed by [Renovate](https://docs.renovatebot.com/):
 
-- **Dockerfile base image** — pinned by digest, updated by Renovate's Docker manager
+- **Dockerfile base image** — the Fedora 45 tag floats; Renovate proposes OS release upgrades for review
+- **Ansible Core** — both devenv and AWX track prereleases and stable releases in a separate manual-merge group, without the shared release-age delay or weekly schedule
 - **Mise-managed CLI tools** — pinned in `mise.toml`, per-asset checksums in `mise.lock`. Renovate's native `mise` manager handles aqua/npm tools; a custom regex handles all annotated `http:` tables. Both use the `mise-managed cli tools` group, whose preparation workflow regenerates the lock before enabling auto-merge.
 - **OpenShift CLI** — the shared `openshift-mirror` datasource reads `Version:` and `Created:` from Red Hat's release metadata. Its release timestamp preserves the 10-day age gate.
 - **aqua-registry pin** — the registry URL contains an immutable release commit SHA, with its tag alongside it. Renovate's `github-tags` datasource updates both together in a separate group with automerge disabled; `tests/test-mise.sh` checks for per-tool verification downgrades.
