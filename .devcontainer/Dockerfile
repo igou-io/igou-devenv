@@ -595,3 +595,9 @@ RUN chgrp -R 0 /home/igou /etc/passwd /etc/group && \
     chmod -R g=u /home/igou /etc/passwd /etc/group
 
 WORKDIR /workspace
+
+# Record the actual runtime in the image; CI adds its published registry digest.
+ARG RUNTIME_REVISION=unknown
+COPY .devcontainer/runtime-manifest.py /usr/local/libexec/igou-runtime-manifest.py
+RUN mkdir -p /usr/share/igou && \
+    python3.15 /usr/local/libexec/igou-runtime-manifest.py --revision "$RUNTIME_REVISION" > /usr/share/igou/runtime.json

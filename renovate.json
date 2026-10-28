@@ -1,5 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "dependencyDashboard": true,
   "extends": [
     "github>igou-io/igou-devenv//renovate-base.json"
   ],
@@ -190,6 +191,24 @@
       "matchFileNames": [".devcontainer/install-python.sh"],
       "groupName": "python runtime",
       "automerge": false
+    },
+    {
+      "description": "Check the source-built Python patch stream daily; checksum review is required",
+      "matchDatasources": [
+        "python-version"
+      ],
+      "matchDepNames": [
+        "python"
+      ],
+      "groupName": "python runtime",
+      "automerge": false,
+      "schedule": [
+        "at any time"
+      ],
+      "minimumReleaseAge": null,
+      "prBodyNotes": [
+        "Update PYTHON_SHA256 from the official Python release alongside PYTHON_VERSION; the build rejects stale checksums. New minor releases are tracked separately in igou-ansible's upstream Python release notice."
+      ]
     }
   ],
   "customManagers": [

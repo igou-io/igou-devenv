@@ -36,6 +36,29 @@ const deps = config.customManagers.flatMap((manager) => {
   return (result?.deps ?? []).map((dep, depIndex) => ({ ...manager, ...result, ...dep, depIndex }));
 });
 const rules = [...base.packageRules, ...config.packageRules];
+
+const pythonFile = '.devcontainer/install-python.sh';
+const pythonContent = await fs.readFile(pythonFile, 'utf8');
+const pythonDeps = config.customManagers.flatMap((manager) => {
+  if (!manager.managerFilePatterns.includes('/\\.sh$/')) return [];
+  const result = extractPackageFile(pythonContent, pythonFile, manager);
+  return (result?.deps ?? []).map((dep, depIndex) => ({ ...manager, ...result, ...dep, depIndex }));
+});
+assert.equal(pythonDeps.length, 1, 'Extract the source-built Python pin exactly once');
+const python = pythonDeps[0];
+assert.equal(python.datasource, 'python-version');
+const pythonPolicy = await applyPackageRules({ ...base, ...python,
+  packageName: python.depName, manager: 'custom.regex', packageFile: pythonFile,
+  updateType: 'patch', packageRules: rules });
+assert.equal(pythonPolicy.automerge, false, 'A source bump still needs checksum review');
+assert.equal(pythonPolicy.allowedVersions, '>=3.15,<3.16');
+assert.deepEqual(pythonPolicy.schedule, ['at any time']);
+assert.equal(pythonPolicy.minimumReleaseAge, null);
+const updatedPython = await doAutoReplace({ ...python, manager: 'regex',
+  packageFile: pythonFile, newValue: '3.15.1' }, pythonContent, false);
+assert.ok(updatedPython.includes('PYTHON_VERSION="3.15.1"'));
+assert.equal(updatedPython.match(/PYTHON_SHA256="[a-f0-9]+"/)[0],
+  pythonContent.match(/PYTHON_SHA256="[a-f0-9]+"/)[0], 'Checksum changes require explicit review');
 const route = (dep, updateType = 'minor', manager = 'custom.regex') => applyPackageRules({
   ...base, ...dep, packageName: dep.depName, manager, packageFile: 'mise.toml', updateType, packageRules: rules,
 });
