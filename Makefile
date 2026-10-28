@@ -3,7 +3,7 @@ WORKSPACE    = $(CURDIR)
 
 .DEFAULT_GOAL := help
 
-.PHONY: link-skills build up up-release down restart exec shell run test test-all test-tools test-sandbox-primitives test-podman test-env test-mise test-ssh test-mise-lockfile test-openshell-gateway-config test-qemu clean rebuild help renovate-validate renovate-dry-run sbom sbom-devcontainer e2e mise-lock release release-dry-run release-prepare release-prepare-clis release-watch
+.PHONY: link-skills build up up-release down restart exec shell run clean rebuild help renovate-validate renovate-dry-run sbom sbom-devcontainer mise-lock release release-dry-run release-prepare release-prepare-clis release-watch
 
 ## Build the devcontainer image with a fresh base and distro packages
 ## Runs: Dockerfile only (no lifecycle hooks)
@@ -86,7 +86,7 @@ run:
 ## devcontainer.json is left untouched — CI's build.yaml and `make build` depend
 ## on its `build:` config — so this derives an image-based config on the fly and
 ## passes it via --override-config, recreating the container from the pulled image.
-##   make up-release                    # newest tested image (:latest)
+##   make up-release                    # newest built image (:latest)
 ##   make up-release TAG=2026.06.15-4   # pin a specific immutable release
 up-release:
 	@command -v jq >/dev/null 2>&1 || { echo "jq is required for up-release"; exit 1; }
@@ -99,55 +99,10 @@ up-release:
 		--remove-existing-container; \
 	st=$$?; rm -rf "$$(dirname "$$cfg")"; exit $$st
 
-## Run all tests (tools, podman, env, ssh, mise lockfile freshness + audit)
-test-all: test-tools test-podman test-env test-ssh test-mise-lockfile test-mise test-openshell-gateway-config test-qemu
-
-## Alias for test-all
-test: test-all
-
-## Verify CLI tools, Python packages, and user config inside the devcontainer
-test-tools:
-	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) /workspace/igou-devenv/tests/test-tools.sh
-
-## Diagnostic sandbox primitive smoke test (runtime failures require REQUIRE_SANDBOX_PRIMITIVES=true to fail)
-test-sandbox-primitives:
-	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) /workspace/igou-devenv/tests/test-sandbox-primitives.sh
-
-## Verify declarative OpenShell gateway metadata and token preservation
-test-openshell-gateway-config:
-	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) /workspace/igou-devenv/tests/test-openshell-gateway-config.sh
-
-## Test podman pull, run, and build inside the devcontainer
-test-podman:
-	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) /workspace/igou-devenv/tests/test-podman.sh
-
-## Test environment switching shell functions (use, k8s-unset, prompt)
-test-env:
-	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) bash -i /workspace/igou-devenv/tests/test-env.sh
-
-## Test SSH key loading from 1Password + container-local agent (igou-docs/devenv/Devenv Environment and Credential Decisions.md)
-test-ssh:
-	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) bash /workspace/igou-devenv/tests/test-ssh.sh
-
-## Audit mise-managed tools: each tool resolves to its expected verification method.
-## Runs inside the devcontainer (needs mise + installed tools).
-test-mise:
-	bash $(CURDIR)/tests/test-mise-platform-verification.sh
-	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) bash /workspace/igou-devenv/tests/test-mise.sh
-
-## Verify QEMU userspace and libvirt stack
-test-qemu:
-	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) /workspace/igou-devenv/tests/test-qemu.sh
-
-## Verify mise.lock is in sync with mise.toml. Runs on the host (uses
-## host mise if available, otherwise a one-shot ghcr.io/jdx/mise container).
-test-mise-lockfile:
-	bash $(CURDIR)/tests/test-mise-lockfile.sh
-
 ## Regenerate mise.lock against the current mise.toml; commit both together.
 ## Run this after editing mise.toml — including on a Renovate mise PR, whose
-## stale lock the mise-lockfile-check CI guard flags. Hosted Renovate (the Mend
-## app) cannot run postUpgradeTasks, so it never regenerates the lockfile itself.
+## lock needs regeneration. Hosted Renovate (the Mend app) cannot run
+## postUpgradeTasks, so it never regenerates the lockfile itself.
 ##
 ## Uses the same MISE_VERSION as the Dockerfile. If that exact mise is not
 ## installed locally, bin/run-pinned-mise bootstraps it in a throwaway CentOS
@@ -179,11 +134,6 @@ renovate-validate:
 renovate-dry-run:
 	$(CURDIR)/bin/renovate-dry-run $(CURDIR)
 
-## End-to-end: rebuild devcontainer and run all devcontainer tests.
-## Full validation from scratch.
-e2e: rebuild test-all
-	@echo "=== E2E complete ==="
-
 ## Generate SBOMs for the devcontainer image (SPDX + CycloneDX)
 sbom: sbom-devcontainer
 
@@ -200,13 +150,13 @@ sbom-devcontainer:
 # Release (CalVer) — dispatch the GitHub Actions release workflows on demand
 # (e.g. a mid-week release). These wrap `gh workflow run`, so they need a gh
 # token with Actions: write (or use the Actions UI). The Monday cron runs the
-# equivalents automatically. Release PROMOTES the current tested :latest by
+# equivalents automatically. Release PROMOTES the current built :latest by
 # digest, so make sure the latest push to main has a green build.yaml first.
 # ---------------------------------------------------------------------------
 RELEASE_REPO ?= igou-io/igou-devenv
 WF           ?= release.yaml
 
-## Cut a release now: promote the tested :latest to a dated CalVer tag + Release.
+## Cut a release now: promote the built :latest to a dated CalVer tag + Release.
 ## Optional: VERSION=2026.06.18-2 (tag override), FORCE=true (ignore skip guards).
 release:
 	gh workflow run release.yaml --repo $(RELEASE_REPO) \

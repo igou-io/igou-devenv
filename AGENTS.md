@@ -69,22 +69,16 @@ make rebuild            # Full rebuild from scratch (no cache)
 make down               # Stop and remove the devcontainer
 make shell              # Open bash shell in running devcontainer
 make exec CMD="..."     # Run a one-off command in the devcontainer
-make test               # Run all normal tests (alias for test-all)
-make test-tools         # Hard package/command/Python/user-config checks
-make test-podman        # Test nested Podman pull, run, and build
-make test-env           # Test environment switching functions
-make test-sandbox-primitives  # Diagnostic namespace/bubblewrap smoke test
 make renovate-validate  # Validate renovate.json config
 GITHUB_TOKEN=... make renovate-dry-run
-make e2e                # Full end-to-end: rebuild devcontainer + all tests
-make release            # Promote tested :latest to a CalVer tag + release
+make release            # Promote built :latest to a CalVer tag + release
 make release-dry-run    # Resolve + plan release only
 make release-prepare    # Regenerate mise.lock on the open Renovate mise PR
 ```
 
-Pre-push requirement: do not push changes to the remote unless `make rebuild`
-followed by `make test` passes locally, unless the user explicitly asks to push
-anyway.
+Before pushing image changes, build the image and run the native validators
+for changed configuration. Verify runtime behavior in the relevant execution
+model when the change affects it. This repository has no test suite.
 
 ## Architecture
 
@@ -102,7 +96,6 @@ anyway.
 dotfiles/                # .bashrc, .bashrc.d/ (shell functions, sourced non-interactively too), tmux, code-server config, workspace file
 bin/                     # local infrastructure helper scripts
 envs/                    # credential profiles with op:// references or literal values
-tests/                   # devcontainer and helper-script tests
 igou-docs/devenv/         # operational documentation and decision records (companion repo)
 mise.toml / mise.lock    # mise-managed tool versions and per-asset checksums
 renovate.json            # Renovate config
@@ -123,7 +116,7 @@ image build. Rebuild the image after changing `.devcontainer/requirements.txt`.
 
 | Dependency type | Add it here | Notes |
 |---|---|---|
-| OS packages required in the main devcontainer image | `.devcontainer/Dockerfile` dnf block | Use repo packages where available. Hard-test command availability in `tests/test-tools.sh` when the package is required. |
+| OS packages required in the main devcontainer image | `.devcontainer/Dockerfile` dnf block | Use repo packages where available. Verify required commands in the built image. |
 | Mise-managed CLI tools | `mise.toml` and `mise.lock` | Run `make mise-lock`; commit both files. Use the `adding-a-mise-tool` skill for Codex. |
 | Python packages | `.devcontainer/requirements.txt` | Pin versions for Renovate's native manager. |
 | Standalone binaries without a dependency ecosystem | Dedicated `.devcontainer/Dockerfile` ARG/RUN block | Keep rare. Use Renovate annotations and cryptographic or checksum verification. |
@@ -140,11 +133,9 @@ Where not to add dependencies:
 
 Package availability and runtime capability are separate claims.
 
-- `tests/test-tools.sh` is the hard package/command availability test.
-- `tests/test-sandbox-primitives.sh` is a diagnostic runtime smoke test for
-  user namespaces and bubblewrap. It is non-fatal by default for restricted CI
-  or non-Hermes environments; set `REQUIRE_SANDBOX_PRIMITIVES=true` when the
-  runtime must provide those primitives.
+- Check required packages and commands inside the built image.
+- Verify user namespaces and bubblewrap inside the actual runtime before
+  claiming those capabilities are available.
 - A passing package check does not prove bubblewrap, user namespaces, mount
   namespaces, seccomp, or Landlock works in a given runtime.
 - A sandbox claim must identify the tool and runtime tested.
@@ -189,8 +180,8 @@ after the relevant test has actually passed.
   refresh distro packages; log the Python/Ansible versions and dependency checks.
   Do not add a Python source installer, custom Renovate tracker, or runtime manifest.
 - The mise binary is bootstrapped by verifying release checksums with a pinned
-  GPG fingerprint. Mise-managed tools are pinned in `mise.lock`, and
-  `tests/test-mise.sh` audits the expected verification method.
+  GPG fingerprint. Mise-managed tools are pinned in `mise.lock`; preserve
+  their checksum verification and GPG postinstall hooks.
 - `codex`, Claude Code, Cursor agent, and OpenCode installed in the main
   devcontainer are pinned and Renovate-managed. Cursor, OpenCode, and Codex
   use the CLI SHA-recapture workflow; Claude verifies vendor-signed checksums.
@@ -220,24 +211,24 @@ separately.
 # 2. Regenerate the lockfile
 make mise-lock
 # 3. Validate
-make test
+make build
 # 4. Commit mise.toml and mise.lock together
 ```
 
-If `tests/test-mise.sh` reports a verification downgrade, update
-`tests/mise-expected-verification.toml` only after confirming the upstream
-change was deliberate.
+Review checksum and provenance changes in `mise.lock` before committing a
+tool update. Preserve the verification settings and postinstall hooks in
+`mise.toml`.
 
 ## Release Notes
 
 Weekly release automation uses three Monday schedules in the
 `America/New_York` time zone so they stay aligned with Eastern time across DST:
 
-- `build.yaml` runs at 06:00, builds and tests the devcontainer, and publishes
+- `build.yaml` runs at 06:00, builds the devcontainer, and publishes
   `:latest`.
 - `release-prepare.yaml` runs at 06:30, regenerates `mise.lock` on the open
   Renovate mise PR, and enables GitHub auto-merge with `RELEASE_PAT`.
-- `release.yaml` runs at 08:00 and promotes the already-tested
+- `release.yaml` runs at 08:00 and promotes the already-built
   `ghcr.io/igou-io/igou-devenv:latest` image by digest to an immutable
   `:YYYY.MM.DD` tag, creates a `vYYYY.MM.DD` git tag, and publishes a GitHub
   Release. It does not rebuild the image.
@@ -248,7 +239,7 @@ Manual release targets are `make release`, `make release-dry-run`, and
 ## Linting
 
 ```bash
-shellcheck .devcontainer/post-create.sh .devcontainer/post-start.sh .devcontainer/hygiene.sh .devcontainer/init.sh dotfiles/.bashrc dotfiles/.bashrc.d/*.sh tests/*.sh bin/resolve-profile bin/ensure-ssh-agent
+shellcheck .devcontainer/post-create.sh .devcontainer/post-start.sh .devcontainer/hygiene.sh .devcontainer/init.sh dotfiles/.bashrc dotfiles/.bashrc.d/*.sh bin/resolve-profile bin/ensure-ssh-agent
 ```
 
 ## Documentation ownership

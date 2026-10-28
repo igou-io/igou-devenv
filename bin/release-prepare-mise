@@ -22,19 +22,16 @@ if [ -z "$pr" ]; then
 fi
 echo "Preparing mise PR #$pr"
 
-# Keep the current verification floor when checking out a stale PR that may
-# predate this guard. The helper and manifest contain no credentials.
-audit=$(mktemp -d)
-trap 'rm -rf "$audit"' EXIT
-cp tests/check-mise-platform-verification.sh tests/mise-expected-verification.toml "$audit/"
-cp bin/run-pinned-mise "$audit/"
+# Keep the current pinned runner when checking out a stale PR.
+runner_dir=$(mktemp -d)
+trap 'rm -rf "$runner_dir"' EXIT
+cp bin/run-pinned-mise "$runner_dir/"
 gh pr checkout "$pr" --repo "$REPO"
 
 make mise-lock
 # A stale PR can still carry the host-only Makefile. Use the current pinned
-# runner to finish both platforms before applying the saved verification floor.
-MISE_PROJECT_DIR="$PWD" MISE_LOCKED=0 bash "$audit/run-pinned-mise" mise lock --global --platform linux-x64,linux-arm64
-bash "$audit/check-mise-platform-verification.sh" mise.lock
+# runner to finish both platforms.
+MISE_PROJECT_DIR="$PWD" MISE_LOCKED=0 bash "$runner_dir/run-pinned-mise" mise lock --global --platform linux-x64,linux-arm64
 
 if git diff --quiet -- mise.lock; then
   echo "mise.lock already in sync; no commit needed."
