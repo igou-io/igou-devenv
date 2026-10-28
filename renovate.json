@@ -5,7 +5,7 @@
   ],
   "baseBranchPatterns": [
     "main",
-    "devel"
+    "prerelease"
   ],
   "customDatasources": {
     "cursor-agent": {
@@ -18,9 +18,9 @@
   },
   "packageRules": [
     {
-      "description": "Keep normal dependency updates on main; devel tracks Core and Fedora only",
+      "description": "Keep normal dependency updates on main; prerelease tracks Core and Fedora only",
       "matchBaseBranches": [
-        "devel"
+        "prerelease"
       ],
       "enabled": false
     },
@@ -181,9 +181,9 @@
       "automerge": false
     },
     {
-      "description": "Allow published Ansible previews on devel",
+      "description": "Allow published Ansible previews on prerelease",
       "matchBaseBranches": [
-        "devel"
+        "prerelease"
       ],
       "matchDatasources": [
         "pypi"
@@ -212,6 +212,22 @@
       "minimumReleaseAge": "0 days",
       "pinDigests": false,
       "automerge": false
+    },
+    {
+      "description": "Automerge enabled prerelease updates after CI without release-age or schedule delays",
+      "matchBaseBranches": [
+        "prerelease"
+      ],
+      "automerge": true,
+      "automergeType": "pr",
+      "platformAutomerge": false,
+      "minimumReleaseAge": null,
+      "schedule": [
+        "at any time"
+      ],
+      "automergeSchedule": [
+        "at any time"
+      ]
     }
   ],
   "customManagers": [

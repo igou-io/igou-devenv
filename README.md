@@ -65,16 +65,18 @@ Released Fedora supplies native Python for `python`, `python3`, and pip tooling.
 | Branch | Ansible Core | Published image tag |
 | --- | --- | --- |
 | `main` | Latest stable release, currently 2.21.5 | `ghcr.io/igou-io/igou-devenv:latest` |
-| `devel` | Published alpha/beta/RC releases | `ghcr.io/igou-io/igou-devenv:devel` |
+| `prerelease` | Published alpha/beta/RC releases | `ghcr.io/igou-io/igou-devenv:prerelease` |
 
 Both branches use stable Fedora and its native Python. Renovate checks both
-branches, excludes Core prereleases on `main`, and allows them on `devel`.
+branches, excludes Core prereleases on `main`, and allows them on `prerelease`.
 Fedora release numbers come from the built-in endoflife-date datasource;
-image digests are not pinned. Core and Fedora upgrades require review.
+image digests are not pinned. Core and Fedora upgrades require review on
+`main`; `prerelease` automerges them after CI passes, without release-age
+or schedule delays.
 The existing tests and CI gate apply to both channels. To run the preview
-image, use `make up-release TAG=devel` or `make run TAG=devel`.
-Only Core and Fedora receive automatic update PRs on `devel`; bring other
-dependency and code changes across by merging `main` into `devel`, preserving
+image, use `make up-release TAG=prerelease` or `make run TAG=prerelease`.
+Only Core and Fedora receive automatic update PRs on `prerelease`; bring other
+dependency and code changes across by merging `main` into `prerelease`, preserving
 the preview Core pin.
 
 Python requirements are installed during the image build. Rebuild the image
@@ -476,8 +478,8 @@ What carries over, and how:
 
 All tool versions are pinned and managed by [Renovate](https://docs.renovatebot.com/):
 
-- **Dockerfile base image** — the selected stable Fedora tag floats; Renovate uses released Fedora versions from endoflife.date and proposes OS upgrades for review
-- **Ansible Core** — `main` tracks stable releases; `devel` also accepts published alpha/beta/RC versions. Core has a separate manual-merge group without the shared release-age delay or weekly schedule
+- **Dockerfile base image** — the selected stable Fedora tag floats; Renovate uses released Fedora versions from endoflife.date. Main OS upgrades require review; prerelease upgrades automerge after CI passes without age or schedule delays
+- **Ansible Core** — `main` tracks stable releases; `prerelease` also accepts published alpha/beta/RC versions. Core has a separate group without the shared release-age delay or weekly schedule; main requires review and prerelease automerges after CI passes
 - **Mise-managed CLI tools** — pinned in `mise.toml`, per-asset checksums in `mise.lock`. Renovate's native `mise` manager handles aqua/npm tools; a custom regex handles all annotated `http:` tables. Both use the `mise-managed cli tools` group, whose preparation workflow regenerates the lock before enabling auto-merge.
 - **OpenShift CLI** — the shared `openshift-mirror` datasource reads `Version:` and `Created:` from Red Hat's release metadata. Its release timestamp preserves the 10-day age gate.
 - **aqua-registry pin** — the registry URL contains an immutable release commit SHA, with its tag alongside it. Renovate's `github-tags` datasource updates both together in a separate group with automerge disabled; `tests/test-mise.sh` checks for per-tool verification downgrades.
@@ -534,9 +536,9 @@ to cut a throwaway test promotion.
 ## CI
 
 GitHub Actions builds the Dockerfile with Docker Buildx on pushes and PRs to
-`main` and `devel`, then runs the existing test suite inside the image.
-Successful branch builds publish `:latest` from `main` and `:devel` from
-`devel`; PRs do not publish. Weekly scheduled builds and CalVer releases use
+`main` and `prerelease`, then runs the existing test suite inside the image.
+Successful branch builds publish `:latest` from `main` and `:prerelease` from
+`prerelease`; PRs do not publish. Weekly scheduled builds and CalVer releases use
 `main` and `:latest`. Devel builds run on pushes or manual workflow dispatch.
 Only main images update the repository dependency graph.
 

@@ -4,11 +4,11 @@ on:
   push:
     branches:
       - main
-      - devel
+      - prerelease
   pull_request:
     branches:
       - main
-      - devel
+      - prerelease
   schedule:
     - cron: '0 6 * * 1' # Weekly on Monday at 06:00 Eastern
       timezone: America/New_York
@@ -32,7 +32,7 @@ concurrency:
 
 env:
   IMAGE: ghcr.io/igou-io/igou-devenv
-  IMAGE_TAG: ${{ github.ref == 'refs/heads/devel' && 'devel' || 'latest' }}
+  IMAGE_TAG: ${{ github.ref == 'refs/heads/prerelease' && 'prerelease' || 'latest' }}
 
 jobs:
   build:
@@ -98,7 +98,7 @@ jobs:
 
       - name: Push image
         id: push
-        if: contains(fromJSON('["refs/heads/main", "refs/heads/devel"]'), github.ref) && github.event_name != 'pull_request'
+        if: contains(fromJSON('["refs/heads/main", "refs/heads/prerelease"]'), github.ref) && github.event_name != 'pull_request'
         run: |
           docker push ${IMAGE}:${IMAGE_TAG}
           digest=$(docker buildx imagetools inspect ${IMAGE}:${IMAGE_TAG} --format '{{.Manifest.Digest}}')
