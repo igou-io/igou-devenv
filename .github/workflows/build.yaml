@@ -107,9 +107,9 @@ jobs:
           echo "Pushed \`${IMAGE}@${digest}\` (revision ${{ github.sha }})" >> "$GITHUB_STEP_SUMMARY"
 
       # Scan the exact pushed digest so the SBOM is bound to the artifact
-      # consumers pull, not a mutable tag. PR and branch-dispatch builds are
-      # never pushed, so they scan the just-built image in the local daemon.
-      # The explicit :latest tag keeps syft's daemon-first resolution from falling
+      # consumers pull, not a mutable tag. Unpublished PR and feature-branch
+      # builds scan the just-built image in the local daemon.
+      # The explicit channel tag keeps syft's daemon-first resolution from falling
       # back to the stale remote image).
       - name: Resolve SBOM image reference
         id: sbomref

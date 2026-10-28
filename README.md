@@ -73,6 +73,9 @@ Fedora release numbers come from the built-in endoflife-date datasource;
 image digests are not pinned. Core and Fedora upgrades require review.
 The existing tests and CI gate apply to both channels. To run the preview
 image, use `make up-release TAG=devel` or `make run TAG=devel`.
+Only Core and Fedora receive automatic update PRs on `devel`; bring other
+dependency and code changes across by merging `main` into `devel`, preserving
+the preview Core pin.
 
 Python requirements are installed during the image build. Rebuild the image
 after changing `.devcontainer/requirements.txt`.
