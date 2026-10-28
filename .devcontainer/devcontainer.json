@@ -3,11 +3,10 @@
     "build": {
         "dockerfile": "Dockerfile",
         "context": "..",
-        "options": ["--network=host"],
+        "options": ["--network=host", "--pull", "--no-cache"],
         "args": {
             "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
-        },
-        "cacheFrom": "ghcr.io/igou-io/igou-devenv"
+        }
     },
     "features": {},
     "forwardPorts": [8080, 3773],
@@ -75,7 +74,7 @@
                 "ms-python.python"
             ],
             "settings": {
-                "ansible.python.interpreterPath": "/usr/local/bin/python3.15",
+                "ansible.python.interpreterPath": "/usr/bin/python3",
                 "files.trimTrailingWhitespace": true,
                 "files.associations": {
                     "**/group_vars/**/*": "ansible",

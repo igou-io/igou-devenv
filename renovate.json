@@ -1,6 +1,5 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "dependencyDashboard": true,
   "extends": [
     "github>igou-io/igou-devenv//renovate-base.json"
   ],
@@ -55,13 +54,15 @@
       "groupName": "container base images"
     },
     {
-      "matchManagers": [
-        "dockerfile"
+      "description": "Pull the current Fedora base on each build; review OS release upgrades for Python/Core compatibility",
+      "matchDatasources": [
+        "docker"
       ],
       "matchPackageNames": [
-        "quay.io/centos/centos"
+        "registry.fedoraproject.org/fedora"
       ],
-      "pinDigests": false
+      "pinDigests": false,
+      "automerge": false
     },
     {
       "matchManagers": [
@@ -177,38 +178,6 @@
       ],
       "groupName": "aqua-registry SHA pin (trust anchor)",
       "automerge": false
-    },
-    {
-      "description": "The development environment uses Python 3.15; review a minor upgrade explicitly.",
-      "matchDepNames": [
-        "python",
-        "cpython"
-      ],
-      "allowedVersions": ">=3.15,<3.16"
-    },
-    {
-      "description": "A Python source update also needs the python.org SHA-256 refreshed",
-      "matchFileNames": [".devcontainer/install-python.sh"],
-      "groupName": "python runtime",
-      "automerge": false
-    },
-    {
-      "description": "Check the source-built Python patch stream daily; checksum review is required",
-      "matchDatasources": [
-        "python-version"
-      ],
-      "matchDepNames": [
-        "python"
-      ],
-      "groupName": "python runtime",
-      "automerge": false,
-      "schedule": [
-        "at any time"
-      ],
-      "minimumReleaseAge": null,
-      "prBodyNotes": [
-        "Update PYTHON_SHA256 from the official Python release alongside PYTHON_VERSION; the build rejects stale checksums. New minor releases are tracked separately in igou-ansible's upstream Python release notice."
-      ]
     }
   ],
   "customManagers": [

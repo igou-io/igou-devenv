@@ -1,9 +1,9 @@
-FROM quay.io/centos/centos:stream10
+FROM registry.fedoraproject.org/fedora:45
 
 # Create igou user. UID 1000 is a conventional default; the devcontainer runtime's
 # updateRemoteUserUID remaps it to match the host user at startup.
-# CentOS uses 'wheel' group for sudo access.
-RUN dnf install -y sudo && \
+# Fedora uses 'wheel' group for sudo access.
+RUN dnf --refresh upgrade -y && dnf install -y sudo && \
     groupadd -g 1000 igou && \
     useradd -m -s /bin/bash -u 1000 -g 1000 -G wheel igou && \
     echo "igou ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/igou && \
@@ -11,17 +11,15 @@ RUN dnf install -y sudo && \
     chmod 640 /etc/shadow && \
     dnf clean all
 
-# Enable EPEL for additional packages
-RUN dnf install -y epel-release && \
-    dnf clean all
-
 # Additional packages from dnf — includes podman/buildah/skopeo for
 # native OCI image workflows alongside the Docker CLI compatibility
 #
-# Packages dropped vs Ubuntu (not available in CentOS Stream 10 + EPEL):
-#   adb (android-tools), iozone3, arp-scan
-# yamllint installed via pip (ansible-lint dependency) — EPEL build is broken on CS10
-RUN dnf --enablerepo=crb install -y \
+# Python and native extension headers come from Fedora's repositories.
+RUN dnf install -y \
+    python3 \
+    python3-pip \
+    python3-devel \
+    python-unversioned-command \
     bubblewrap \
     git \
     wget \
@@ -45,8 +43,7 @@ RUN dnf --enablerepo=crb install -y \
     gnupg2 \
     genisoimage \
     tree \
-    p7zip \
-    p7zip-plugins \
+    7zip \
     procps-ng \
     openssh-clients \
     iputils \
@@ -82,7 +79,7 @@ RUN dnf --enablerepo=crb install -y \
     nmap-ncat \
     parted \
     qemu-img \
-    qemu-kvm \
+    qemu-system-x86-core \
     smartmontools \
     net-snmp-utils \
     socat \
@@ -97,20 +94,12 @@ RUN dnf --enablerepo=crb install -y \
     && rm -rf /usr/share/doc /usr/share/man /usr/share/i18n/locales /usr/share/locale \
     && chmod u+s /usr/bin/newuidmap /usr/bin/newgidmap
 
-# Keep distro Python available for OS tools; interactive Python and pip use 3.15.
-COPY .devcontainer/install-python.sh /tmp/install-python.sh
-RUN bash /tmp/install-python.sh /usr/bin/dnf readline-devel && rm /tmp/install-python.sh
-
 # Libvirt packages create libvirt + kvm groups at install time. Add igou
 # so it can talk to /var/run/libvirt/virtqemud-sock and open /dev/kvm
 # without sudo. (Privileged mode + /dev bind-mount makes /dev/kvm
 # world-accessible in practice; this is belt-and-suspenders for the
 # socket-permission case and for any future tightening of host permissions.)
 RUN usermod -aG libvirt,kvm igou
-
-# CS10 ships qemu-kvm at /usr/libexec/qemu-kvm. The molecule_provisioners
-# qemu role launches `qemu-system-x86_64` directly; expose it on PATH.
-RUN ln -sf /usr/libexec/qemu-kvm /usr/local/bin/qemu-system-x86_64
 
 # ---------------------------------------------------------------------------
 # 1Password CLI (installed via rpm repo)
@@ -130,13 +119,13 @@ RUN rpm --import https://downloads.1password.com/linux/keys/1password.asc && \
 # ---------------------------------------------------------------------------
 # Docker CLI (via Docker's official rpm repo — talks to host via socket mount)
 # ---------------------------------------------------------------------------
-RUN curl -fsSL https://download.docker.com/linux/centos/docker-ce.repo \
+RUN curl -fsSL https://download.docker.com/linux/fedora/docker-ce.repo \
     -o /etc/yum.repos.d/docker-ce.repo && \
     dnf install -y docker-ce-cli && \
     dnf clean all
 
 # ---------------------------------------------------------------------------
-# PAM fix: CentOS Stream 10 ships system-auth as a dangling symlink to
+# PAM fix: minimal RPM images can ship system-auth as a dangling symlink to
 # /etc/authselect/system-auth (authselect is pulled in as a dependency but
 # no profile is configured in a minimal container). Replace it so sudo works.
 # ---------------------------------------------------------------------------
@@ -263,7 +252,7 @@ RUN --mount=type=secret,id=github_token set -eux; \
 # Python packages — pinned versions managed by Renovate (requirements.txt)
 # ---------------------------------------------------------------------------
 COPY .devcontainer/requirements.txt /tmp/requirements.txt
-RUN python3.15 -m pip install --break-system-packages --ignore-installed -r /tmp/requirements.txt && \
+RUN python3 -m pip install --break-system-packages --ignore-installed -r /tmp/requirements.txt && \
     rm /tmp/requirements.txt
 
 # Omnigent host runtime: separate from the Ansible Python dependency set.
@@ -271,7 +260,7 @@ RUN python3.15 -m pip install --break-system-packages --ignore-installed -r /tmp
 # that tested exception after resolving Omnigent's declared websockets<15 cap.
 COPY .devcontainer/omnigent/ /tmp/omnigent/
 # google-re2 has no CPython 3.15 wheel yet; compile it against the distro RE2.
-RUN dnf --enablerepo=crb install -y gcc-c++ re2-devel && \
+RUN dnf install -y gcc-c++ re2-devel && \
     python3 -m venv /opt/omnigent && \
     /opt/omnigent/bin/pip install --no-cache-dir -r /tmp/omnigent/requirements-build.txt && \
     CPLUS_INCLUDE_PATH="$(/opt/omnigent/bin/python -c 'import pybind11; print(pybind11.get_include())')" \
@@ -291,7 +280,7 @@ RUN dnf --enablerepo=crb install -y gcc-c++ re2-devel && \
 # time, never baked here. See README "GitHub Authentication (ghapp)".
 # renovate: datasource=github-tags depName=david-igou/hermes_github_app_plugin
 ARG GHAPP_VERSION="v0.3.0"
-RUN python3.15 -m pip install --break-system-packages \
+RUN python3 -m pip install --break-system-packages \
       "hermes-github-app-plugin @ git+https://github.com/david-igou/hermes_github_app_plugin@${GHAPP_VERSION}"
 
 # Wire the ghapp git credential helper for github.com at the SYSTEM scope: the
@@ -596,8 +585,5 @@ RUN chgrp -R 0 /home/igou /etc/passwd /etc/group && \
 
 WORKDIR /workspace
 
-# Record the actual runtime in the image; CI adds its published registry digest.
-ARG RUNTIME_REVISION=unknown
-COPY .devcontainer/runtime-manifest.py /usr/local/libexec/igou-runtime-manifest.py
-RUN mkdir -p /usr/share/igou && \
-    python3.15 /usr/local/libexec/igou-runtime-manifest.py --revision "$RUNTIME_REVISION" > /usr/share/igou/runtime.json
+# Keep runtime diagnostics in the build log.
+RUN python3 --version && rpm -q python3 python3-libs && ansible --version && python3 -m pip check

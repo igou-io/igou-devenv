@@ -60,7 +60,7 @@ mechanism. See [AGENTS.md](AGENTS.md) for the per-layer Renovate strategy.
 | Dockerfile (binary downloads) | mise itself (GPG-signed checksums — trust anchor), Claude Code, Cursor agent, opencode | `.devcontainer/Dockerfile` (ARG + RUN) |
 | Dockerfile (pip) | Ansible ecosystem, yq, Kubernetes and API client libraries | `.devcontainer/requirements.txt` |
 
-Python 3.15 is the development runtime for `python`, `python3`, pip tooling, and the isolated Omnigent environment, with `ansible-core==2.22.0rc1` staged for evaluation. Until native RPMs are available, `.devcontainer/install-python.sh` builds Python 3.15.0 from the checksum-pinned python.org source. Distro Python remains available for OS utilities. Renovate keeps managed Python updates within the 3.15 series; source updates require reviewing the matching SHA-256.
+Fedora 45 supplies native Python 3.15 for `python`, `python3`, pip tooling, and the isolated Omnigent environment, with `ansible-core==2.22.0rc1` staged for evaluation. Each image build pulls the current Fedora base, disables layer caching, and refreshes distro packages. Python and Ansible versions, RPM versions, and dependency-check results are printed in the build log. Python has no source installer, custom Renovate feed, or runtime manifest.
 
 Python requirements are installed during the image build. Rebuild the image
 after changing `.devcontainer/requirements.txt`.
@@ -128,9 +128,9 @@ make shell   # open a shell inside
 make down    # stop and remove the container
 ```
 
-`make up` is not a from-scratch build: `devcontainer.json` sets
-`cacheFrom: ghcr.io/igou-io/igou-devenv`, so it pulls the published image and
-reuses its layers. The image is **public**, so no `docker login` is needed.
+When an image is built, `devcontainer.json` passes `--pull --no-cache` so the
+build refreshes Fedora packages. Starting an existing container reuses that
+container; use `make rebuild` to recreate it with current packages.
 
 ### Run via pull (no build)
 

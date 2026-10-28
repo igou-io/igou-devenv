@@ -5,12 +5,12 @@ WORKSPACE    = $(CURDIR)
 
 .PHONY: link-skills build up up-release down restart exec shell run test test-all test-tools test-sandbox-primitives test-podman test-env test-mise test-ssh test-mise-lockfile test-openshell-gateway-config test-qemu clean rebuild help renovate-validate renovate-dry-run sbom sbom-devcontainer e2e mise-lock release release-dry-run release-prepare release-prepare-clis release-watch
 
-## Build the devcontainer image (with cache)
+## Build the devcontainer image with a fresh base and distro packages
 ## Runs: Dockerfile only (no lifecycle hooks)
 build:
 	$(DEVCONTAINER) build --workspace-folder $(WORKSPACE)
 
-## Build (cached) and start the devcontainer
+## Build with fresh packages and start the devcontainer
 ## Runs: init.sh → Dockerfile (including pip) → post-create.sh → post-start.sh
 ## On subsequent starts (container already exists): post-start.sh only
 ##

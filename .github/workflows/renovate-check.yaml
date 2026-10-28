@@ -8,7 +8,6 @@ on:
       - renovate.json
       - renovate-base.json
       - mise.toml
-      - .devcontainer/install-python.sh
       - tests/test-renovate.mjs
       - .github/workflows/renovate-check.yaml
   workflow_dispatch: {}

@@ -1,6 +1,6 @@
 # Devcontainer context
 
-You are running inside a CentOS Stream 10 devcontainer based development environment used to work on homelab repos.
+You are running inside a Fedora 45 devcontainer based development environment used to work on homelab repos.
 
 ## What this container is
 

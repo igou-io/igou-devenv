@@ -58,9 +58,7 @@ jobs:
           docker buildx build \
             --file .devcontainer/Dockerfile \
             --secret id=github_token,env=GITHUB_TOKEN \
-            --build-arg RUNTIME_REVISION=${{ github.sha }} \
-            --cache-from type=registry,ref=${IMAGE}:latest \
-            --cache-to type=inline \
+            --pull --no-cache \
             --label org.opencontainers.image.revision=${{ github.sha }} \
             --label org.opencontainers.image.source=https://github.com/${{ github.repository }} \
             --tag ${IMAGE}:latest \
@@ -104,29 +102,6 @@ jobs:
           [ -n "$digest" ] || { echo "::error::could not resolve pushed digest"; exit 1; }
           echo "digest=$digest" >> "$GITHUB_OUTPUT"
           echo "Pushed \`${IMAGE}@${digest}\` (revision ${{ github.sha }})" >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Record tested runtime
-        env:
-          RUNTIME_DIGEST: ${{ steps.push.outputs.digest }}
-          RUNTIME_REVISION: ${{ github.sha }}
-        run: |
-          docker run --rm --entrypoint python3.15 "${IMAGE}:latest" \
-            /usr/local/libexec/igou-runtime-manifest.py \
-            --revision "$RUNTIME_REVISION" --image "$IMAGE" --digest "$RUNTIME_DIGEST" \
-            > runtime.json
-          {
-            echo '## Tested runtime'
-            echo 'An empty registry digest means this PR image was tested locally and was not published.'
-            echo '```json'
-            cat runtime.json
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Upload runtime manifest
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: devenv-runtime
-          path: runtime.json
 
       # Scan the exact pushed digest so the SBOM is bound to the artifact
       # consumers pull, not a mutable tag. PR and branch-dispatch builds are
