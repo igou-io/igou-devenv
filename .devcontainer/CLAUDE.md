@@ -1,6 +1,6 @@
 # Devcontainer context
 
-You are running inside a Fedora 45 devcontainer based development environment used to work on homelab repos.
+You are running inside a Fedora devcontainer based development environment used to work on homelab repos. The image uses a released Fedora version and its native Python.
 
 ## What this container is
 

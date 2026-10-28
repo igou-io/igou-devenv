@@ -4,9 +4,11 @@ on:
   push:
     branches:
       - main
+      - devel
   pull_request:
     branches:
       - main
+      - devel
   schedule:
     - cron: '0 6 * * 1' # Weekly on Monday at 06:00 Eastern
       timezone: America/New_York
@@ -30,6 +32,7 @@ concurrency:
 
 env:
   IMAGE: ghcr.io/igou-io/igou-devenv
+  IMAGE_TAG: ${{ github.ref == 'refs/heads/devel' && 'devel' || 'latest' }}
 
 jobs:
   build:
@@ -61,7 +64,7 @@ jobs:
             --pull --no-cache \
             --label org.opencontainers.image.revision=${{ github.sha }} \
             --label org.opencontainers.image.source=https://github.com/${{ github.repository }} \
-            --tag ${IMAGE}:latest \
+            --tag ${IMAGE}:${IMAGE_TAG} \
             --load \
             .
 
@@ -85,7 +88,7 @@ jobs:
             -v /dev:/dev \
             -v "$PWD:/src:ro" \
             -w /workspace \
-            "${IMAGE}:latest" \
+            "${IMAGE}:${IMAGE_TAG}" \
             bash -c 'cp -a /src /workspace/igou-devenv && \
               chown -R igou:igou /workspace/igou-devenv && \
               exec runuser -u igou -- env \
@@ -95,10 +98,10 @@ jobs:
 
       - name: Push image
         id: push
-        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        if: contains(fromJSON('["refs/heads/main", "refs/heads/devel"]'), github.ref) && github.event_name != 'pull_request'
         run: |
-          docker push ${IMAGE}:latest
-          digest=$(docker buildx imagetools inspect ${IMAGE}:latest --format '{{.Manifest.Digest}}')
+          docker push ${IMAGE}:${IMAGE_TAG}
+          digest=$(docker buildx imagetools inspect ${IMAGE}:${IMAGE_TAG} --format '{{.Manifest.Digest}}')
           [ -n "$digest" ] || { echo "::error::could not resolve pushed digest"; exit 1; }
           echo "digest=$digest" >> "$GITHUB_OUTPUT"
           echo "Pushed \`${IMAGE}@${digest}\` (revision ${{ github.sha }})" >> "$GITHUB_STEP_SUMMARY"
@@ -114,7 +117,7 @@ jobs:
           if [ -n "${{ steps.push.outputs.digest }}" ]; then
             echo "ref=${IMAGE}@${{ steps.push.outputs.digest }}" >> "$GITHUB_OUTPUT"
           else
-            echo "ref=${IMAGE}:latest" >> "$GITHUB_OUTPUT"
+            echo "ref=${IMAGE}:${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Generate devcontainer SBOM
@@ -133,7 +136,7 @@ jobs:
           # modules in bundled Go/npm CLIs (see #84 for the earlier opt-out);
           # accepted trade-off: alerts against /opt/mise/installs/... paths are
           # remediated by Renovate tool bumps, not by patches in this repo.
-          dependency-snapshot: ${{ steps.push.outcome == 'success' }}
+          dependency-snapshot: ${{ steps.push.outcome == 'success' && github.ref == 'refs/heads/main' }}
 
       # Keyless (OIDC) attestations bound to the pushed digest: build
       # provenance (which workflow/commit produced the image) and the SBOM

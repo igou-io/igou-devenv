@@ -60,7 +60,19 @@ mechanism. See [AGENTS.md](AGENTS.md) for the per-layer Renovate strategy.
 | Dockerfile (binary downloads) | mise itself (GPG-signed checksums — trust anchor), Claude Code, Cursor agent, opencode | `.devcontainer/Dockerfile` (ARG + RUN) |
 | Dockerfile (pip) | Ansible ecosystem, yq, Kubernetes and API client libraries | `.devcontainer/requirements.txt` |
 
-Fedora 45 supplies native Python 3.15 for `python`, `python3`, and pip tooling, with `ansible-core==2.22.0rc1` staged for evaluation. Each image build pulls the current Fedora base, disables layer caching, and refreshes distro packages. Python and Ansible versions, RPM versions, and dependency-check results are printed in the build log. Python has no source installer, custom Renovate feed, or runtime manifest.
+Released Fedora supplies native Python for `python`, `python3`, and pip tooling. The current baseline is Fedora 44 and Python 3.14. Each image build pulls the current base, disables layer caching, and refreshes distro packages. Python/Ansible versions, RPM versions, and dependency-check results appear in the build log. Python has no source installer, custom Renovate feed, or runtime manifest.
+
+| Branch | Ansible Core | Published image tag |
+| --- | --- | --- |
+| `main` | Latest stable release, currently 2.21.5 | `ghcr.io/igou-io/igou-devenv:latest` |
+| `devel` | Published alpha/beta/RC releases | `ghcr.io/igou-io/igou-devenv:devel` |
+
+Both branches use stable Fedora and its native Python. Renovate checks both
+branches, excludes Core prereleases on `main`, and allows them on `devel`.
+Fedora release numbers come from the built-in endoflife-date datasource;
+image digests are not pinned. Core and Fedora upgrades require review.
+The existing tests and CI gate apply to both channels. To run the preview
+image, use `make up-release TAG=devel` or `make run TAG=devel`.
 
 Python requirements are installed during the image build. Rebuild the image
 after changing `.devcontainer/requirements.txt`.
@@ -461,8 +473,8 @@ What carries over, and how:
 
 All tool versions are pinned and managed by [Renovate](https://docs.renovatebot.com/):
 
-- **Dockerfile base image** — the Fedora 45 tag floats; Renovate proposes OS release upgrades for review
-- **Ansible Core** — both devenv and AWX track prereleases and stable releases in a separate manual-merge group, without the shared release-age delay or weekly schedule
+- **Dockerfile base image** — the selected stable Fedora tag floats; Renovate uses released Fedora versions from endoflife.date and proposes OS upgrades for review
+- **Ansible Core** — `main` tracks stable releases; `devel` also accepts published alpha/beta/RC versions. Core has a separate manual-merge group without the shared release-age delay or weekly schedule
 - **Mise-managed CLI tools** — pinned in `mise.toml`, per-asset checksums in `mise.lock`. Renovate's native `mise` manager handles aqua/npm tools; a custom regex handles all annotated `http:` tables. Both use the `mise-managed cli tools` group, whose preparation workflow regenerates the lock before enabling auto-merge.
 - **OpenShift CLI** — the shared `openshift-mirror` datasource reads `Version:` and `Created:` from Red Hat's release metadata. Its release timestamp preserves the 10-day age gate.
 - **aqua-registry pin** — the registry URL contains an immutable release commit SHA, with its tag alongside it. Renovate's `github-tags` datasource updates both together in a separate group with automerge disabled; `tests/test-mise.sh` checks for per-tool verification downgrades.
@@ -518,10 +530,12 @@ to cut a throwaway test promotion.
 
 ## CI
 
-GitHub Actions builds the devcontainer on every push and PR to `main` using
-[devcontainers/ci](https://github.com/devcontainers/ci). The workflow builds
-the full image (Dockerfile + Features + lifecycle hooks) and runs the full
-test suite (`tests/run-all.sh`) inside the container.
+GitHub Actions builds the Dockerfile with Docker Buildx on pushes and PRs to
+`main` and `devel`, then runs the existing test suite inside the image.
+Successful branch builds publish `:latest` from `main` and `:devel` from
+`devel`; PRs do not publish. Weekly scheduled builds and CalVer releases use
+`main` and `:latest`. Devel builds run on pushes or manual workflow dispatch.
+Only main images update the repository dependency graph.
 
 CI should hard-fail when required packages or commands are missing. Runtime
 namespace and bubblewrap capability checks are diagnostic by default because CI

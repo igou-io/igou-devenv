@@ -14,11 +14,12 @@ fail() { echo "  [FAIL] $1"; FAIL=$((FAIL + 1)); }
 # ---------------------------------------------------------------------------
 echo "==> Verifying CLI tools..."
 
-if python3 -c 'import sys; assert sys.version_info[:2] == (3, 15), sys.version' && \
-   python -c 'import sys; assert sys.version_info[:2] == (3, 15), sys.version'; then
-    ok "python and python3 use Python 3.15"
+if [[ "$(readlink -f "$(command -v python3)")" == "$(readlink -f /usr/bin/python3)" ]] && \
+   [[ "$(readlink -f "$(command -v python)")" == "$(readlink -f /usr/bin/python3)" ]] && \
+   rpm -qf "$(readlink -f /usr/bin/python3)" >/dev/null; then
+    ok "python and python3 use RPM-owned system Python"
 else
-    fail "python and python3 use Python 3.15"
+    fail "python and python3 use RPM-owned system Python"
 fi
 
 declare -A TOOLS=(

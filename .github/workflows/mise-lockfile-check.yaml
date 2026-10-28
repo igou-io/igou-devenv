@@ -11,7 +11,9 @@ name: mise lockfile freshness
 
 on:
   pull_request:
-    branches: [main]
+    branches:
+      - main
+      - devel
     paths:
       - mise.toml
       - mise.lock
