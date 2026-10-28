@@ -60,7 +60,7 @@ mechanism. See [AGENTS.md](AGENTS.md) for the per-layer Renovate strategy.
 | Dockerfile (binary downloads) | mise itself (GPG-signed checksums — trust anchor), Claude Code, Cursor agent, opencode | `.devcontainer/Dockerfile` (ARG + RUN) |
 | Dockerfile (pip) | Ansible ecosystem, yq, Kubernetes and API client libraries | `.devcontainer/requirements.txt` |
 
-Fedora 45 supplies native Python 3.15 for `python`, `python3`, pip tooling, and the isolated Omnigent environment, with `ansible-core==2.22.0rc1` staged for evaluation. Each image build pulls the current Fedora base, disables layer caching, and refreshes distro packages. Python and Ansible versions, RPM versions, and dependency-check results are printed in the build log. Python has no source installer, custom Renovate feed, or runtime manifest.
+Fedora 45 supplies native Python 3.15 for `python`, `python3`, and pip tooling, with `ansible-core==2.22.0rc1` staged for evaluation. Each image build pulls the current Fedora base, disables layer caching, and refreshes distro packages. Python and Ansible versions, RPM versions, and dependency-check results are printed in the build log. Python has no source installer, custom Renovate feed, or runtime manifest.
 
 Python requirements are installed during the image build. Rebuild the image
 after changing `.devcontainer/requirements.txt`.
@@ -319,37 +319,6 @@ The host side of this (the devenv VM / physical devhost) installs the same
 | `make renovate-dry-run` | Dry-run Renovate locally (requires `GITHUB_TOKEN`) |
 | `make sbom` | Generate SBOMs (SPDX + CycloneDX) for the built devcontainer image |
 | `make e2e` | Full end-to-end: rebuild devcontainer + run all tests |
-
-## Omnigent host runtime
-
-The image includes `omnigent` on the default PATH, installed in
-`/opt/omnigent` independently of the Ansible Python packages. No devcontainer
-lifecycle hooks or startup downloads are needed to run `omnigent host`.
-The pinned version is in `.devcontainer/omnigent/requirements.txt`; keep it
-compatible with the server when updating it.
-
-OpenShell requires the separate `websockets==15.0.1` override in
-`.devcontainer/omnigent/proxy/requirements.txt` so the host tunnel honors its
-HTTP proxy. This intentionally exceeds Omnigent 0.15.0's declared `<15` cap.
-`tests/test-omnigent.sh` checks CLI startup, matching SDK versions, proxy
-support, and rejects any other Python dependency conflicts.
-
-For an OpenShell sandbox, supply a writable `HOME` and workspace at runtime.
-Allow `/opt/omnigent` and the selected harness's executable paths in the
-filesystem policy **when creating the sandbox**. The Pi harness uses Node
-under `/opt/mise`; allow that path too. Allow network access to the Omnigent
-server and model provider, and the package registry if the harness needs to
-be installed. Pi is not bundled by this change; harness selection and
-installation remain separate from the Omnigent host runtime.
-
-Server authentication and model credentials are injected at runtime. This
-image does not register a host automatically or contain credentials. To use
-it for managed sessions, configure the Omnigent OpenShell backend's sandbox
-image explicitly: its image setting can override the gateway default.
-The harness dropdown selects the agent client running inside that sandbox;
-it does not select another image. Deployment configuration lives in
-`igou-openshift`, with the workflow documented in `igou-docs` under
-“Omnigent Managed Sandboxes and API Workflows.”
 
 ## Agent CLIs and credential profiles
 

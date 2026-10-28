@@ -255,21 +255,6 @@ COPY .devcontainer/requirements.txt /tmp/requirements.txt
 RUN python3 -m pip install --break-system-packages --ignore-installed -r /tmp/requirements.txt && \
     rm /tmp/requirements.txt
 
-# Omnigent host runtime: separate from the Ansible Python dependency set.
-# websockets 15 supplies HTTP-proxy support required inside OpenShell; install
-# that tested exception after resolving Omnigent's declared websockets<15 cap.
-COPY .devcontainer/omnigent/ /tmp/omnigent/
-# google-re2 has no CPython 3.15 wheel yet; compile it against the distro RE2.
-RUN dnf install -y gcc-c++ re2-devel && \
-    python3 -m venv /opt/omnigent && \
-    /opt/omnigent/bin/pip install --no-cache-dir -r /tmp/omnigent/requirements-build.txt && \
-    CPLUS_INCLUDE_PATH="$(/opt/omnigent/bin/python -c 'import pybind11; print(pybind11.get_include())')" \
-      /opt/omnigent/bin/pip install --no-cache-dir -r /tmp/omnigent/requirements.txt && \
-    /opt/omnigent/bin/pip install --no-cache-dir --no-deps -r /tmp/omnigent/proxy/requirements.txt && \
-    ln -s /opt/omnigent/bin/omnigent /usr/local/bin/omnigent && \
-    rm -rf /tmp/omnigent && \
-    dnf remove -y gcc-c++ && dnf clean all
-
 # ---------------------------------------------------------------------------
 # ghapp — runtime-minted, repo-scoped GitHub App tokens (credential helper +
 # gh-app/git-app wrappers). Not published to PyPI (the name belongs to

@@ -38,17 +38,6 @@
     },
     {
       "matchManagers": [
-        "pip_requirements"
-      ],
-      "matchFileNames": [
-        ".devcontainer/omnigent/**"
-      ],
-      "groupName": "omnigent runtime",
-      "automerge": false,
-      "description": "Review compatibility with the deployed server and the tested OpenShell WebSocket proxy override before updating."
-    },
-    {
-      "matchManagers": [
         "dockerfile"
       ],
       "groupName": "container base images"

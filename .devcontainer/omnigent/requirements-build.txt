@@ -1,2 +1,0 @@
-# Headers for google-re2's CPython 3.15 source build; distro pybind11 is too old.
-pybind11==3.1.0
