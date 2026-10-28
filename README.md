@@ -60,7 +60,14 @@ mechanism. See [AGENTS.md](AGENTS.md) for the per-layer Renovate strategy.
 | Dockerfile (binary downloads) | mise itself (GPG-signed checksums — trust anchor), Claude Code, Cursor agent, opencode | `.devcontainer/Dockerfile` (ARG + RUN) |
 | Dockerfile (pip) | Ansible ecosystem, yq, Kubernetes and API client libraries | `.devcontainer/requirements.txt` |
 
-Python 3.14 is the development runtime for `python`, `python3`, pip tooling, and the isolated Omnigent environment. Distro Python remains available for OS utilities. Renovate keeps managed Python updates within the 3.14 series.
+Released Fedora supplies native Python for `python`, `python3`, and pip tooling. The current baseline is Fedora 44 and Python 3.14. Each image build pulls the current base, disables layer caching, and refreshes distro packages. Python/Ansible versions, RPM versions, and dependency-check results appear in the build log. Python has no source installer, custom Renovate feed, or runtime manifest.
+
+Devenv has one stable channel: `main` publishes
+`ghcr.io/igou-io/igou-devenv:latest` after the existing CI suite passes.
+Renovate excludes Ansible Core prereleases. Fedora release numbers come from
+the built-in endoflife-date datasource; image digests are not pinned. Core and
+Fedora upgrades require review. The rolling Ansible preview channel lives only
+in `igou-ansible` on its `prerelease` branch and AWX EE image tag.
 
 Python requirements are installed during the image build. Rebuild the image
 after changing `.devcontainer/requirements.txt`.
@@ -128,9 +135,9 @@ make shell   # open a shell inside
 make down    # stop and remove the container
 ```
 
-`make up` is not a from-scratch build: `devcontainer.json` sets
-`cacheFrom: ghcr.io/igou-io/igou-devenv`, so it pulls the published image and
-reuses its layers. The image is **public**, so no `docker login` is needed.
+When an image is built, `devcontainer.json` passes `--pull --no-cache` so the
+build refreshes Fedora packages. Starting an existing container reuses that
+container; use `make rebuild` to recreate it with current packages.
 
 ### Run via pull (no build)
 
@@ -320,37 +327,6 @@ The host side of this (the devenv VM / physical devhost) installs the same
 | `make sbom` | Generate SBOMs (SPDX + CycloneDX) for the built devcontainer image |
 | `make e2e` | Full end-to-end: rebuild devcontainer + run all tests |
 
-## Omnigent host runtime
-
-The image includes `omnigent` on the default PATH, installed in
-`/opt/omnigent` independently of the Ansible Python packages. No devcontainer
-lifecycle hooks or startup downloads are needed to run `omnigent host`.
-The pinned version is in `.devcontainer/omnigent/requirements.txt`; keep it
-compatible with the server when updating it.
-
-OpenShell requires the separate `websockets==15.0.1` override in
-`.devcontainer/omnigent/proxy/requirements.txt` so the host tunnel honors its
-HTTP proxy. This intentionally exceeds Omnigent 0.15.0's declared `<15` cap.
-`tests/test-omnigent.sh` checks CLI startup, matching SDK versions, proxy
-support, and rejects any other Python dependency conflicts.
-
-For an OpenShell sandbox, supply a writable `HOME` and workspace at runtime.
-Allow `/opt/omnigent` and the selected harness's executable paths in the
-filesystem policy **when creating the sandbox**. The Pi harness uses Node
-under `/opt/mise`; allow that path too. Allow network access to the Omnigent
-server and model provider, and the package registry if the harness needs to
-be installed. Pi is not bundled by this change; harness selection and
-installation remain separate from the Omnigent host runtime.
-
-Server authentication and model credentials are injected at runtime. This
-image does not register a host automatically or contain credentials. To use
-it for managed sessions, configure the Omnigent OpenShell backend's sandbox
-image explicitly: its image setting can override the gateway default.
-The harness dropdown selects the agent client running inside that sandbox;
-it does not select another image. Deployment configuration lives in
-`igou-openshift`, with the workflow documented in `igou-docs` under
-“Omnigent Managed Sandboxes and API Workflows.”
-
 ## Agent CLIs and credential profiles
 
 Claude Code, Codex, Cursor agent, and OpenCode run directly from their installed
@@ -492,7 +468,8 @@ What carries over, and how:
 
 All tool versions are pinned and managed by [Renovate](https://docs.renovatebot.com/):
 
-- **Dockerfile base image** — pinned by digest, updated by Renovate's Docker manager
+- **Dockerfile base image** — the selected stable Fedora tag floats; Renovate uses released Fedora versions from endoflife.date and proposes OS upgrades for review
+- **Ansible Core** — tracks stable releases in a separate manual-merge group without the shared release-age delay or weekly schedule
 - **Mise-managed CLI tools** — pinned in `mise.toml`, per-asset checksums in `mise.lock`. Renovate's native `mise` manager handles aqua/npm tools; a custom regex handles all annotated `http:` tables. Both use the `mise-managed cli tools` group, whose preparation workflow regenerates the lock before enabling auto-merge.
 - **OpenShift CLI** — the shared `openshift-mirror` datasource reads `Version:` and `Created:` from Red Hat's release metadata. Its release timestamp preserves the 10-day age gate.
 - **aqua-registry pin** — the registry URL contains an immutable release commit SHA, with its tag alongside it. Renovate's `github-tags` datasource updates both together in a separate group with automerge disabled; `tests/test-mise.sh` checks for per-tool verification downgrades.
@@ -548,10 +525,12 @@ to cut a throwaway test promotion.
 
 ## CI
 
-GitHub Actions builds the devcontainer on every push and PR to `main` using
-[devcontainers/ci](https://github.com/devcontainers/ci). The workflow builds
-the full image (Dockerfile + Features + lifecycle hooks) and runs the full
-test suite (`tests/run-all.sh`) inside the container.
+GitHub Actions builds the Dockerfile with Docker Buildx on pushes and PRs to
+`main`, then runs the existing test suite inside the image.
+Successful main builds publish `:latest`; PRs do not publish.
+Weekly scheduled builds and CalVer releases use
+`main` and `:latest`. Devel builds run on pushes or manual workflow dispatch.
+Only main images update the repository dependency graph.
 
 CI should hard-fail when required packages or commands are missing. Runtime
 namespace and bubblewrap capability checks are diagnostic by default because CI

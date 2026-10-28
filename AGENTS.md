@@ -61,7 +61,7 @@ Hard execution-model rules:
 ## Common Commands
 
 ```bash
-make build              # Build the devcontainer image (cached)
+make build              # Build with a fresh Fedora base and current packages
 make up                 # Build and start the full local devcontainer
 make up-release         # Start full devcontainer from a published image tag
 make run                # Lightweight code-server path from published image
@@ -185,6 +185,14 @@ after the relevant test has actually passed.
   contain only `op://` references.
 - Python packages are installed directly with pip during the image build
   rather than isolated with pipx.
+- Python itself comes from Fedora RPMs. Builds use `--pull --no-cache` and
+  refresh distro packages; log the Python/Ansible versions and dependency checks.
+  Do not add a Python source installer, custom Renovate tracker, or runtime manifest.
+- Devenv has one stable channel: `main` uses stable Ansible Core and publishes
+  `:latest` after the existing suite passes. Select released Fedora versions
+  through Renovate's built-in endoflife-date datasource without digest pins,
+  using the native interpreter. Core and Fedora upgrades require review.
+  Published Ansible previews belong only to `igou-ansible`'s `prerelease` branch.
 - The mise binary is bootstrapped by verifying release checksums with a pinned
   GPG fingerprint. Mise-managed tools are pinned in `mise.lock`, and
   `tests/test-mise.sh` audits the expected verification method.

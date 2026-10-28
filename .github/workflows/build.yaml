@@ -58,8 +58,7 @@ jobs:
           docker buildx build \
             --file .devcontainer/Dockerfile \
             --secret id=github_token,env=GITHUB_TOKEN \
-            --cache-from type=registry,ref=${IMAGE}:latest \
-            --cache-to type=inline \
+            --pull --no-cache \
             --label org.opencontainers.image.revision=${{ github.sha }} \
             --label org.opencontainers.image.source=https://github.com/${{ github.repository }} \
             --tag ${IMAGE}:latest \
@@ -105,9 +104,9 @@ jobs:
           echo "Pushed \`${IMAGE}@${digest}\` (revision ${{ github.sha }})" >> "$GITHUB_STEP_SUMMARY"
 
       # Scan the exact pushed digest so the SBOM is bound to the artifact
-      # consumers pull, not a mutable tag. PR and branch-dispatch builds are
-      # never pushed, so they scan the just-built image in the local daemon.
-      # The explicit :latest tag keeps syft's daemon-first resolution from falling
+      # consumers pull, not a mutable tag. Unpublished PR and feature-branch
+      # builds scan the just-built image in the local daemon.
+      # The explicit channel tag keeps syft's daemon-first resolution from falling
       # back to the stale remote image).
       - name: Resolve SBOM image reference
         id: sbomref
@@ -134,7 +133,7 @@ jobs:
           # modules in bundled Go/npm CLIs (see #84 for the earlier opt-out);
           # accepted trade-off: alerts against /opt/mise/installs/... paths are
           # remediated by Renovate tool bumps, not by patches in this repo.
-          dependency-snapshot: ${{ steps.push.outcome == 'success' }}
+          dependency-snapshot: ${{ steps.push.outcome == 'success' && github.ref == 'refs/heads/main' }}
 
       # Keyless (OIDC) attestations bound to the pushed digest: build
       # provenance (which workflow/commit produced the image) and the SBOM

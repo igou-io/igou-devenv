@@ -31,29 +31,9 @@
     },
     {
       "matchManagers": [
-        "pip_requirements"
-      ],
-      "matchFileNames": [
-        ".devcontainer/omnigent/**"
-      ],
-      "groupName": "omnigent runtime",
-      "automerge": false,
-      "description": "Review compatibility with the deployed server and the tested OpenShell WebSocket proxy override before updating."
-    },
-    {
-      "matchManagers": [
         "dockerfile"
       ],
       "groupName": "container base images"
-    },
-    {
-      "matchManagers": [
-        "dockerfile"
-      ],
-      "matchPackageNames": [
-        "quay.io/centos/centos"
-      ],
-      "pinDigests": false
     },
     {
       "matchManagers": [
@@ -171,12 +151,42 @@
       "automerge": false
     },
     {
-      "description": "The development environment uses Python 3.14; review a minor upgrade explicitly.",
-      "matchDepNames": [
-        "python",
-        "cpython"
+      "description": "Keep main on stable Ansible Core releases",
+      "enabled": true,
+      "matchDatasources": [
+        "pypi"
       ],
-      "allowedVersions": ">=3.14 <3.15"
+      "matchPackageNames": [
+        "ansible-core"
+      ],
+      "versioning": "pep440",
+      "ignoreUnstable": true,
+      "respectLatest": true,
+      "minimumReleaseAge": "0 days",
+      "schedule": [
+        "at any time"
+      ],
+      "groupName": "ansible-core",
+      "automerge": false
+    },
+    {
+      "description": "Use released Fedora versions instead of development image tags",
+      "enabled": true,
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "registry.fedoraproject.org/fedora"
+      ],
+      "overrideDatasource": "endoflife-date",
+      "overridePackageName": "fedora",
+      "registryUrls": [
+        "https://endoflife.date/api"
+      ],
+      "versioning": "loose",
+      "minimumReleaseAge": "0 days",
+      "pinDigests": false,
+      "automerge": false
     }
   ],
   "customManagers": [
