@@ -1,7 +1,7 @@
 name: cli-sha-recapture (coding-agent CLI PRs)
 
 # Event-driven sibling of release-prepare: when Renovate opens (or rebases) the
-# renovate/coding-agent-clis group PR, the version bump alone leaves the
+# renovate/main-coding-agent-clis group PR, the version bump alone leaves the
 # per-arch *_SHA256_* Dockerfile ARGs stale and the build red. Hosted Renovate
 # cannot update those ARGs. Human edits freeze the branch; renovate.json
 # recognizes this workflow's generated-artifact author so later Renovate
@@ -37,7 +37,7 @@ jobs:
     # manual retry path and runs unconditionally.
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      (github.head_ref == 'renovate/coding-agent-clis' &&
+      (github.head_ref == 'renovate/main-coding-agent-clis' &&
        github.event.pull_request.head.repo.full_name == github.repository &&
        github.event.pull_request.user.login == 'renovate[bot]')
     runs-on: ubuntu-latest
@@ -59,5 +59,5 @@ jobs:
         run: |
           gh issue create --repo igou-io/igou-devenv \
             --title "Coding-agent CLI SHA recapture failed ($(date -u +%Y.%m.%d))" \
-            --body "cli-sha-recapture could not recapture/merge the coding-agent CLI PR. Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}. Fix manually: run \`bash bin/release-prepare-clis\` locally with GH_TOKEN set, or recapture the *_SHA256_* ARGs by hand on the renovate/coding-agent-clis branch." \
+            --body "cli-sha-recapture could not recapture/merge the coding-agent CLI PR. Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}. Fix manually: run \`bash bin/release-prepare-clis\` locally with GH_TOKEN set, or recapture the *_SHA256_* ARGs by hand on the renovate/main-coding-agent-clis branch." \
             || echo "::warning::failed to file tracking issue"
