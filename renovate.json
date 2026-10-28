@@ -3,10 +3,6 @@
   "extends": [
     "github>igou-io/igou-devenv//renovate-base.json"
   ],
-  "baseBranchPatterns": [
-    "main",
-    "prerelease"
-  ],
   "customDatasources": {
     "cursor-agent": {
       "defaultRegistryUrlTemplate": "https://cursor.com/install",
@@ -17,13 +13,6 @@
     }
   },
   "packageRules": [
-    {
-      "description": "Keep normal dependency updates on main; prerelease tracks Core and Fedora only",
-      "matchBaseBranches": [
-        "prerelease"
-      ],
-      "enabled": false
-    },
     {
       "matchManagers": [
         "pip_requirements"
@@ -181,20 +170,6 @@
       "automerge": false
     },
     {
-      "description": "Allow published Ansible previews on prerelease",
-      "matchBaseBranches": [
-        "prerelease"
-      ],
-      "matchDatasources": [
-        "pypi"
-      ],
-      "matchPackageNames": [
-        "ansible-core"
-      ],
-      "ignoreUnstable": false,
-      "respectLatest": false
-    },
-    {
       "description": "Use released Fedora versions instead of development image tags",
       "enabled": true,
       "matchDatasources": [
@@ -212,22 +187,6 @@
       "minimumReleaseAge": "0 days",
       "pinDigests": false,
       "automerge": false
-    },
-    {
-      "description": "Automerge enabled prerelease updates after CI without release-age or schedule delays",
-      "matchBaseBranches": [
-        "prerelease"
-      ],
-      "automerge": true,
-      "automergeType": "pr",
-      "platformAutomerge": false,
-      "minimumReleaseAge": null,
-      "schedule": [
-        "at any time"
-      ],
-      "automergeSchedule": [
-        "at any time"
-      ]
     }
   ],
   "customManagers": [

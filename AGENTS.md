@@ -188,14 +188,11 @@ after the relevant test has actually passed.
 - Python itself comes from Fedora RPMs. Builds use `--pull --no-cache` and
   refresh distro packages; log the Python/Ansible versions and dependency checks.
   Do not add a Python source installer, custom Renovate tracker, or runtime manifest.
-- `main` uses stable Ansible Core and publishes `:latest`; `prerelease` uses published
-  alpha/beta/RC releases and publishes `:prerelease`. Both select released Fedora
-  versions through Renovate's built-in endoflife-date datasource, without
-  digest pins, and use the native interpreter. Only `prerelease` allows Core
-  prereleases. The existing suite gates both channels.
-  Only Core and Fedora receive automated `prerelease` updates; Renovate merges
-  them after CI passes without release-age or schedule delays. Main retains
-  manual Core and Fedora review.
+- Devenv has one stable channel: `main` uses stable Ansible Core and publishes
+  `:latest` after the existing suite passes. Select released Fedora versions
+  through Renovate's built-in endoflife-date datasource without digest pins,
+  using the native interpreter. Core and Fedora upgrades require review.
+  Published Ansible previews belong only to `igou-ansible`'s `prerelease` branch.
 - The mise binary is bootstrapped by verifying release checksums with a pinned
   GPG fingerprint. Mise-managed tools are pinned in `mise.lock`, and
   `tests/test-mise.sh` audits the expected verification method.

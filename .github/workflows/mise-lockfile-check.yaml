@@ -13,7 +13,6 @@ on:
   pull_request:
     branches:
       - main
-      - prerelease
     paths:
       - mise.toml
       - mise.lock

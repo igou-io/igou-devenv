@@ -13,7 +13,7 @@
 set -euo pipefail
 
 REPO="igou-io/igou-devenv"
-BRANCH="renovate/main-mise-managed-cli-tools"
+BRANCH="renovate/mise-managed-cli-tools"
 
 pr="$(gh pr list --repo "$REPO" --state open --head "$BRANCH" --json number,author,isCrossRepository --jq 'map(select(.author.login == "app/renovate" and .isCrossRepository == false))[0].number // empty')"
 if [ -z "$pr" ]; then
