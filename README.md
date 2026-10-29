@@ -10,7 +10,7 @@ forwarding — see [ADR-0004](https://github.com/igou-io/igou-docs/blob/main/dev
 This repo has multiple execution models with different capabilities:
 
 - local full devcontainer via Cursor Dev Containers or `make up`
-- lightweight published-image path via `make run`
+- full devcontainer from a published image via `make up-release`
 - Hermes docker-terminal containers
 - OpenShift Dev Spaces workspace on the ocp cluster via `devfile.yaml`
 - CI/build containers
@@ -44,10 +44,6 @@ tree, nmap, tmux, vim, htop, node
 **AI agent CLIs:** Claude Code (`claude`), Cursor agent (`cursor-agent`, alias `agent`),
 opencode (`opencode`) — each pinned + cryptographically verified at build time
 
-**Browser IDE:** code-server (browser-based VS Code) — started always-on by
-`post-start.sh`, password-authenticated, served on port `8080`
-(see [Browser IDE (code-server)](#browser-ide-code-server))
-
 ### How Tools Are Installed
 
 CLI tooling is split across four layers, each with its own version-pinning
@@ -56,7 +52,7 @@ mechanism. See [AGENTS.md](AGENTS.md) for the per-layer Renovate strategy.
 | Layer | What | Where to add |
 |---|---|---|
 | Dockerfile (dnf) | podman, buildah, skopeo, jq, gnupg2, 1Password CLI, Docker CLI, base utilities | `.devcontainer/Dockerfile` |
-| Mise (`mise.toml` + `mise.lock`) | kubectl, helm, terraform, gh, argocd, kustomize, kubeseal, flux2, sops, kubeconform, kind, act, tkn, tkn-pac, rclone, direnv, age, node, oc, virtctl, kube-burner, kube-burner-ocp, openshell, code-server, rc, t3, gws | `mise.toml` (versions) + `mise.lock` (per-asset checksums) |
+| Mise (`mise.toml` + `mise.lock`) | kubectl, helm, terraform, gh, argocd, kustomize, kubeseal, flux2, sops, kubeconform, kind, act, tkn, tkn-pac, rclone, direnv, age, node, oc, virtctl, kube-burner, kube-burner-ocp, openshell, rc, t3, gws | `mise.toml` (versions) + `mise.lock` (per-asset checksums) |
 | Dockerfile (binary downloads) | mise itself (GPG-signed checksums — trust anchor), Claude Code, Cursor agent, opencode | `.devcontainer/Dockerfile` (ARG + RUN) |
 | Dockerfile (pip) | Ansible ecosystem, yq, Kubernetes and API client libraries | `.devcontainer/requirements.txt` |
 
@@ -78,7 +74,7 @@ after changing `.devcontainer/requirements.txt`.
 - **GPG (pinned fingerprint, via `aqua-registry/<tool>-postinstall.sh`)**: helm, terraform, oc
 - **SLSA L3 attestation + sha256**: flux2, sops, argocd
 - **sha256** (upstream-published checksums): kubectl, gh, kustomize, kubeseal, kubeconform, kind, act, tkn, rclone, direnv, age
-- **blake3 TOFU** (mise lockfile pin, or upstream checksums not consumed by the `http:` backend): node, virtctl, kube-burner, kube-burner-ocp, openshell, code-server, rc, gws
+- **blake3 TOFU** (mise lockfile pin, or upstream checksums not consumed by the `http:` backend): node, virtctl, kube-burner, kube-burner-ocp, openshell, rc, gws
 
 ## Quick Start
 
@@ -139,35 +135,15 @@ When an image is built, `devcontainer.json` passes `--pull --no-cache` so the
 build refreshes Fedora packages. Starting an existing container reuses that
 container; use `make rebuild` to recreate it with current packages.
 
-### Run via pull (no build)
-
-To skip building entirely and just get the browser IDE on a folder, pull and run
-the published image directly. The package is public, so this needs **no login**:
+### Run from a published image
 
 ```bash
-make run                 # opens the current dir in code-server at http://localhost:8080
-make run DIR=~/code      # open a different folder
-make run TAG=2026.06.15-3 PORT=8443 PASSWORD=hunter2   # pin a release, port, password
+make up-release              # full devcontainer from :latest
+make up-release TAG=2026.06.15-3  # pin an existing release
 ```
 
-`make run` prints a generated password and starts code-server in the foreground
-(Ctrl-C to stop; the container is removed on exit). It's the raw equivalent of:
-
-```bash
-docker run --rm -it --user igou \
-  -e HOME=/home/igou -e PASSWORD=hunter2 \
-  -p 8080:8080 -v "$PWD:/workspace:Z" \
-  ghcr.io/igou-io/igou-devenv:2026.06.15-3 \
-  code-server --bind-addr 0.0.0.0:8080 /workspace
-```
-
-This is a lightweight, **ephemeral** path: code-server settings/extensions and
-the password are not persisted. It also does not imply the same privileged
-runtime, lifecycle hooks, host config mounts, Docker socket, `/dev` bind mount,
-or nested Podman/buildah capability as the full devcontainer. For the full,
-persistent environment (always-on code-server, 1Password, kubeconfig,
-nested Podman/buildah, libvirt) use `make up` or Cursor. Pin a `:YYYY.MM.DD` tag
-for reproducibility; `:latest` tracks the most recent green build on `main`.
+This uses the same mounts and lifecycle hooks as `make up`, with the public
+published image instead of a local build.
 
 ### After First Build
 
@@ -380,53 +356,8 @@ buildah bud -t myimage .
 Podman is configured with `fuse-overlayfs` for storage and `slirp4netns` for
 rootless networking in the full devcontainer. Docker CLI is also available there
 via the host socket (docker-outside-of-docker Feature). Do not infer nested
-Podman, host Docker socket access, or `/dev` access for `make run`, Hermes, or
+Podman, host Docker socket access, or `/dev` access for Hermes or
 CI without testing that exact runtime.
-
-## Browser IDE (code-server)
-
-[code-server](https://github.com/coder/code-server) (browser-based VS Code) is
-installed via mise and started **always-on** by `post-start.sh` on every
-container start. It serves on port **8080**.
-
-**Access it:**
-
-```bash
-# Get the password (generated on first start, persisted in the config)
-cat ~/.config/code-server/config.yaml   # look for the `password:` line
-
-# Then open http://<host>:8080 in a browser and log in.
-```
-
-Because the container runs with `--network=host`, port 8080 is published
-directly on the host's network — no port forwarding needed. From another
-machine, reach it over your existing SSH/Tailscale path to the host.
-
-**Security — read this.** The container is `--privileged` with `/dev`
-bind-mounted, so anyone who reaches the code-server port gets a terminal with
-**full host access**. It is bound to `0.0.0.0`, so:
-
-- Password authentication is **mandatory** and configured by default
-  (`auth: password`). Never set `auth: none`.
-- Prefer reaching it over an SSH tunnel or Tailscale rather than exposing
-  `:8080` to an untrusted network.
-- To pin a known password (instead of the generated one), set the `PASSWORD`
-  (or `HASHED_PASSWORD`) environment variable before code-server starts — it
-  overrides the config. e.g. source it via the `use` / `op` flow.
-
-**Config** lives at `~/.config/code-server/config.yaml`, seeded from
-[`dotfiles/code-server-config.yaml`](dotfiles/code-server-config.yaml) by
-`post-create.sh` on first run only. Both `~/.config/code-server` and
-`~/.local/share/code-server` are bind-mounted from the host, so the config
-(including the generated password), installed extensions, and editor settings
-**persist across image rebuilds** — the password is generated once and reused.
-To force a fresh config, delete `~/.config/code-server/config.yaml` on the host
-and restart.
-
-**Extensions** come from the [Open VSX](https://open-vsx.org/) registry, not
-Microsoft's marketplace, so the set available in the browser differs from
-Cursor/VS Code (Red Hat Ansible and HashiCorp Terraform are on Open VSX;
-some Microsoft-owned extensions are not).
 
 ## OpenShift Dev Spaces
 
@@ -439,8 +370,7 @@ https://devspaces.apps.ocp.igou.systems/#https://github.com/igou-io/igou-devenv
 ```
 
 [`devfile.yaml`](devfile.yaml) defines the workspace: the container is the
-published image, Dev Spaces injects its own che-code editor (the baked
-code-server is unused), and
+published image, Dev Spaces injects its own che-code editor, and
 [`.devcontainer/devspaces-bootstrap.sh`](.devcontainer/devspaces-bootstrap.sh)
 replaces the devcontainer lifecycle hooks (dotfiles, ghapp config, ssh-agent).
 

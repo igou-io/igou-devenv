@@ -27,7 +27,7 @@ repo does not ship agent launch wrappers.
   Avoid tight coupling to the `igou-devenv` directory layout when functionality
   may later move to its own repo.
 - Before changing release automation, mise management, QEMU/devcontainer
-  behavior, or code-server behavior, consult the relevant `igou-docs/devenv/`
+  behavior, consult the relevant `igou-docs/devenv/`
   note and verify it against the current implementation.
 - For Codex: use the `adding-a-mise-tool` skill when adding or changing
   mise-managed CLI tools in this repo.
@@ -41,7 +41,6 @@ matrix.
 | Model | Entry point | Capability summary |
 |---|---|---|
 | Local full devcontainer | Cursor Dev Containers or `make up` | Docker-launched, privileged, host networking, `/dev` bind mount, Docker socket, persistent host config mounts, nested Podman/buildah support. Intended for David's trusted local dev machine. Not a security sandbox for untrusted agent execution. |
-| Lightweight published image path | `make run` | Runs `ghcr.io/igou-io/igou-devenv` directly for code-server against a selected directory. Does not imply the same persistence, lifecycle hooks, privileged mode, or nested-container capability as `make up`. |
 | Hermes docker-terminal container | Hermes docker terminal setting | Hermes enters whatever image Hermes is configured to use in a rootless Podman environment. It is not assumed to be this repo's full devcontainer. |
 | CI/build environment | GitHub Actions/devcontainers CI | Builds and tests the devcontainer image. It should hard-fail on missing packages and broken commands, but should not hard-fail on namespace or bubblewrap runtime capabilities unless CI explicitly provides them. |
 
@@ -64,7 +63,6 @@ Hard execution-model rules:
 make build              # Build with a fresh Fedora base and current packages
 make up                 # Build and start the full local devcontainer
 make up-release         # Start full devcontainer from a published image tag
-make run                # Lightweight code-server path from published image
 make rebuild            # Full rebuild from scratch (no cache)
 make down               # Stop and remove the devcontainer
 make shell              # Open bash shell in running devcontainer
@@ -95,11 +93,10 @@ anyway.
 ├── devcontainer.json    # full local devcontainer config and mounts
 ├── init.sh              # host-side initializeCommand
 ├── post-create.sh       # shell config, workspace file
-├── post-start.sh        # SSH agent bootstrap, libvirt/dbus, code-server sync/start
+├── post-start.sh        # SSH agent bootstrap, libvirt/dbus, t3 startup
 ├── hygiene.sh           # Writable-layer prune (nested podman, scratchpads, caches), from post-start
-├── code-server-sync.sh  # applies devcontainer.json VS Code customizations to code-server
 └── requirements.txt     # pinned Python packages
-dotfiles/                # .bashrc, .bashrc.d/ (shell functions, sourced non-interactively too), tmux, code-server config, workspace file
+dotfiles/                # .bashrc, .bashrc.d/ (shell functions, sourced non-interactively too), tmux, workspace file
 bin/                     # local infrastructure helper scripts
 envs/                    # credential profiles with op:// references or literal values
 tests/                   # devcontainer and helper-script tests
@@ -113,8 +110,8 @@ Lifecycle hooks:
 | Hook | Runs on | Script | Purpose |
 |---|---|---|---|
 | `initializeCommand` | Host | `.devcontainer/init.sh` | Create mount directories before build/start |
-| `postCreateCommand` | Container | `.devcontainer/post-create.sh` | Configure shell, tmux, workspace, default code-server config |
-| `postStartCommand` | Container | `.devcontainer/post-start.sh` | Start container-local ssh-agent (igou-docs/devenv/Devenv Environment and Credential Decisions.md), libvirt/dbus/code-server, sync code-server settings |
+| `postCreateCommand` | Container | `.devcontainer/post-create.sh` | Configure shell, tmux, workspace |
+| `postStartCommand` | Container | `.devcontainer/post-start.sh` | Start container-local ssh-agent (igou-docs/devenv/Devenv Environment and Credential Decisions.md), libvirt/dbus/t3 |
 
 Python requirements are installed by `.devcontainer/Dockerfile` during the
 image build. Rebuild the image after changing `.devcontainer/requirements.txt`.
@@ -201,13 +198,6 @@ after the relevant test has actually passed.
   use the CLI SHA-recapture workflow; Claude verifies vendor-signed checksums.
   Persistent agent state is mounted from host directories, not baked into the
   image.
-- code-server is installed via mise, started by `post-start.sh`, and bound to
-  `0.0.0.0:8080` with mandatory password auth. Because the full devcontainer is
-  privileged with `/dev` mounted, anyone reaching code-server gets powerful host
-  access. Prefer SSH/Tailscale paths and never disable auth.
-- `.devcontainer/code-server-sync.sh` bridges `devcontainer.json`
-  customizations into code-server because code-server does not read
-  `devcontainer.json` directly.
 - QEMU/libvirt tooling is available in the full devcontainer for molecule
   provisioner work. `/dev/kvm` access depends on the host and the privileged
   `/dev` bind mount.

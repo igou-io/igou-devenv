@@ -137,20 +137,6 @@ url = "https://get.helm.sh/helm-v4.3.1-linux-arm64.tar.gz"
 checksum = "sha256:0403a88ae20913d11b10a2467b50087721fea7581736da6b9d3992f5357fe54b"
 url = "https://get.helm.sh/helm-v4.3.1-linux-amd64.tar.gz"
 
-[[tools."http:code-server"]]
-version = "4.141.0"
-backend = "http:code-server"
-
-[tools."http:code-server".options]
-strip_components = "1"
-
-[tools."http:code-server"."platforms.linux-arm64"]
-url = "https://github.com/coder/code-server/releases/download/v4.141.0/code-server-4.141.0-linux-arm64.tar.gz"
-
-[tools."http:code-server"."platforms.linux-x64"]
-checksum = "blake3:d4915052854802b95e8ddf6647bf656bf1fc579bf575a1c2249b5b3007d86869"
-url = "https://github.com/coder/code-server/releases/download/v4.141.0/code-server-4.141.0-linux-amd64.tar.gz"
-
 [[tools."http:gws"]]
 version = "0.22.5"
 backend = "http:gws"

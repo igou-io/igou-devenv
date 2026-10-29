@@ -8,7 +8,7 @@ if [ -n "${CI:-}" ]; then
 fi
 
 # Poll until a background service is listening on its port (up to 15s).
-# Long-lived services (code-server, t3) are forked near the end of this
+# The long-lived t3 service is forked near the end of this
 # script; when it runs as a devcontainer-CLI postStart exec, the exec
 # session is torn down as soon as the script exits and can reap a child
 # that is still mid-startup. Waiting for the listen socket keeps the
@@ -138,64 +138,13 @@ for d in virtqemud virtnetworkd virtstoraged; do
 done
 
 # ---------------------------------------------------------------------------
-# code-server — browser-based VS Code, started always-on. Bound to 0.0.0.0
-# (the container runs --network=host) so it's reachable on the host's network.
-# The container is --privileged with /dev bind-mounted, so reaching this port
-# grants a terminal with full host access — password auth is mandatory. The
-# config (bind-addr + auth) ships in ~/.config/code-server/config.yaml via
-# post-create.sh; we ensure a password is present (generated once, persisted
-# in the config — read it with `cat ~/.config/code-server/config.yaml`) and
-# launch detached. Idempotent: skips if the port is already being served.
-# Note: this block is skipped in CI (the early exit at the top of this script).
-# ---------------------------------------------------------------------------
-if command -v code-server >/dev/null 2>&1; then
-    CS_CONFIG="$HOME/.config/code-server/config.yaml"
-    mkdir -p "$HOME/.config/code-server" "$HOME/.local/share/code-server"
-    # Defensive: reinstall config if post-create did not run (e.g. bare restart).
-    if [ ! -f "$CS_CONFIG" ]; then
-        cp /workspace/igou-devenv/dotfiles/code-server-config.yaml "$CS_CONFIG"
-    fi
-    CS_PORT=$(awk -F: '/^bind-addr:/{print $NF; exit}' "$CS_CONFIG")
-    CS_PORT="${CS_PORT:-8080}"
-    # Ensure an auth password exists — auth: password is useless without one.
-    if ! grep -qE '^(password|hashed-password):' "$CS_CONFIG"; then
-        printf 'password: %s\n' "$(openssl rand -hex 24)" >> "$CS_CONFIG"
-    fi
-    # Bridge devcontainer.json customizations (editor settings + Open VSX
-    # extensions) into code-server — it does not read devcontainer.json itself.
-    # Runs before launch so a fresh start comes up with highlighting in place;
-    # idempotent and fast on warm starts (extensions already installed). The
-    # data dir is a persistent bind mount, so this populates it once per host.
-    CS_SYNC=/workspace/igou-devenv/.devcontainer/code-server-sync.sh
-    if [ -f "$CS_SYNC" ]; then
-        bash "$CS_SYNC" \
-            /workspace/igou-devenv/.devcontainer/devcontainer.json \
-            "$HOME/.local/share/code-server" || echo "    code-server-sync failed (non-fatal)"
-    fi
-    if ss -ltnH 2>/dev/null | awk '{print $4}' | grep -qE "[:.]${CS_PORT}\$"; then
-        echo "==> code-server already listening on :${CS_PORT}"
-    else
-        echo "==> Starting code-server on 0.0.0.0:${CS_PORT} (password in ${CS_CONFIG})..."
-        # setsid detaches into a fresh session: when this script runs as a
-        # devcontainer-CLI postStart exec (the AAP bootstrap path), the exec
-        # session is torn down milliseconds after the script exits, and a
-        # freshly-forked nohup child can be reaped before it finishes
-        # starting. wait_for_listen below keeps the script alive past that
-        # window and turns a silent startup failure into a visible warning.
-        setsid nohup code-server /workspace >> "$HOME/.local/share/code-server/code-server.log" 2>&1 < /dev/null &
-        disown || true
-        wait_for_listen "$CS_PORT" code-server "$HOME/.local/share/code-server/code-server.log"
-    fi
-fi
-
-# ---------------------------------------------------------------------------
 # t3 serve — T3 Code, a headless web GUI for the coding-agent CLIs in this
-# image (claude/codex/opencode/cursor-agent), started always-on like
-# code-server above. State (device pairing credentials, thread history) lives
+# image (claude/codex/opencode/cursor-agent), started always-on.
+# State (device pairing credentials, thread history) lives
 # in ~/.t3, a persistent bind mount, so paired browsers survive container
 # rebuilds. Binds all interfaces (the container is --network=host), so the
-# service is reachable on every network the host is on. Unlike code-server
-# there is no password gate — device pairing is the only barrier, and a
+# service is reachable on every network the host is on. There is no
+# password gate — device pairing is the only barrier, and a
 # paired session executes arbitrary commands as this user — so anyone who
 # can reach the port can attempt pairing. Acceptable for this trusted
 # single-user homelab network; set T3CODE_HOST to a specific address (e.g.
@@ -211,8 +160,8 @@ if command -v t3 >/dev/null 2>&1; then
         echo "==> t3 serve already listening on :${T3_PORT}"
     else
         echo "==> Starting t3 serve on ${T3_HOST}:${T3_PORT} (pairing info: ~/.t3/serve.log)..."
-        # setsid + wait_for_listen: same teardown-race hardening as
-        # code-server above. t3 is the last service this script starts, so
+        # setsid + wait_for_listen prevent the teardown race. t3 is the
+        # last service this script starts, so
         # under the AAP bootstrap's postStart exec it sat closest to the
         # session teardown and was reliably reaped mid-startup.
         setsid nohup t3 serve --host "$T3_HOST" >> "$HOME/.t3/serve.log" 2>&1 < /dev/null &

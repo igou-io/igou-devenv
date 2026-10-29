@@ -229,8 +229,8 @@ if [ -n "${BASHRC_DEBUG:-}" ]; then
     echo "[bashrc] direnv done, bashrc complete" >&2
 fi
 
-# Auto-attach interactive code-server terminals to a persistent tmux session so
-# they survive code-server restarts and browser reconnects. Open more terminals
+# Auto-attach interactive VS Code terminals to a persistent tmux session so
+# they survive editor reconnects. Open more terminals
 # as tmux windows (Ctrl-b c) rather than new editor tabs — extra tabs attach to
 # the same session and mirror it. tmux-resurrect/continuum (~/.tmux.conf) restore
 # the layout across `make rebuild`. Scoped to TERM_PROGRAM=vscode so `make shell`,

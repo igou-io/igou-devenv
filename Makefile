@@ -3,7 +3,7 @@ WORKSPACE    = $(CURDIR)
 
 .DEFAULT_GOAL := help
 
-.PHONY: link-skills build up up-release down restart exec shell run test test-all test-tools test-sandbox-primitives test-podman test-env test-mise test-ssh test-mise-lockfile test-openshell-gateway-config test-qemu clean rebuild help renovate-validate renovate-dry-run sbom sbom-devcontainer e2e mise-lock release release-dry-run release-prepare release-prepare-clis release-watch
+.PHONY: link-skills build up up-release down restart exec shell test test-all test-tools test-sandbox-primitives test-podman test-env test-mise test-ssh test-mise-lockfile test-openshell-gateway-config test-qemu clean rebuild help renovate-validate renovate-dry-run sbom sbom-devcontainer e2e mise-lock release release-dry-run release-prepare release-prepare-clis release-watch
 
 ## Build the devcontainer image with a fresh base and distro packages
 ## Runs: Dockerfile only (no lifecycle hooks)
@@ -51,38 +51,12 @@ link-skills:
 exec:
 	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) $(CMD)
 
-# ---------------------------------------------------------------------------
-# Run via the published image — pull-and-run code-server, no build, no login.
-# The GHCR image is public, so `docker` pulls it anonymously. Opens DIR (default
-# the current directory) in a browser IDE on PORT over HTTPS (--cert generates a
-# self-signed cert; browse https:// and accept the warning). Ctrl-C stops it (--rm).
-#   make run                                  # current dir, :latest, port 8080
-#   make run DIR=~/code TAG=2026.06.15-3 PORT=8443 PASSWORD=hunter2
-# Runs as the image's `igou` user (uid 1000); on a single-user host (your uid is
-# 1000) the mounted directory is writable. Ephemeral: code-server config
-# and extensions are not persisted (use `make up` for the full, persistent
-# devcontainer). PASSWORD is generated and printed if not supplied.
-# ---------------------------------------------------------------------------
-IMAGE    ?= ghcr.io/igou-io/igou-devenv
-TAG      ?= latest
-PORT     ?= 8080
-DIR      ?= $(CURDIR)
-PASSWORD ?=
-
-## Pull and run code-server from the published image (no build; usage: make run [DIR=~/code] [TAG=2026.06.15-3] [PORT=8443])
-run:
-	@pw='$(PASSWORD)'; [ -n "$$pw" ] || pw="$$(head -c 18 /dev/urandom | base64)"; \
-	echo ">>> code-server → https://localhost:$(PORT)   (self-signed; password: $$pw)"; \
-	docker run --rm -it --name igou-devenv-run \
-		--user igou -e HOME=/home/igou -e PASSWORD="$$pw" \
-		-p $(PORT):8080 \
-		-v "$(DIR):/workspace:Z" \
-		$(IMAGE):$(TAG) \
-		code-server --bind-addr 0.0.0.0:8080 /workspace --cert
+IMAGE ?= ghcr.io/igou-io/igou-devenv
+TAG   ?= latest
 
 ## Start the FULL devcontainer from the published image instead of building it
 ## locally. Pulls $(IMAGE):$(TAG) and runs it with the same mounts + lifecycle
-## hooks as `make up` (post-start re-syncs code-server). The canonical
+## hooks as `make up`. The canonical
 ## devcontainer.json is left untouched — CI's build.yaml and `make build` depend
 ## on its `build:` config — so this derives an image-based config on the fly and
 ## passes it via --override-config, recreating the container from the pulled image.
