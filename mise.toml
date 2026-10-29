@@ -198,7 +198,7 @@ linux-arm64 = { url = "https://mirror.openshift.com/pub/openshift-v4/aarch64/cli
 # blocked. The build needs gcc-c++/make/python3 (present in the Dockerfile
 # layer and the bin/run-pinned-mise bootstrap).
 [tools."npm:t3"]
-version = "0.1.2"
+version = "0.1.4"
 # Keep fresh t3 releases and their npm dependencies available immediately.
 minimum_release_age = "0s"
 allow_builds = ["node-pty"]
