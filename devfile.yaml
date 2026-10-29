@@ -3,7 +3,7 @@
 #   https://devspaces.apps.ocp.igou.systems
 #     /#https://github.com/igou-io/igou-devenv
 # Uses the published image as the workspace container; Dev Spaces injects its
-# own che-code editor (the image's code-server is simply unused). 1Password
+# own che-code editor. 1Password
 # Connect credentials arrive as env vars from the auto-mounted per-user
 # `op-connect` secret (igou-openshift devspaces-users chart), and `oc` is
 # logged in as the Dev Spaces user automatically. See README "OpenShift Dev
