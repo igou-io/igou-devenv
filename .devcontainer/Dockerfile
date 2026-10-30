@@ -333,7 +333,7 @@ RUN set -eux; \
     "$HOME/.local/bin/claude" --version
 USER root
 
-# Refuse to install unsigned upstream releases (Cursor, opencode, codex)
+# Refuse to install unsigned upstream Cursor releases
 # younger than this many days. Defense-in-depth against compromised releases
 # that haven't been publicly noticed yet — mirrors the coding-agent
 # `minimumReleaseAge: 3 days` packageRule in renovate.json at the build layer,
@@ -389,24 +389,19 @@ RUN set -eux; \
     "$HOME/.local/bin/agent" --version
 USER root
 
-# opencode CLI — pinned + SHA256-verified + release-age gated from
-# anomalyco/opencode releases. No upstream SHASUMS file is published; SHAs must
-# be re-captured on version bumps. On Renovate bumps cli-sha-recapture.yaml
+# OpenCode 2 CLI — pinned + SHA256-verified from
+# @opencode/cli npm packages. SHAs must be re-captured on version bumps.
+# On Renovate bumps cli-sha-recapture.yaml
 # (bin/release-prepare-clis) recaptures these ARGs automatically; for a manual
 # bump:
-#   curl -sL https://github.com/anomalyco/opencode/releases/download/vX.Y.Z/opencode-linux-x64.tar.gz | sha256sum
+#   curl -fsSL https://registry.npmjs.org/@opencode/cli-linux-x64/-/cli-linux-x64-X.Y.Z.tgz | sha256sum
 #   (repeat for arm64)
-# MINIMUM_RELEASE_AGE_DAYS is inherited from the ARG declared above the Cursor block.
-# renovate: datasource=github-releases depName=anomalyco/opencode
-ARG OPENCODE_VERSION="v1.19.4"
-ARG OPENCODE_SHA256_X64="849bd6b3d959a1d2ef200ed1634a51c79a45ca236aa26665d75debd694805cce"
-ARG OPENCODE_SHA256_ARM64="8568230ccd847dc93e95b9f6894379077d3e014a16b48040743573e77c23e85f"
-# GITHUB_TOKEN authenticates the release-age API call below. Without it the
-# 60/hr unauthenticated quota gets exhausted on busy CI runners and the build
-# fails with HTTP 403. Provided via a BuildKit secret mount (see the mise block
-# above); the ARG is only the local-build fallback and is left empty in CI so the
-# published image carries no token.
-ARG GITHUB_TOKEN=""
+# OpenCode bypasses the release-age delay; per-architecture SHA256 verification
+# remains mandatory, matching Codex.
+# renovate: datasource=npm depName=@opencode/cli
+ARG OPENCODE_VERSION="2.2.2"
+ARG OPENCODE_SHA256_X64="19c1f8a9a1ea05e039f6fd7d08ddb008b2cd8e0857a00d159122e191c5e91df7"
+ARG OPENCODE_SHA256_ARM64="d573e9efcd7d340103cfb5d136b54e2951e75169b1865da99a18a7da0211cb99"
 # Shell functions + the profile resolver baked into the image so NON-devcontainer
 # consumers (Hermes kubernetes-backend session pods run this image with
 # BASH_ENV=/home/igou/.bashrc and no /workspace/igou-devenv checkout) get
@@ -424,42 +419,22 @@ COPY --chown=igou:igou bin/routeros-ro /home/igou/.local/bin/routeros-ro
 COPY --chown=igou:igou bin/ocp-alerts /home/igou/.local/bin/ocp-alerts
 COPY --chown=igou:igou bin/ocp-logs /home/igou/.local/bin/ocp-logs
 USER igou
-RUN --mount=type=secret,id=github_token set -eux; \
+RUN set -eux; \
     ARCH_RAW=$(uname -m); \
     case "$ARCH_RAW" in \
       x86_64)  ARCH="x64";   EXPECTED_SHA="${OPENCODE_SHA256_X64}" ;; \
       aarch64) ARCH="arm64"; EXPECTED_SHA="${OPENCODE_SHA256_ARM64}" ;; \
       *) echo "Unsupported arch: $ARCH_RAW" >&2; exit 1 ;; \
     esac; \
-    # Release-age gate: fetch the release's published_at from the GitHub API.
-    # Authenticated when GITHUB_TOKEN is set (5000/hr), else unauthenticated (60/hr).
-    META_URL="https://api.github.com/repos/anomalyco/opencode/releases/tags/${OPENCODE_VERSION}"; \
-    set +x; \
-    GH_TOKEN_RESOLVED="$(cat /run/secrets/github_token 2>/dev/null || printf '%s' "${GITHUB_TOKEN}")"; \
-    AUTH_HEADER=""; \
-    [ -n "$GH_TOKEN_RESOLVED" ] && AUTH_HEADER="Authorization: Bearer $GH_TOKEN_RESOLVED"; \
-    PUBLISHED_AT=$(curl -fsSL ${AUTH_HEADER:+-H "$AUTH_HEADER"} "$META_URL" | jq -r '.published_at'); \
-    unset GH_TOKEN_RESOLVED AUTH_HEADER; \
-    set -x; \
-    if [ -z "$PUBLISHED_AT" ] || [ "$PUBLISHED_AT" = "null" ]; then \
-      echo "Failed to fetch published_at for opencode ${OPENCODE_VERSION} from $META_URL" >&2; \
-      exit 1; \
-    fi; \
-    RELEASE_EPOCH=$(date -u -d "$PUBLISHED_AT" +%s); \
-    AGE_DAYS=$(( ($(date -u +%s) - RELEASE_EPOCH) / 86400 )); \
-    if [ "$AGE_DAYS" -lt "${MINIMUM_RELEASE_AGE_DAYS}" ]; then \
-      echo "opencode ${OPENCODE_VERSION} is only ${AGE_DAYS} days old (minimum: ${MINIMUM_RELEASE_AGE_DAYS}). Wait, or override with --build-arg MINIMUM_RELEASE_AGE_DAYS=0." >&2; \
-      exit 1; \
-    fi; \
-    TARBALL="opencode-linux-${ARCH}.tar.gz"; \
-    URL="https://github.com/anomalyco/opencode/releases/download/${OPENCODE_VERSION}/${TARBALL}"; \
+    TARBALL="cli-linux-${ARCH}-${OPENCODE_VERSION}.tgz"; \
+    URL="https://registry.npmjs.org/@opencode/cli-linux-${ARCH}/-/${TARBALL}"; \
     DEST="$HOME/.opencode/bin"; \
     WORK=$(mktemp -d); \
     cd "$WORK"; \
     curl -fsSL -o "$TARBALL" "$URL"; \
     echo "${EXPECTED_SHA}  ${TARBALL}" | sha256sum -c -; \
     mkdir -p "$DEST" "$HOME/.local/bin"; \
-    tar -xzf "$TARBALL" -C "$DEST"; \
+    tar -xzf "$TARBALL" -C "$DEST" --strip-components=2 package/bin/opencode; \
     chmod +x "$DEST/opencode"; \
     chmod +x "$HOME/.local/bin/resolve-profile" "$HOME/.local/bin/truenas-ro" "$HOME/.local/bin/routeros-ro" "$HOME/.local/bin/ocp-alerts" "$HOME/.local/bin/ocp-logs"; \
     ln -sfn "$DEST/opencode" "$HOME/.local/bin/opencode"; \

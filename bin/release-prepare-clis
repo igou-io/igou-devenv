@@ -9,12 +9,12 @@
 #
 # SHA sources:
 #   cursor    — no upstream SHASUMS file; download each arch tarball and hash it
-#   opencode — no upstream SHASUMS file; download each arch tarball and hash it
+#   opencode — download each arch @opencode/cli npm tarball and hash it
 #              (same TOFU capture the manual process performed, done by CI).
 #   codex    — upstream publishes codex-package_SHA256SUMS in the release; take
 #              the linux-musl entries from there.
-# Cursor and OpenCode retain the Dockerfile's MINIMUM_RELEASE_AGE_DAYS gate.
-# Codex bypasses the delay but still requires the published package checksums.
+# Cursor retains the Dockerfile's MINIMUM_RELEASE_AGE_DAYS gate.
+# OpenCode and Codex bypass the delay but still require per-arch checksums.
 #
 # Requires (set by the workflow):
 #   GH_TOKEN      a token that re-triggers workflows + can merge (RELEASE_PAT)
@@ -69,7 +69,7 @@ echo "Recapturing opencode ${OPENCODE_VERSION} SHAs..."
 for pair in "x64:OPENCODE_SHA256_X64" "arm64:OPENCODE_SHA256_ARM64"; do
   arch="${pair%%:*}"
   var="${pair#*:}"
-  url="https://github.com/anomalyco/opencode/releases/download/${OPENCODE_VERSION}/opencode-linux-${arch}.tar.gz"
+  url="https://registry.npmjs.org/@opencode/cli-linux-${arch}/-/cli-linux-${arch}-${OPENCODE_VERSION}.tgz"
   sha="$(curl -fsSL --retry 8 --retry-all-errors --retry-delay 3 --retry-max-time 180 "$url" | sha256sum | awk '{print $1}')"
   set_sha_arg "$var" "$sha"
 done
