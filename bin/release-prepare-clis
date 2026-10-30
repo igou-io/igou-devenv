@@ -13,8 +13,8 @@
 #              (same TOFU capture the manual process performed, done by CI).
 #   codex    — upstream publishes codex-package_SHA256SUMS in the release; take
 #              the linux-musl entries from there.
-# Cursor and OpenCode retain the Dockerfile's MINIMUM_RELEASE_AGE_DAYS gate.
-# Codex bypasses the delay but still requires the published package checksums.
+# Cursor retains the Dockerfile's MINIMUM_RELEASE_AGE_DAYS gate.
+# OpenCode and Codex bypass the delay but still require per-arch checksums.
 #
 # Requires (set by the workflow):
 #   GH_TOKEN      a token that re-triggers workflows + can merge (RELEASE_PAT)

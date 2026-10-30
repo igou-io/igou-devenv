@@ -100,7 +100,7 @@
         "openai/codex"
       ],
       "groupName": "coding agent clis",
-      "description": "CLI SHA preparation owns merging this group. Its generated-artifact author is recognized by gitIgnoredAuthors so Renovate can refresh prepared branches; human edits still freeze them. Cursor/OpenCode retain their 3-day gate and Codex is exempted separately.",
+      "description": "CLI SHA preparation owns merging this group. Its generated-artifact author is recognized by gitIgnoredAuthors so Renovate can refresh prepared branches; human edits still freeze them. Cursor retains its 3-day gate; OpenCode and Codex are exempted separately.",
       "minimumReleaseAge": "3 days",
       "schedule": [
         "at any time"
@@ -108,11 +108,12 @@
       "automerge": false
     },
     {
-      "description": "Codex releases are time-sensitive; bypass the age gate while retaining checksum recapture and required CI.",
+      "description": "OpenCode and Codex releases are time-sensitive; bypass the age gate while retaining checksum recapture and required CI.",
       "matchManagers": [
         "custom.regex"
       ],
       "matchPackageNames": [
+        "@opencode/cli",
         "openai/codex"
       ],
       "minimumReleaseAge": null

@@ -333,7 +333,7 @@ RUN set -eux; \
     "$HOME/.local/bin/claude" --version
 USER root
 
-# Refuse to install unsigned upstream releases (Cursor, opencode, codex)
+# Refuse to install unsigned upstream Cursor releases
 # younger than this many days. Defense-in-depth against compromised releases
 # that haven't been publicly noticed yet — mirrors the coding-agent
 # `minimumReleaseAge: 3 days` packageRule in renovate.json at the build layer,
@@ -389,14 +389,15 @@ RUN set -eux; \
     "$HOME/.local/bin/agent" --version
 USER root
 
-# OpenCode 2 CLI — pinned + SHA256-verified + release-age gated from
+# OpenCode 2 CLI — pinned + SHA256-verified from
 # @opencode/cli npm packages. SHAs must be re-captured on version bumps.
 # On Renovate bumps cli-sha-recapture.yaml
 # (bin/release-prepare-clis) recaptures these ARGs automatically; for a manual
 # bump:
 #   curl -fsSL https://registry.npmjs.org/@opencode/cli-linux-x64/-/cli-linux-x64-X.Y.Z.tgz | sha256sum
 #   (repeat for arm64)
-# MINIMUM_RELEASE_AGE_DAYS is inherited from the ARG declared above the Cursor block.
+# OpenCode bypasses the release-age delay; per-architecture SHA256 verification
+# remains mandatory, matching Codex.
 # renovate: datasource=npm depName=@opencode/cli
 ARG OPENCODE_VERSION="2.2.2"
 ARG OPENCODE_SHA256_X64="19c1f8a9a1ea05e039f6fd7d08ddb008b2cd8e0857a00d159122e191c5e91df7"
@@ -425,19 +426,6 @@ RUN set -eux; \
       aarch64) ARCH="arm64"; EXPECTED_SHA="${OPENCODE_SHA256_ARM64}" ;; \
       *) echo "Unsupported arch: $ARCH_RAW" >&2; exit 1 ;; \
     esac; \
-    # Release-age gate: npm is the release source for OpenCode 2.
-    META_URL="https://registry.npmjs.org/@opencode%2fcli"; \
-    PUBLISHED_AT=$(curl -fsSL "$META_URL" | jq -r --arg version "$OPENCODE_VERSION" '.time[$version]'); \
-    if [ -z "$PUBLISHED_AT" ] || [ "$PUBLISHED_AT" = "null" ]; then \
-      echo "Failed to fetch published_at for opencode ${OPENCODE_VERSION} from $META_URL" >&2; \
-      exit 1; \
-    fi; \
-    RELEASE_EPOCH=$(date -u -d "$PUBLISHED_AT" +%s); \
-    AGE_DAYS=$(( ($(date -u +%s) - RELEASE_EPOCH) / 86400 )); \
-    if [ "$AGE_DAYS" -lt "${MINIMUM_RELEASE_AGE_DAYS}" ]; then \
-      echo "opencode ${OPENCODE_VERSION} is only ${AGE_DAYS} days old (minimum: ${MINIMUM_RELEASE_AGE_DAYS}). Wait, or override with --build-arg MINIMUM_RELEASE_AGE_DAYS=0." >&2; \
-      exit 1; \
-    fi; \
     TARBALL="cli-linux-${ARCH}-${OPENCODE_VERSION}.tgz"; \
     URL="https://registry.npmjs.org/@opencode/cli-linux-${ARCH}/-/${TARBALL}"; \
     DEST="$HOME/.opencode/bin"; \
