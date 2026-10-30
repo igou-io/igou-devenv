@@ -1,0 +1,53 @@
+name: Refresh VS Code extension releases
+
+on:
+  schedule:
+    - cron: '0 7 * * *'
+  push:
+    branches:
+      - main
+    paths:
+      - .devcontainer/devcontainer.json
+      - .github/scripts/vscode-extension-releases.mjs
+      - .github/workflows/vscode-extension-releases.yaml
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: vscode-extension-releases
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: main
+
+      - name: Collect Marketplace release timestamps
+        run: node .github/scripts/vscode-extension-releases.mjs --output "$RUNNER_TEMP/extension-releases"
+
+      - name: Publish the Renovate release feed
+        env:
+          FEED_BRANCH: vscode-extension-releases
+        run: |
+          set -euo pipefail
+          if git ls-remote --exit-code --heads origin "$FEED_BRANCH"; then
+            git fetch origin "$FEED_BRANCH"
+            git switch --detach FETCH_HEAD
+          else
+            git switch --orphan "$FEED_BRANCH"
+          fi
+          git rm -rf --ignore-unmatch .
+          cp "$RUNNER_TEMP/extension-releases/"*.json .
+          git add -- '*.json'
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git -c user.name='github-actions[bot]' \
+            -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+            commit -m 'chore: refresh VS Code extension release metadata'
+          git push origin "HEAD:refs/heads/$FEED_BRANCH"

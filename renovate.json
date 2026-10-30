@@ -10,6 +10,9 @@
       "transformTemplates": [
         "{ \"releases\": [releases[$contains(version, 'DOWNLOAD_URL=')].{ \"version\": $match(version, /downloads\\.cursor\\.com\\/lab\\/([^/]+)/).groups[0], \"releaseTimestamp\": $join($split($substring($match(version, /downloads\\.cursor\\.com\\/lab\\/([^/]+)/).groups[0], 0, 10), '.'), '-') & 'T00:00:00Z' }] }"
       ]
+    },
+    "vscode-marketplace": {
+      "defaultRegistryUrlTemplate": "https://raw.githubusercontent.com/igou-io/igou-devenv/vscode-extension-releases/{{packageName}}.json"
     }
   },
   "packageRules": [
@@ -188,6 +191,16 @@
       "minimumReleaseAge": "0 days",
       "pinDigests": false,
       "automerge": false
+    },
+    {
+      "description": "Adopt stable extension releases only after 10 days; block releases with missing timestamps",
+      "matchDatasources": [
+        "custom.vscode-marketplace"
+      ],
+      "groupName": "vscode extensions",
+      "minimumReleaseAge": "10 days",
+      "minimumReleaseAgeBehaviour": "timestamp-required",
+      "internalChecksFilter": "strict"
     }
   ],
   "customManagers": [
@@ -226,6 +239,18 @@
       ],
       "versioningTemplate": "semver",
       "autoReplaceStringTemplate": "# renovate: datasource={{{datasource}}} depName={{{depName}}}\nregistry_url = \"https://raw.githubusercontent.com/aquaproj/aqua-registry/{{{newDigest}}}/registry.yaml\" # {{{newValue}}}"
+    },
+    {
+      "description": "Update exact VS Code extension pins from Marketplace publication metadata",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^\\.devcontainer/devcontainer\\.json$/"
+      ],
+      "matchStrings": [
+        "\"(?<depName>[a-zA-Z0-9-]+\\.[a-zA-Z0-9-]+)@(?<currentValue>\\d+\\.\\d+\\.\\d+)\""
+      ],
+      "datasourceTemplate": "custom.vscode-marketplace",
+      "versioningTemplate": "semver"
     }
   ],
   "gitIgnoredAuthors": [

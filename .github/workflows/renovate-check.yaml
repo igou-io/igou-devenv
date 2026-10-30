@@ -8,6 +8,8 @@ on:
       - renovate.json
       - renovate-base.json
       - mise.toml
+      - .devcontainer/devcontainer.json
+      - .github/scripts/vscode-extension-releases.mjs
       - tests/test-renovate.mjs
       - .github/workflows/renovate-check.yaml
   workflow_dispatch: {}
