@@ -244,7 +244,7 @@ RUN --mount=type=secret,id=github_token set -eux; \
 # Same GPG trust anchor (Red Hat key 567E347AD0044ADE55BA8A5F199E2F91FD431D51),
 # now invoked via mise's postinstall hook after the http-backend download.
 
-# virtctl, kube-burner, kube-burner-ocp: migrated to mise via the http
+# virtctl: migrated to mise via the http
 # backend (see mise.toml / mise.lock). Same blake3-TOFU trust floor as the
 # previous inline blocks, but managed through the shared lockfile.
 

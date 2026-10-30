@@ -23,7 +23,7 @@ before making runtime capability claims.
 ## What's Inside
 
 **Kubernetes:** kubectl, helm, kustomize, ArgoCD CLI, kubeseal, flux, virtctl,
-kubeconform, kind, kube-burner, kube-burner-ocp, tkn (Tekton)
+kubeconform, kind, tkn (Tekton)
 
 **Infrastructure:** Terraform, SOPS, age, rclone
 
@@ -52,7 +52,7 @@ mechanism. See [AGENTS.md](AGENTS.md) for the per-layer Renovate strategy.
 | Layer | What | Where to add |
 |---|---|---|
 | Dockerfile (dnf) | podman, buildah, skopeo, jq, gnupg2, 1Password CLI, Docker CLI, base utilities | `.devcontainer/Dockerfile` |
-| Mise (`mise.toml` + `mise.lock`) | kubectl, helm, terraform, gh, argocd, kustomize, kubeseal, flux2, sops, kubeconform, kind, act, tkn, tkn-pac, rclone, direnv, age, node, oc, virtctl, kube-burner, kube-burner-ocp, openshell, rc, t3, gws | `mise.toml` (versions) + `mise.lock` (per-asset checksums) |
+| Mise (`mise.toml` + `mise.lock`) | kubectl, helm, terraform, gh, argocd, kustomize, kubeseal, flux2, sops, kubeconform, kind, act, tkn, tkn-pac, rclone, direnv, age, node, oc, virtctl, openshell, rc, t3, gws | `mise.toml` (versions) + `mise.lock` (per-asset checksums) |
 | Dockerfile (binary downloads) | mise itself (GPG-signed checksums — trust anchor), Claude Code, Cursor agent, opencode | `.devcontainer/Dockerfile` (ARG + RUN) |
 | Dockerfile (pip) | Ansible ecosystem, yq, Kubernetes and API client libraries | `.devcontainer/requirements.txt` |
 
@@ -74,7 +74,7 @@ after changing `.devcontainer/requirements.txt`.
 - **GPG (pinned fingerprint, via `aqua-registry/<tool>-postinstall.sh`)**: helm, terraform, oc
 - **SLSA L3 attestation + sha256**: flux2, sops, argocd
 - **sha256** (upstream-published checksums): kubectl, gh, kustomize, kubeseal, kubeconform, kind, act, tkn, rclone, direnv, age
-- **blake3 TOFU** (mise lockfile pin, or upstream checksums not consumed by the `http:` backend): node, virtctl, kube-burner, kube-burner-ocp, openshell, rc, gws
+- **blake3 TOFU** (mise lockfile pin, or upstream checksums not consumed by the `http:` backend): node, virtctl, openshell, rc, gws
 
 ## Quick Start
 
@@ -470,7 +470,7 @@ does not necessarily provide those kernel/runtime capabilities.
 
 ### Adding Tools
 
-- **CLI binaries managed by `mise`** (preferred for new tools) → add to `mise.toml`, run `make mise-lock`, commit both. If the tool isn't in aqua-registry, use the `http:` backend with explicit per-platform URLs (see existing entries for `virtctl`, `kube-burner`, etc.). If the tool needs additional GPG verification beyond aqua-registry's defaults, add a postinstall hook in `aqua-registry/<tool>-postinstall.sh` (see `oc-postinstall.sh` for the pattern) and update `tests/mise-expected-verification.toml` to `"postinstall-gpg"`.
+- **CLI binaries managed by `mise`** (preferred for new tools) → add to `mise.toml`, run `make mise-lock`, commit both. If the tool isn't in aqua-registry, use the `http:` backend with explicit per-platform URLs (see existing entries for `virtctl`, `openshell`, etc.). If the tool needs additional GPG verification beyond aqua-registry's defaults, add a postinstall hook in `aqua-registry/<tool>-postinstall.sh` (see `oc-postinstall.sh` for the pattern) and update `tests/mise-expected-verification.toml` to `"postinstall-gpg"`.
 - **dnf packages** → add to `.devcontainer/Dockerfile` (under the existing `dnf install` block)
 - **Python packages** → add to `.devcontainer/requirements.txt` (pinned for Renovate)
 - **Binaries not in aqua-registry that need custom verification logic** (Claude Code, Cursor agent, opencode pattern) → add a dedicated `ARG <NAME>_VERSION` + `RUN` block in `.devcontainer/Dockerfile` with a `# renovate:` comment. Keep these rare — prefer mise's `http:` backend when possible.
