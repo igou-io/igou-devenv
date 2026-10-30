@@ -95,7 +95,7 @@
         "custom.regex"
       ],
       "matchPackageNames": [
-        "anomalyco/opencode",
+        "@opencode/cli",
         "cursor-agent",
         "openai/codex"
       ],
