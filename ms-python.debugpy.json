@@ -1,0 +1,115 @@
+{
+  "homepage": "https://marketplace.visualstudio.com/items?itemName=ms-python.debugpy",
+  "releases": [
+    {
+      "version": "2024.0.0",
+      "releaseTimestamp": "2024-01-31T22:03:08.830Z",
+      "isStable": true
+    },
+    {
+      "version": "2024.0.1",
+      "releaseTimestamp": "2024-02-28T20:54:08.997Z",
+      "isStable": true
+    },
+    {
+      "version": "2024.2.0",
+      "releaseTimestamp": "2024-02-28T23:48:00.547Z",
+      "isStable": true
+    },
+    {
+      "version": "2024.4.0",
+      "releaseTimestamp": "2024-04-04T21:59:30.220Z",
+      "isStable": true
+    },
+    {
+      "version": "2024.6.0",
+      "releaseTimestamp": "2024-05-02T22:42:58.180Z",
+      "isStable": true
+    },
+    {
+      "version": "2024.8.0",
+      "releaseTimestamp": "2024-07-10T19:06:02.803Z",
+      "isStable": true
+    },
+    {
+      "version": "2024.10.0",
+      "releaseTimestamp": "2024-07-31T19:52:34.950Z",
+      "isStable": true
+    },
+    {
+      "version": "2024.12.0",
+      "releaseTimestamp": "2024-10-14T18:49:04.220Z",
+      "isStable": true
+    },
+    {
+      "version": "2024.14.0",
+      "releaseTimestamp": "2024-12-11T20:22:25.960Z",
+      "isStable": true
+    },
+    {
+      "version": "2025.0.0",
+      "releaseTimestamp": "2025-02-06T21:38:47.000Z",
+      "isStable": true
+    },
+    {
+      "version": "2025.0.1",
+      "releaseTimestamp": "2025-02-12T19:26:45.703Z",
+      "isStable": true
+    },
+    {
+      "version": "2025.4.0",
+      "releaseTimestamp": "2025-03-05T19:17:24.720Z",
+      "isStable": true
+    },
+    {
+      "version": "2025.4.1",
+      "releaseTimestamp": "2025-03-10T17:32:13.130Z",
+      "isStable": true
+    },
+    {
+      "version": "2025.6.0",
+      "releaseTimestamp": "2025-04-04T17:12:32.390Z",
+      "isStable": true
+    },
+    {
+      "version": "2025.8.0",
+      "releaseTimestamp": "2025-05-08T19:01:02.013Z",
+      "isStable": true
+    },
+    {
+      "version": "2025.10.0",
+      "releaseTimestamp": "2025-07-10T22:37:08.717Z",
+      "isStable": true
+    },
+    {
+      "version": "2025.14.0",
+      "releaseTimestamp": "2025-10-09T17:54:29.497Z",
+      "isStable": true
+    },
+    {
+      "version": "2025.14.1",
+      "releaseTimestamp": "2025-10-13T19:17:54.893Z",
+      "isStable": true
+    },
+    {
+      "version": "2025.16.0",
+      "releaseTimestamp": "2025-11-12T21:19:39.950Z",
+      "isStable": true
+    },
+    {
+      "version": "2025.18.0",
+      "releaseTimestamp": "2025-12-16T19:22:37.857Z",
+      "isStable": true
+    },
+    {
+      "version": "2026.4.0",
+      "releaseTimestamp": "2026-04-28T19:58:58.290Z",
+      "isStable": true
+    },
+    {
+      "version": "2026.6.0",
+      "releaseTimestamp": "2026-04-30T18:48:18.690Z",
+      "isStable": true
+    }
+  ]
+}

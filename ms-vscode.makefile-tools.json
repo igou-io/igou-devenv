@@ -1,0 +1,80 @@
+{
+  "homepage": "https://marketplace.visualstudio.com/items?itemName=ms-vscode.makefile-tools",
+  "releases": [
+    {
+      "version": "0.2.0",
+      "releaseTimestamp": "2021-02-17T21:31:10.793Z",
+      "isStable": true
+    },
+    {
+      "version": "0.2.1",
+      "releaseTimestamp": "2021-05-06T21:29:18.497Z",
+      "isStable": true
+    },
+    {
+      "version": "0.2.2",
+      "releaseTimestamp": "2021-05-12T20:57:01.050Z",
+      "isStable": true
+    },
+    {
+      "version": "0.3.0",
+      "releaseTimestamp": "2021-12-03T07:18:17.953Z",
+      "isStable": true
+    },
+    {
+      "version": "0.3.1",
+      "releaseTimestamp": "2021-12-10T00:34:47.247Z",
+      "isStable": true
+    },
+    {
+      "version": "0.4.0",
+      "releaseTimestamp": "2022-03-30T17:27:07.743Z",
+      "isStable": true
+    },
+    {
+      "version": "0.5.0",
+      "releaseTimestamp": "2022-04-28T23:45:17.470Z",
+      "isStable": true
+    },
+    {
+      "version": "0.6.0",
+      "releaseTimestamp": "2022-08-26T20:30:17.060Z",
+      "isStable": true
+    },
+    {
+      "version": "0.7.0",
+      "releaseTimestamp": "2023-04-20T20:25:38.930Z",
+      "isStable": true
+    },
+    {
+      "version": "0.8.22",
+      "releaseTimestamp": "2023-12-14T18:03:50.333Z",
+      "isStable": true
+    },
+    {
+      "version": "0.9.10",
+      "releaseTimestamp": "2024-03-12T14:01:08.347Z",
+      "isStable": true
+    },
+    {
+      "version": "0.10.25",
+      "releaseTimestamp": "2024-08-12T18:30:54.700Z",
+      "isStable": true
+    },
+    {
+      "version": "0.10.26",
+      "releaseTimestamp": "2024-08-15T13:38:10.677Z",
+      "isStable": true
+    },
+    {
+      "version": "0.11.13",
+      "releaseTimestamp": "2024-09-17T10:08:39.503Z",
+      "isStable": true
+    },
+    {
+      "version": "0.12.17",
+      "releaseTimestamp": "2025-02-25T18:53:10.330Z",
+      "isStable": true
+    }
+  ]
+}

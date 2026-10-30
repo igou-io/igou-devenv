@@ -1,0 +1,1050 @@
+{
+  "homepage": "https://marketplace.visualstudio.com/items?itemName=ms-python.vscode-pylance",
+  "releases": [
+    {
+      "version": "2020.6.0",
+      "releaseTimestamp": "2020-06-30T20:08:21.253Z",
+      "isStable": true
+    },
+    {
+      "version": "2020.6.1",
+      "releaseTimestamp": "2020-06-30T21:53:04.303Z",
+      "isStable": true
+    },
+    {
+      "version": "2020.7.0",
+      "releaseTimestamp": "2020-07-09T21:15:52.297Z",
+      "isStable": true
+    },
+    {
+      "version": "2020.7.1",
+      "releaseTimestamp": "2020-07-11T00:43:43.823Z",
+      "isStable": true
+    },
+    {
+      "version": "2020.7.2",
+      "releaseTimestamp": "2020-07-15T22:48:56.407Z",
+      "isStable": true
+    },
+    {
+      "version": "2020.7.3",
+      "releaseTimestamp": "2020-07-21T23:00:27.767Z",
+      "isStable": true
+    },
+    {
+      "version": "2020.7.4",
+      "releaseTimestamp": "2020-07-29T21:14:01.043Z",
+      "isStable": true
+    },
+    {
+      "version": "2020.8.0",
+      "releaseTimestamp": "2020-08-05T23:54:45.117Z",
+      "isStable": true
+    },
+    {
+      "version": "2020.8.1",
+      "releaseTimestamp": "2020-08-13T20:41:55.610Z",
+      "isStable": true
+    },
+    {
+      "version": "2020.8.2",
+      "releaseTimestamp": "2020-08-20T23:15:49.303Z",
+      "isStable": true
+    },
+    {
+      "version": "2020.8.3",
+      "releaseTimestamp": "2020-08-28T19:58:17.637Z",
+      "isStable": true
+    },
+    {
+      "version": "2020.9.0",
+      "releaseTimestamp": "2020-09-03T22:54:02.577Z",
+      "isStable": true
+    },
+    {
+      "version": "2020.9.4",
+      "releaseTimestamp": "2020-09-11T00:47:12.923Z",
+      "isStable": true
+    },
+    {
+      "version": "2020.9.5",
+      "releaseTimestamp": "2020-09-16T22:26:13.857Z",
+      "isStable": true
+    },
+    {
+      "version": "2020.9.6",
+      "releaseTimestamp": "2020-09-23T23:17:35.787Z",
+      "isStable": true
+    },
+    {
+      "version": "2020.9.7",
+      "releaseTimestamp": "2020-10-01T00:21:18.957Z",
+      "isStable": true
+    },
+    {
+      "version": "2020.9.8",
+      "releaseTimestamp": "2020-10-02T18:59:30.403Z",
+      "isStable": true
+    },
+    {
+      "version": "2020.10.0",
+      "releaseTimestamp": "2020-10-07T22:41:38.733Z",
+      "isStable": true
+    },
+    {
+      "version": "2020.10.1",
+      "releaseTimestamp": "2020-10-14T23:19:03.250Z",
+      "isStable": true
+    },
+    {
+      "version": "2020.10.2",
+      "releaseTimestamp": "2020-10-22T00:06:53.040Z",
+      "isStable": true
+    },
+    {
+      "version": "2020.10.3",
+      "releaseTimestamp": "2020-10-28T23:06:27.697Z",
+      "isStable": true
+    },
+    {
+      "version": "2020.11.0",
+      "releaseTimestamp": "2020-11-04T22:36:10.027Z",
+      "isStable": true
+    },
+    {
+      "version": "2020.11.1",
+      "releaseTimestamp": "2020-11-11T22:43:48.293Z",
+      "isStable": true
+    },
+    {
+      "version": "2020.11.2",
+      "releaseTimestamp": "2020-11-19T01:01:41.223Z",
+      "isStable": true
+    },
+    {
+      "version": "2020.12.0",
+      "releaseTimestamp": "2020-12-02T23:58:01.813Z",
+      "isStable": true
+    },
+    {
+      "version": "2020.12.1",
+      "releaseTimestamp": "2020-12-09T22:08:51.167Z",
+      "isStable": true
+    },
+    {
+      "version": "2020.12.2",
+      "releaseTimestamp": "2020-12-11T20:35:05.180Z",
+      "isStable": true
+    },
+    {
+      "version": "2021.1.0",
+      "releaseTimestamp": "2021-01-06T23:45:08.113Z",
+      "isStable": true
+    },
+    {
+      "version": "2021.1.1",
+      "releaseTimestamp": "2021-01-13T23:47:20.297Z",
+      "isStable": true
+    },
+    {
+      "version": "2021.1.2",
+      "releaseTimestamp": "2021-01-21T00:42:43.040Z",
+      "isStable": true
+    },
+    {
+      "version": "2021.1.3",
+      "releaseTimestamp": "2021-01-27T22:23:37.653Z",
+      "isStable": true
+    },
+    {
+      "version": "2021.2.0",
+      "releaseTimestamp": "2021-02-04T00:14:27.300Z",
+      "isStable": true
+    },
+    {
+      "version": "2021.2.1",
+      "releaseTimestamp": "2021-02-11T01:23:00.043Z",
+      "isStable": true
+    },
+    {
+      "version": "2021.2.2",
+      "releaseTimestamp": "2021-02-11T18:00:02.983Z",
+      "isStable": true
+    },
+    {
+      "version": "2021.2.3",
+      "releaseTimestamp": "2021-02-17T21:33:37.387Z",
+      "isStable": true
+    },
+    {
+      "version": "2021.2.4",
+      "releaseTimestamp": "2021-02-25T02:15:21.400Z",
+      "isStable": true
+    },
+    {
+      "version": "2021.3.0",
+      "releaseTimestamp": "2021-03-04T00:05:48.457Z",
+      "isStable": true
+    },
+    {
+      "version": "2021.3.1",
+      "releaseTimestamp": "2021-03-11T01:53:18.993Z",
+      "isStable": true
+    },
+    {
+      "version": "2021.3.2",
+      "releaseTimestamp": "2021-03-18T00:16:23.963Z",
+      "isStable": true
+    },
+    {
+      "version": "2021.3.3",
+      "releaseTimestamp": "2021-03-25T00:09:38.767Z",
+      "isStable": true
+    },
+    {
+      "version": "2021.3.4",
+      "releaseTimestamp": "2021-03-31T23:09:48.627Z",
+      "isStable": true
+    },
+    {
+      "version": "2021.4.0",
+      "releaseTimestamp": "2021-04-07T23:29:07.720Z",
+      "isStable": true
+    },
+    {
+      "version": "2021.4.1",
+      "releaseTimestamp": "2021-04-14T20:02:41.067Z",
+      "isStable": true
+    },
+    {
+      "version": "2021.4.2",
+      "releaseTimestamp": "2021-04-22T01:19:00.283Z",
+      "isStable": true
+    },
+    {
+      "version": "2021.4.3",
+      "releaseTimestamp": "2021-04-29T19:02:00.030Z",
+      "isStable": true
+    },
+    {
+      "version": "2021.5.0",
+      "releaseTimestamp": "2021-05-05T23:02:29.217Z",
+      "isStable": true
+    },
+    {
+      "version": "2021.5.1",
+      "releaseTimestamp": "2021-05-06T21:31:51.877Z",
+      "isStable": true
+    },
+    {
+      "version": "2021.5.2",
+      "releaseTimestamp": "2021-05-13T17:39:17.977Z",
+      "isStable": true
+    },
+    {
+      "version": "2021.5.3",
+      "releaseTimestamp": "2021-05-19T23:41:17.023Z",
+      "isStable": true
+    },
+    {
+      "version": "2021.5.4",
+      "releaseTimestamp": "2021-05-26T23:38:25.823Z",
+      "isStable": true
+    },
+    {
+      "version": "2021.6.0",
+      "releaseTimestamp": "2021-06-02T22:07:14.133Z",
+      "isStable": true
+    },
+    {
+      "version": "2021.6.1",
+      "releaseTimestamp": "2021-06-09T23:06:19.343Z",
+      "isStable": true
+    },
+    {
+      "version": "2021.6.2",
+      "releaseTimestamp": "2021-06-16T23:56:01.873Z",
+      "isStable": true
+    },
+    {
+      "version": "2021.6.3",
+      "releaseTimestamp": "2021-06-23T23:40:31.840Z",
+      "isStable": true
+    },
+    {
+      "version": "2021.7.0",
+      "releaseTimestamp": "2021-07-06T23:36:52.550Z",
+      "isStable": true
+    },
+    {
+      "version": "2021.7.1",
+      "releaseTimestamp": "2021-07-07T00:17:09.827Z",
+      "isStable": true
+    },
+    {
+      "version": "2021.7.2",
+      "releaseTimestamp": "2021-07-07T21:01:01.710Z",
+      "isStable": true
+    },
+    {
+      "version": "2021.7.3",
+      "releaseTimestamp": "2021-07-14T23:59:51.213Z",
+      "isStable": true
+    },
+    {
+      "version": "2021.7.4",
+      "releaseTimestamp": "2021-07-15T19:20:05.970Z",
+      "isStable": true
+    },
+    {
+      "version": "2021.7.5",
+      "releaseTimestamp": "2021-07-22T22:03:00.617Z",
+      "isStable": true
+    },
+    {
+      "version": "2021.7.6",
+      "releaseTimestamp": "2021-07-28T21:40:00.787Z",
+      "isStable": true
+    },
+    {
+      "version": "2021.7.7",
+      "releaseTimestamp": "2021-07-29T00:01:50.637Z",
+      "isStable": true
+    },
+    {
+      "version": "2021.8.0",
+      "releaseTimestamp": "2021-08-04T22:49:26.940Z",
+      "isStable": true
+    },
+    {
+      "version": "2021.8.1",
+      "releaseTimestamp": "2021-08-11T22:45:03.917Z",
+      "isStable": true
+    },
+    {
+      "version": "2021.8.2",
+      "releaseTimestamp": "2021-08-19T20:39:41.800Z",
+      "isStable": true
+    },
+    {
+      "version": "2021.8.3",
+      "releaseTimestamp": "2021-08-25T21:38:22.770Z",
+      "isStable": true
+    },
+    {
+      "version": "2021.9.0",
+      "releaseTimestamp": "2021-09-01T21:37:20.007Z",
+      "isStable": true
+    },
+    {
+      "version": "2021.9.1",
+      "releaseTimestamp": "2021-09-08T21:19:47.000Z",
+      "isStable": true
+    },
+    {
+      "version": "2021.9.2",
+      "releaseTimestamp": "2021-09-16T21:54:29.460Z",
+      "isStable": true
+    },
+    {
+      "version": "2021.9.3",
+      "releaseTimestamp": "2021-09-22T23:12:40.413Z",
+      "isStable": true
+    },
+    {
+      "version": "2021.9.4",
+      "releaseTimestamp": "2021-09-29T22:05:50.880Z",
+      "isStable": true
+    },
+    {
+      "version": "2021.10.0",
+      "releaseTimestamp": "2021-10-07T00:26:25.060Z",
+      "isStable": true
+    },
+    {
+      "version": "2021.10.1",
+      "releaseTimestamp": "2021-10-14T23:44:30.230Z",
+      "isStable": true
+    },
+    {
+      "version": "2021.10.2",
+      "releaseTimestamp": "2021-10-20T23:23:47.690Z",
+      "isStable": true
+    },
+    {
+      "version": "2021.10.3",
+      "releaseTimestamp": "2021-10-27T23:58:32.143Z",
+      "isStable": true
+    },
+    {
+      "version": "2021.11.0",
+      "releaseTimestamp": "2021-11-03T23:39:25.997Z",
+      "isStable": true
+    },
+    {
+      "version": "2021.11.1",
+      "releaseTimestamp": "2021-11-10T22:11:37.773Z",
+      "isStable": true
+    },
+    {
+      "version": "2021.11.2",
+      "releaseTimestamp": "2021-11-18T00:53:06.553Z",
+      "isStable": true
+    },
+    {
+      "version": "2021.12.0",
+      "releaseTimestamp": "2021-12-03T20:21:20.627Z",
+      "isStable": true
+    },
+    {
+      "version": "2021.12.1",
+      "releaseTimestamp": "2021-12-09T23:21:16.423Z",
+      "isStable": true
+    },
+    {
+      "version": "2021.12.2",
+      "releaseTimestamp": "2021-12-13T22:25:06.150Z",
+      "isStable": true
+    },
+    {
+      "version": "2022.1.0",
+      "releaseTimestamp": "2022-01-05T23:42:21.707Z",
+      "isStable": true
+    },
+    {
+      "version": "2022.1.1",
+      "releaseTimestamp": "2022-01-13T00:46:59.663Z",
+      "isStable": true
+    },
+    {
+      "version": "2022.1.3",
+      "releaseTimestamp": "2022-01-22T01:09:24.547Z",
+      "isStable": true
+    },
+    {
+      "version": "2022.1.5",
+      "releaseTimestamp": "2022-01-27T22:55:23.590Z",
+      "isStable": true
+    },
+    {
+      "version": "2022.2.0",
+      "releaseTimestamp": "2022-02-03T23:22:47.093Z",
+      "isStable": true
+    },
+    {
+      "version": "2022.2.1",
+      "releaseTimestamp": "2022-02-10T04:02:27.817Z",
+      "isStable": true
+    },
+    {
+      "version": "2022.2.3",
+      "releaseTimestamp": "2022-02-17T01:21:22.133Z",
+      "isStable": true
+    },
+    {
+      "version": "2022.2.4",
+      "releaseTimestamp": "2022-02-23T22:45:23.537Z",
+      "isStable": true
+    },
+    {
+      "version": "2022.3.0",
+      "releaseTimestamp": "2022-03-03T18:28:36.733Z",
+      "isStable": true
+    },
+    {
+      "version": "2022.3.1",
+      "releaseTimestamp": "2022-03-09T22:47:37.203Z",
+      "isStable": true
+    },
+    {
+      "version": "2022.3.2",
+      "releaseTimestamp": "2022-03-17T00:54:13.703Z",
+      "isStable": true
+    },
+    {
+      "version": "2022.3.3",
+      "releaseTimestamp": "2022-03-23T23:40:24.507Z",
+      "isStable": true
+    },
+    {
+      "version": "2022.3.4",
+      "releaseTimestamp": "2022-03-31T01:22:48.687Z",
+      "isStable": true
+    },
+    {
+      "version": "2022.4.0",
+      "releaseTimestamp": "2022-04-06T23:40:17.370Z",
+      "isStable": true
+    },
+    {
+      "version": "2022.4.1",
+      "releaseTimestamp": "2022-04-14T00:24:02.743Z",
+      "isStable": true
+    },
+    {
+      "version": "2022.4.2",
+      "releaseTimestamp": "2022-04-20T23:19:15.633Z",
+      "isStable": true
+    },
+    {
+      "version": "2022.4.3",
+      "releaseTimestamp": "2022-04-27T22:45:52.943Z",
+      "isStable": true
+    },
+    {
+      "version": "2022.5.1",
+      "releaseTimestamp": "2022-05-11T23:28:52.710Z",
+      "isStable": true
+    },
+    {
+      "version": "2022.5.2",
+      "releaseTimestamp": "2022-05-19T00:58:11.207Z",
+      "isStable": true
+    },
+    {
+      "version": "2022.5.3",
+      "releaseTimestamp": "2022-05-25T22:49:38.467Z",
+      "isStable": true
+    },
+    {
+      "version": "2022.6.0",
+      "releaseTimestamp": "2022-06-01T23:05:53.770Z",
+      "isStable": true
+    },
+    {
+      "version": "2022.6.10",
+      "releaseTimestamp": "2022-06-08T22:37:19.010Z",
+      "isStable": true
+    },
+    {
+      "version": "2022.6.20",
+      "releaseTimestamp": "2022-06-15T23:55:15.060Z",
+      "isStable": true
+    },
+    {
+      "version": "2022.6.30",
+      "releaseTimestamp": "2022-06-22T23:32:45.387Z",
+      "isStable": true
+    },
+    {
+      "version": "2022.7.20",
+      "releaseTimestamp": "2022-07-06T22:25:19.947Z",
+      "isStable": true
+    },
+    {
+      "version": "2022.7.30",
+      "releaseTimestamp": "2022-07-13T23:37:41.217Z",
+      "isStable": true
+    },
+    {
+      "version": "2022.7.40",
+      "releaseTimestamp": "2022-07-20T21:38:13.443Z",
+      "isStable": true
+    },
+    {
+      "version": "2022.8.10",
+      "releaseTimestamp": "2022-08-04T05:34:39.643Z",
+      "isStable": true
+    },
+    {
+      "version": "2022.8.20",
+      "releaseTimestamp": "2022-08-10T23:10:41.077Z",
+      "isStable": true
+    },
+    {
+      "version": "2022.8.30",
+      "releaseTimestamp": "2022-08-17T22:13:37.397Z",
+      "isStable": true
+    },
+    {
+      "version": "2022.8.40",
+      "releaseTimestamp": "2022-08-25T00:33:12.460Z",
+      "isStable": true
+    },
+    {
+      "version": "2022.8.50",
+      "releaseTimestamp": "2022-08-31T22:48:43.893Z",
+      "isStable": true
+    },
+    {
+      "version": "2022.9.10",
+      "releaseTimestamp": "2022-09-07T22:53:36.090Z",
+      "isStable": true
+    },
+    {
+      "version": "2022.9.20",
+      "releaseTimestamp": "2022-09-14T20:46:22.850Z",
+      "isStable": true
+    },
+    {
+      "version": "2022.9.30",
+      "releaseTimestamp": "2022-09-21T19:46:09.700Z",
+      "isStable": true
+    },
+    {
+      "version": "2022.9.40",
+      "releaseTimestamp": "2022-09-26T20:19:04.620Z",
+      "isStable": true
+    },
+    {
+      "version": "2022.10.10",
+      "releaseTimestamp": "2022-10-05T22:33:34.563Z",
+      "isStable": true
+    },
+    {
+      "version": "2022.10.20",
+      "releaseTimestamp": "2022-10-12T22:16:50.623Z",
+      "isStable": true
+    },
+    {
+      "version": "2022.10.30",
+      "releaseTimestamp": "2022-10-19T22:22:15.707Z",
+      "isStable": true
+    },
+    {
+      "version": "2022.10.40",
+      "releaseTimestamp": "2022-10-26T23:54:23.083Z",
+      "isStable": true
+    },
+    {
+      "version": "2022.11.10",
+      "releaseTimestamp": "2022-11-01T19:32:47.840Z",
+      "isStable": true
+    },
+    {
+      "version": "2022.11.20",
+      "releaseTimestamp": "2022-11-10T02:09:49.230Z",
+      "isStable": true
+    },
+    {
+      "version": "2022.11.30",
+      "releaseTimestamp": "2022-11-17T00:03:36.950Z",
+      "isStable": true
+    },
+    {
+      "version": "2022.11.40",
+      "releaseTimestamp": "2022-11-30T23:22:50.510Z",
+      "isStable": true
+    },
+    {
+      "version": "2022.12.20",
+      "releaseTimestamp": "2022-12-07T20:48:18.010Z",
+      "isStable": true
+    },
+    {
+      "version": "2023.1.10",
+      "releaseTimestamp": "2023-01-04T23:37:38.113Z",
+      "isStable": true
+    },
+    {
+      "version": "2023.1.20",
+      "releaseTimestamp": "2023-01-12T18:50:59.650Z",
+      "isStable": true
+    },
+    {
+      "version": "2023.1.30",
+      "releaseTimestamp": "2023-01-18T22:59:19.963Z",
+      "isStable": true
+    },
+    {
+      "version": "2023.1.40",
+      "releaseTimestamp": "2023-01-25T20:05:19.060Z",
+      "isStable": true
+    },
+    {
+      "version": "2023.2.10",
+      "releaseTimestamp": "2023-02-02T05:23:33.400Z",
+      "isStable": true
+    },
+    {
+      "version": "2023.2.20",
+      "releaseTimestamp": "2023-02-09T19:55:54.763Z",
+      "isStable": true
+    },
+    {
+      "version": "2023.2.30",
+      "releaseTimestamp": "2023-02-16T01:23:45.070Z",
+      "isStable": true
+    },
+    {
+      "version": "2023.2.40",
+      "releaseTimestamp": "2023-02-23T06:33:25.980Z",
+      "isStable": true
+    },
+    {
+      "version": "2023.3.10",
+      "releaseTimestamp": "2023-03-02T06:43:48.960Z",
+      "isStable": true
+    },
+    {
+      "version": "2023.3.20",
+      "releaseTimestamp": "2023-03-09T01:35:33.393Z",
+      "isStable": true
+    },
+    {
+      "version": "2023.3.30",
+      "releaseTimestamp": "2023-03-22T22:01:28.680Z",
+      "isStable": true
+    },
+    {
+      "version": "2023.3.40",
+      "releaseTimestamp": "2023-03-30T00:51:22.157Z",
+      "isStable": true
+    },
+    {
+      "version": "2023.4.10",
+      "releaseTimestamp": "2023-04-05T23:04:14.677Z",
+      "isStable": true
+    },
+    {
+      "version": "2023.4.20",
+      "releaseTimestamp": "2023-04-13T17:14:16.660Z",
+      "isStable": true
+    },
+    {
+      "version": "2023.4.30",
+      "releaseTimestamp": "2023-04-19T19:33:03.690Z",
+      "isStable": true
+    },
+    {
+      "version": "2023.4.40",
+      "releaseTimestamp": "2023-04-26T23:37:15.513Z",
+      "isStable": true
+    },
+    {
+      "version": "2023.5.10",
+      "releaseTimestamp": "2023-05-04T00:37:20.870Z",
+      "isStable": true
+    },
+    {
+      "version": "2023.5.20",
+      "releaseTimestamp": "2023-05-10T22:25:31.533Z",
+      "isStable": true
+    },
+    {
+      "version": "2023.5.30",
+      "releaseTimestamp": "2023-05-17T21:46:36.240Z",
+      "isStable": true
+    },
+    {
+      "version": "2023.5.40",
+      "releaseTimestamp": "2023-05-24T22:25:52.740Z",
+      "isStable": true
+    },
+    {
+      "version": "2023.5.50",
+      "releaseTimestamp": "2023-05-31T21:37:11.340Z",
+      "isStable": true
+    },
+    {
+      "version": "2023.6.10",
+      "releaseTimestamp": "2023-06-08T01:36:48.637Z",
+      "isStable": true
+    },
+    {
+      "version": "2023.6.20",
+      "releaseTimestamp": "2023-06-15T05:31:18.257Z",
+      "isStable": true
+    },
+    {
+      "version": "2023.6.30",
+      "releaseTimestamp": "2023-06-21T21:30:34.663Z",
+      "isStable": true
+    },
+    {
+      "version": "2023.6.40",
+      "releaseTimestamp": "2023-06-28T21:04:26.940Z",
+      "isStable": true
+    },
+    {
+      "version": "2023.7.10",
+      "releaseTimestamp": "2023-07-06T00:00:42.637Z",
+      "isStable": true
+    },
+    {
+      "version": "2023.7.20",
+      "releaseTimestamp": "2023-07-12T22:11:05.147Z",
+      "isStable": true
+    },
+    {
+      "version": "2023.7.30",
+      "releaseTimestamp": "2023-07-19T21:59:51.927Z",
+      "isStable": true
+    },
+    {
+      "version": "2023.7.40",
+      "releaseTimestamp": "2023-07-26T23:34:06.157Z",
+      "isStable": true
+    },
+    {
+      "version": "2023.8.10",
+      "releaseTimestamp": "2023-08-03T00:03:42.753Z",
+      "isStable": true
+    },
+    {
+      "version": "2023.8.20",
+      "releaseTimestamp": "2023-08-09T20:52:20.187Z",
+      "isStable": true
+    },
+    {
+      "version": "2023.8.30",
+      "releaseTimestamp": "2023-08-16T22:06:04.383Z",
+      "isStable": true
+    },
+    {
+      "version": "2023.8.40",
+      "releaseTimestamp": "2023-08-23T19:31:55.937Z",
+      "isStable": true
+    },
+    {
+      "version": "2023.8.50",
+      "releaseTimestamp": "2023-08-31T01:59:10.100Z",
+      "isStable": true
+    },
+    {
+      "version": "2023.9.10",
+      "releaseTimestamp": "2023-09-06T22:10:31.213Z",
+      "isStable": true
+    },
+    {
+      "version": "2023.9.20",
+      "releaseTimestamp": "2023-09-20T23:04:36.603Z",
+      "isStable": true
+    },
+    {
+      "version": "2023.9.30",
+      "releaseTimestamp": "2023-09-28T17:55:31.600Z",
+      "isStable": true
+    },
+    {
+      "version": "2023.10.10",
+      "releaseTimestamp": "2023-10-04T21:54:02.563Z",
+      "isStable": true
+    },
+    {
+      "version": "2023.10.20",
+      "releaseTimestamp": "2023-10-11T21:15:35.307Z",
+      "isStable": true
+    },
+    {
+      "version": "2023.10.30",
+      "releaseTimestamp": "2023-10-19T02:08:01.277Z",
+      "isStable": true
+    },
+    {
+      "version": "2023.10.40",
+      "releaseTimestamp": "2023-10-20T17:42:45.333Z",
+      "isStable": true
+    },
+    {
+      "version": "2023.10.50",
+      "releaseTimestamp": "2023-10-26T18:50:32.600Z",
+      "isStable": true
+    },
+    {
+      "version": "2023.11.10",
+      "releaseTimestamp": "2023-11-03T05:12:08.060Z",
+      "isStable": true
+    },
+    {
+      "version": "2023.12.1",
+      "releaseTimestamp": "2023-12-14T00:19:45.920Z",
+      "isStable": true
+    },
+    {
+      "version": "2024.2.1",
+      "releaseTimestamp": "2024-02-08T22:20:38.750Z",
+      "isStable": true
+    },
+    {
+      "version": "2024.2.2",
+      "releaseTimestamp": "2024-02-14T22:00:51.110Z",
+      "isStable": true
+    },
+    {
+      "version": "2024.2.3",
+      "releaseTimestamp": "2024-03-05T02:23:32.197Z",
+      "isStable": true
+    },
+    {
+      "version": "2024.2.4",
+      "releaseTimestamp": "2025-01-22T20:19:48.327Z",
+      "isStable": true
+    },
+    {
+      "version": "2024.3.1",
+      "releaseTimestamp": "2024-03-12T20:27:26.300Z",
+      "isStable": true
+    },
+    {
+      "version": "2024.3.2",
+      "releaseTimestamp": "2024-03-25T22:55:50.777Z",
+      "isStable": true
+    },
+    {
+      "version": "2024.4.1",
+      "releaseTimestamp": "2024-04-02T23:45:49.830Z",
+      "isStable": true
+    },
+    {
+      "version": "2024.5.1",
+      "releaseTimestamp": "2024-05-06T19:39:18.897Z",
+      "isStable": true
+    },
+    {
+      "version": "2024.6.1",
+      "releaseTimestamp": "2024-06-06T19:42:48.390Z",
+      "isStable": true
+    },
+    {
+      "version": "2024.7.1",
+      "releaseTimestamp": "2024-07-08T19:55:24.920Z",
+      "isStable": true
+    },
+    {
+      "version": "2024.8.1",
+      "releaseTimestamp": "2024-08-06T00:47:58.197Z",
+      "isStable": true
+    },
+    {
+      "version": "2024.8.2",
+      "releaseTimestamp": "2024-08-26T21:04:20.997Z",
+      "isStable": true
+    },
+    {
+      "version": "2024.9.1",
+      "releaseTimestamp": "2024-09-09T21:52:17.487Z",
+      "isStable": true
+    },
+    {
+      "version": "2024.9.2",
+      "releaseTimestamp": "2024-09-20T21:58:37.370Z",
+      "isStable": true
+    },
+    {
+      "version": "2024.10.1",
+      "releaseTimestamp": "2024-10-07T21:09:17.400Z",
+      "isStable": true
+    },
+    {
+      "version": "2024.11.1",
+      "releaseTimestamp": "2024-11-04T20:45:30.607Z",
+      "isStable": true
+    },
+    {
+      "version": "2024.11.2",
+      "releaseTimestamp": "2024-11-14T00:53:28.600Z",
+      "isStable": true
+    },
+    {
+      "version": "2024.11.3",
+      "releaseTimestamp": "2024-11-22T01:46:27.107Z",
+      "isStable": true
+    },
+    {
+      "version": "2024.12.1",
+      "releaseTimestamp": "2024-12-06T01:30:42.353Z",
+      "isStable": true
+    },
+    {
+      "version": "2025.2.1",
+      "releaseTimestamp": "2025-02-05T22:23:51.710Z",
+      "isStable": true
+    },
+    {
+      "version": "2025.3.1",
+      "releaseTimestamp": "2025-03-06T00:38:18.547Z",
+      "isStable": true
+    },
+    {
+      "version": "2025.3.2",
+      "releaseTimestamp": "2025-03-13T22:23:31.470Z",
+      "isStable": true
+    },
+    {
+      "version": "2025.4.1",
+      "releaseTimestamp": "2025-04-02T21:09:17.443Z",
+      "isStable": true
+    },
+    {
+      "version": "2025.5.1",
+      "releaseTimestamp": "2025-05-15T00:59:28.517Z",
+      "isStable": true
+    },
+    {
+      "version": "2025.6.1",
+      "releaseTimestamp": "2025-06-12T21:55:05.997Z",
+      "isStable": true
+    },
+    {
+      "version": "2025.6.2",
+      "releaseTimestamp": "2025-06-25T22:23:11.387Z",
+      "isStable": true
+    },
+    {
+      "version": "2025.7.1",
+      "releaseTimestamp": "2025-07-24T22:44:34.030Z",
+      "isStable": true
+    },
+    {
+      "version": "2025.8.1",
+      "releaseTimestamp": "2025-09-17T02:03:53.380Z",
+      "isStable": true
+    },
+    {
+      "version": "2025.8.2",
+      "releaseTimestamp": "2025-09-19T00:07:42.680Z",
+      "isStable": true
+    },
+    {
+      "version": "2025.8.3",
+      "releaseTimestamp": "2025-09-29T19:53:21.303Z",
+      "isStable": true
+    },
+    {
+      "version": "2025.9.1",
+      "releaseTimestamp": "2025-10-23T17:33:25.520Z",
+      "isStable": true
+    },
+    {
+      "version": "2025.10.1",
+      "releaseTimestamp": "2025-11-24T22:20:06.553Z",
+      "isStable": true
+    },
+    {
+      "version": "2025.10.2",
+      "releaseTimestamp": "2025-11-26T21:30:19.400Z",
+      "isStable": true
+    },
+    {
+      "version": "2025.10.3",
+      "releaseTimestamp": "2025-12-02T01:20:19.110Z",
+      "isStable": true
+    },
+    {
+      "version": "2025.10.4",
+      "releaseTimestamp": "2025-12-05T01:22:00.637Z",
+      "isStable": true
+    },
+    {
+      "version": "2026.1.1",
+      "releaseTimestamp": "2026-02-18T21:50:35.120Z",
+      "isStable": true
+    },
+    {
+      "version": "2026.2.1",
+      "releaseTimestamp": "2026-03-30T22:52:00.780Z",
+      "isStable": true
+    },
+    {
+      "version": "2026.3.1",
+      "releaseTimestamp": "2026-07-21T19:18:50.987Z",
+      "isStable": true
+    },
+    {
+      "version": "2026.4.1",
+      "releaseTimestamp": "2026-09-23T20:13:59.647Z",
+      "isStable": true
+    }
+  ]
+}
