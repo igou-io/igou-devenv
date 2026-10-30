@@ -60,12 +60,14 @@
     "customizations": {
         "vscode": {
             "extensions": [
-                "redhat.ansible",
-                "hashicorp.terraform",
-                "redhat.vscode-yaml",
-                "anysphere.cursorpyright",
-                "ms-vscode.makefile-tools",
-                "ms-python.python"
+                "redhat.ansible@26.6.0",
+                "hashicorp.terraform@2.39.4",
+                "redhat.vscode-yaml@1.24.0",
+                "ms-vscode.makefile-tools@0.12.17",
+                "ms-python.python@2026.4.0",
+                "ms-python.debugpy@2026.6.0",
+                "ms-python.vscode-python-envs@1.36.0",
+                "ms-python.vscode-pylance@2026.4.1"
             ],
             "settings": {
                 "ansible.python.interpreterPath": "/usr/bin/python3",

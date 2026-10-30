@@ -405,6 +405,24 @@ All tool versions are pinned and managed by [Renovate](https://docs.renovatebot.
 - **aqua-registry pin** — the registry URL contains an immutable release commit SHA, with its tag alongside it. Renovate's `github-tags` datasource updates both together in a separate group with automerge disabled; `tests/test-mise.sh` checks for per-tool verification downgrades.
 - **Mise itself** + Claude Code + Cursor agent + opencode — pinned in `.devcontainer/Dockerfile` ARG blocks with `# renovate:` comments and the `github-releases` datasource (custom regex manager). Verified at build time: mise and Claude Code via pinned-fingerprint GPG signatures, Cursor agent and opencode via SHA256.
 - **Python packages** — pinned in `.devcontainer/requirements.txt`, updated by `pip_requirements` manager.
+- **VS Code extensions** — exact `publisher.name@version` pins in `.devcontainer/devcontainer.json`, including Python's extension pack members. Renovate updates the `vscode extensions` group only after each stable Marketplace release is at least 10 days old; releases without timestamps stay blocked.
+
+The daily `vscode-extension-releases.yaml` workflow publishes Marketplace
+release metadata to the `vscode-extension-releases` branch. It also runs when
+extension configuration changes on `main`, which initializes the feed after
+adoption. This branch contains generated JSON only; Renovate reads it through
+the `custom.vscode-marketplace` datasource. Extension binaries remain in the
+Marketplace. The build checks the candidate pins against live publication dates
+and rejects unpinned dependencies or extension pack members:
+
+```bash
+node .github/scripts/vscode-extension-releases.mjs
+```
+
+The pins control initial Dev Containers installation. Exact-version installs
+are pinned by VS Code, so Renovate owns their subsequent version changes.
+Manual installations, re-enabling automatic updates, and standalone code-server
+configuration are separate from this devcontainer setup.
 
 Trust anchors (mise itself, aqua-registry pin) are routed into their own
 Renovate groups in `renovate.json` so they get reviewed separately from
@@ -475,7 +493,7 @@ does not necessarily provide those kernel/runtime capabilities.
 - **Python packages** → add to `.devcontainer/requirements.txt` (pinned for Renovate)
 - **Binaries not in aqua-registry that need custom verification logic** (Claude Code, Cursor agent, opencode pattern) → add a dedicated `ARG <NAME>_VERSION` + `RUN` block in `.devcontainer/Dockerfile` with a `# renovate:` comment. Keep these rare — prefer mise's `http:` backend when possible.
 - **Custom scripts** → add to `bin/` (symlinked to `~/bin`, on PATH)
-- **Cursor extensions** → add to `customizations.vscode.extensions` in `devcontainer.json`
+- **VS Code devcontainer extensions** → add an exact `publisher.name@version` pin to `customizations.vscode.extensions` in `.devcontainer/devcontainer.json`, including its dependencies and extension pack members; run the Marketplace check above
 
 Hermes dependencies must be added to the image Hermes actually enters. Verify
 the installed dependency in that runtime.

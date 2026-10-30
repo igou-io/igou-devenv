@@ -37,7 +37,8 @@ const deps = config.customManagers.flatMap((manager) => {
 });
 const rules = [...base.packageRules, ...config.packageRules];
 const route = (dep, updateType = 'minor', manager = 'custom.regex') => applyPackageRules({
-  ...base, ...dep, packageName: dep.depName, manager, packageFile: 'mise.toml', updateType, packageRules: rules,
+  ...base, ...dep, packageName: dep.depName, manager,
+  packageFile: dep.packageFile ?? 'mise.toml', updateType, packageRules: rules,
 });
 
 for (const [tool, value] of Object.entries(manifest.tools)) {
@@ -73,6 +74,31 @@ assert.ok(upgradedAnchor.includes(`/${nextDigest}/registry.yaml" # v99.99.99`));
 assert.ok(!upgradedAnchor.includes(anchor.currentDigest));
 const lockPolicy = await route({ depName: 'gh' }, 'lockFileMaintenance', 'mise');
 assert.equal(lockPolicy.automerge, true, 'lock-only maintenance remains self-contained');
+
+const devcontainerPath = '.devcontainer/devcontainer.json';
+const devcontainerContent = await fs.readFile(devcontainerPath, 'utf8');
+const extensionPins = JSON.parse(devcontainerContent).customizations.vscode.extensions;
+const extensionDeps = config.customManagers.flatMap((manager) => {
+  if (!manager.managerFilePatterns.includes('/^\\.devcontainer/devcontainer\\.json$/')) return [];
+  const result = extractPackageFile(devcontainerContent, devcontainerPath, manager);
+  return (result?.deps ?? []).map((dep, depIndex) => ({ ...manager, ...result, ...dep, depIndex }));
+});
+assert.equal(extensionDeps.length, extensionPins.length, 'every extension pin must be extracted');
+for (const pin of extensionPins) {
+  const [id, version] = pin.split('@');
+  const matches = extensionDeps.filter(dep => dep.depName === id && dep.currentValue === version);
+  assert.equal(matches.length, 1, `${pin} must be extracted exactly once`);
+  const dep = matches[0];
+  const policy = await route({ ...dep, packageFile: devcontainerPath });
+  assert.equal(policy.groupName, 'vscode extensions');
+  assert.equal(policy.minimumReleaseAge, '10 days');
+  assert.equal(policy.minimumReleaseAgeBehaviour, 'timestamp-required');
+  assert.equal(policy.internalChecksFilter, 'strict');
+  const updated = await doAutoReplace({ ...dep, manager: 'regex',
+    packageFile: devcontainerPath, newValue: '99.99.99' }, devcontainerContent, false);
+  assert.deepEqual(JSON.parse(updated).customizations.vscode.extensions,
+    extensionPins.map(value => value === pin ? `${id}@99.99.99` : value));
+}
 
 // Include misleading text plus the upstream's indentation and CRLF format.
 // A missing Created line must not become an undated release that can silently
@@ -127,4 +153,4 @@ for (const [branch] of authors) {
   assert.equal(await gitModule.isBranchModified(`renovate/${branch}`, 'main'),
     branch === 'human', `Renovate rebase protection for ${branch}`);
 }
-console.log(`Renovate coverage passed: ${deps.length - 1} HTTP tools, aqua tag/SHA replacement, lock handoff, OpenShift version/date, generated vs human commits.`);
+console.log(`Renovate coverage passed: ${deps.length - 1} HTTP tools, ${extensionDeps.length} extension pins, aqua tag/SHA replacement, lock handoff, OpenShift version/date, generated vs human commits.`);
