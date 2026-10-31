@@ -27,7 +27,7 @@
   ],
   "customDatasources": {
     "openshift-mirror": {
-      "defaultRegistryUrlTemplate": "https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/stable-4.21/release.txt",
+      "defaultRegistryUrlTemplate": "https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/stable/release.txt",
       "format": "plain",
       "transformTemplates": [
         "($version := releases[$match(version, /^\\s*Version:/)].version; $created := releases[$match(version, /^Created:/)].version; $assert($count($version) = 1 and $count($created) = 1, 'Expected one Version and Created line'); { \"releases\": [{ \"version\": $trim($substringAfter($version, 'Version:')), \"releaseTimestamp\": $trim($substringAfter($created, 'Created:')) }] })"

@@ -14,6 +14,13 @@ fail() { echo "  [FAIL] $1"; FAIL=$((FAIL + 1)); }
 # ---------------------------------------------------------------------------
 echo "==> Verifying CLI tools..."
 
+expected_kubectl="$(mise which kubectl --tool kubectl)"
+if [[ "$(readlink -f "$(command -v kubectl)")" == "$(readlink -f "$expected_kubectl")" ]]; then
+    ok "kubectl uses the standalone upstream mise tool"
+else
+    fail "kubectl is shadowed by another installation (expected ${expected_kubectl})"
+fi
+
 if [[ "$(readlink -f "$(command -v python3)")" == "$(readlink -f /usr/bin/python3)" ]] && \
    [[ "$(readlink -f "$(command -v python)")" == "$(readlink -f /usr/bin/python3)" ]] && \
    rpm -qf "$(readlink -f /usr/bin/python3)" >/dev/null; then

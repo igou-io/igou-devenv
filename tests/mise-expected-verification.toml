@@ -33,7 +33,7 @@
 # command when the installed binary differs from the mise registry key
 # (e.g. tekton-cli installs a binary named `tkn`).
 
-kubectl = "sha256"   # dl.k8s.io publishes per-binary .sha256
+kubectl = "sha256"   # dl.k8s.io per-binary .sha256; owns kubectl on PATH
 
 # Task 2.1 — SHA256-verified tools.
 gh = "sha256"

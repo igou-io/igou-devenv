@@ -74,6 +74,8 @@ assert.ok(upgradedAnchor.includes(`/${nextDigest}/registry.yaml" # v99.99.99`));
 assert.ok(!upgradedAnchor.includes(anchor.currentDigest));
 const lockPolicy = await route({ depName: 'gh' }, 'lockFileMaintenance', 'mise');
 assert.equal(lockPolicy.automerge, true, 'lock-only maintenance remains self-contained');
+const kubectlPolicy = await route({ depName: 'kubectl' }, 'patch', 'mise');
+assert.equal(kubectlPolicy.minimumReleaseAge, '10 days', 'upstream kubectl retains the release-age gate');
 
 const devcontainerPath = '.devcontainer/devcontainer.json';
 const devcontainerContent = await fs.readFile(devcontainerPath, 'utf8');
@@ -105,11 +107,15 @@ for (const pin of extensionPins) {
 // bypass or indefinitely pend the supply-chain age gate.
 const datasource = new CustomDatasource();
 for (const newline of ['\n', '\r\n']) {
-  datasource.http.getPlain = async () => ({ body: [
-    'Client tools for OpenShift', 'Component Version: 1.2.3',
-    'Created:        2026-09-17T15:25:32Z',
-    'Release Metadata:', '  Version:  4.21.34',
-  ].join(newline) });
+  datasource.http.getPlain = async (url) => {
+    assert.equal(url, 'https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/stable/release.txt',
+      'oc follows the latest stable channel across minor versions');
+    return { body: [
+      'Client tools for OpenShift', 'Component Version: 1.2.3',
+      'Created:        2026-09-17T15:25:32Z',
+      'Release Metadata:', '  Version:  4.21.34',
+    ].join(newline) };
+  };
   const result = await datasource.getReleases({ datasource: 'custom.openshift-mirror',
     packageName: 'openshift/oc', customDatasources: base.customDatasources });
   assert.deepEqual(result.releases.map(({ version, releaseTimestamp }) =>
