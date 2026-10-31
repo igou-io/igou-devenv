@@ -30,17 +30,6 @@ url = "https://github.com/FiloSottile/age/releases/download/v1.3.2/age-v1.3.2-li
 url_api = "https://api.github.com/repos/FiloSottile/age/releases/assets/535541903"
 provenance = "github-attestations"
 
-[[tools."aqua:nodejs/node"]]
-version = "26.4.0"
-backend = "aqua:nodejs/node"
-
-[tools."aqua:nodejs/node"."platforms.linux-arm64"]
-url = "https://nodejs.org/dist/v26.4.0/node-v26.4.0-linux-arm64.tar.gz"
-
-[tools."aqua:nodejs/node"."platforms.linux-x64"]
-checksum = "blake3:8cf53a872032634dcb93885f156bbe1af1630ec701b6bf050ceb015e1c180ba3"
-url = "https://nodejs.org/dist/v26.4.0/node-v26.4.0-linux-x64.tar.gz"
-
 [[tools."aqua:tektoncd/pipelines-as-code"]]
 version = "0.52.0"
 backend = "aqua:tektoncd/pipelines-as-code"
@@ -142,6 +131,7 @@ version = "0.22.5"
 backend = "http:gws"
 
 [tools."http:gws"."platforms.linux-arm64"]
+checksum = "sha256:94490295d9580e1e88574e715a0a162991747d12d62f8c7b8dcc8268b6c1cea0"
 url = "https://github.com/googleworkspace/cli/releases/download/v0.22.5/google-workspace-cli-aarch64-unknown-linux-gnu.tar.gz"
 
 [tools."http:gws"."platforms.linux-x64"]
@@ -153,6 +143,7 @@ version = "4.22.18"
 backend = "http:oc"
 
 [tools."http:oc"."platforms.linux-arm64"]
+checksum = "sha256:ee42ed2ab10a8c6ff83f13914f7aaef44ba45e9d2932c1ca82f950d68a04df48"
 url = "https://mirror.openshift.com/pub/openshift-v4/aarch64/clients/ocp/4.22.18/openshift-client-linux.tar.gz"
 
 [tools."http:oc"."platforms.linux-x64"]
@@ -164,6 +155,7 @@ version = "0.1.4"
 backend = "http:openshell"
 
 [tools."http:openshell"."platforms.linux-arm64"]
+checksum = "sha256:1cd6e63597e1947c44a753bf5352f949e8d8d02e344af92ab899b7c111112d95"
 url = "https://github.com/NVIDIA/OpenShell/releases/download/v0.1.4/openshell-aarch64-unknown-linux-musl.tar.gz"
 
 [tools."http:openshell"."platforms.linux-x64"]
@@ -175,6 +167,7 @@ version = "0.1.36"
 backend = "http:rustfs-cli"
 
 [tools."http:rustfs-cli"."platforms.linux-arm64"]
+checksum = "sha256:20e09f70095ff2f83c92c68253cd44c1a86b15f4906e9630d396ec5b0e35148a"
 url = "https://github.com/rustfs/cli/releases/download/v0.1.36/rustfs-cli-linux-arm64-gnu-v0.1.36.tar.gz"
 
 [tools."http:rustfs-cli"."platforms.linux-x64"]
@@ -186,6 +179,7 @@ version = "1.9.1"
 backend = "http:virtctl"
 
 [tools."http:virtctl"."platforms.linux-arm64"]
+checksum = "sha256:12a26aa4f1088594eeafb76b209e1c9752fa6a10d968b6c98364f96f6c1ecbc5"
 url = "https://github.com/kubevirt/kubevirt/releases/download/v1.9.1/virtctl-v1.9.1-linux-arm64"
 
 [tools."http:virtctl"."platforms.linux-x64"]
@@ -265,6 +259,7 @@ version = "26.12.0"
 backend = "aqua:nodejs/node"
 
 [tools.node."platforms.linux-arm64"]
+checksum = "sha256:ec53c915c3fdd8786c5685abd25ae3fe9fba0692307f9811d7caaadea1bcaf03"
 url = "https://nodejs.org/dist/v26.12.0/node-v26.12.0-linux-arm64.tar.gz"
 
 [tools.node."platforms.linux-x64"]
