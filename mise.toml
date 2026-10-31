@@ -60,7 +60,7 @@ node = "aqua:nodejs/node"
 kubectl = "1.37.1"
 
 # Task 2.1 — SHA256-verified tools (aqua-registry per-tool checksums.txt).
-gh = "2.102.0"
+gh = "2.102.1"
 kustomize = "5.8.3"
 kubeseal = "0.40.0"
 kubeconform = "0.8.0"
@@ -79,7 +79,7 @@ age = "1.3.2"
 # `node` dependency; upstream provides no SHASUMS in the aqua definition, so
 # mise falls back to blake3 TOFU (strictly better than the prior unverified
 # `curl | tar`).
-node = "26.12.0"
+node = "26.12.1"
 
 # SLSA signer pins match the Fulcio URI and issuer in these projects' release
 # provenance. Keep the exact generator ref; a publisher changing its signer
@@ -95,7 +95,7 @@ slsa_signer_identity = "https://github.com/slsa-framework/slsa-github-generator/
 slsa_signer_issuer = "https://token.actions.githubusercontent.com"
 
 [tools.argocd]
-version = "3.5.5"
+version = "3.5.6"
 slsa_signer_identity = "https://github.com/slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@refs/tags/v2.1.0"
 slsa_signer_issuer = "https://token.actions.githubusercontent.com"
 
@@ -143,7 +143,7 @@ linux-arm64 = { url = "https://github.com/kubevirt/kubevirt/releases/download/v{
 # The global minimum_release_age gate still applies.
 # renovate: datasource=github-releases depName=NVIDIA/OpenShell
 [tools."http:openshell"]
-version = "0.1.4"
+version = "0.1.5"
 
 [tools."http:openshell".platforms]
 linux-x64   = { url = "https://github.com/NVIDIA/OpenShell/releases/download/v{{ version }}/openshell-x86_64-unknown-linux-musl.tar.gz" }
@@ -182,7 +182,7 @@ linux-arm64 = { url = "https://mirror.openshift.com/pub/openshift-v4/aarch64/cli
 # blocked. The build needs gcc-c++/make/python3 (present in the Dockerfile
 # layer and the bin/run-pinned-mise bootstrap).
 [tools."npm:t3"]
-version = "0.1.4"
+version = "0.1.6"
 # Keep fresh t3 releases and their npm dependencies available immediately.
 minimum_release_age = "0s"
 allow_builds = ["node-pty"]
