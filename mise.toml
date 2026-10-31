@@ -56,7 +56,7 @@ registry_url = "https://raw.githubusercontent.com/aquaproj/aqua-registry/c970a7a
 node = "aqua:nodejs/node"
 
 [tools]
-# Canary tool — proves the integration shape end-to-end before adding the rest.
+# Standalone upstream kubectl owns the command; do not link oc's bundled copy.
 kubectl = "1.37.1"
 
 # Task 2.1 — SHA256-verified tools (aqua-registry per-tool checksums.txt).
@@ -156,7 +156,7 @@ linux-arm64 = { url = "https://github.com/NVIDIA/OpenShell/releases/download/v{{
 # downgrade we'd otherwise take by abandoning the inline block is avoided.
 # renovate: datasource=custom.openshift-mirror depName=oc
 [tools."http:oc"]
-version = "4.21.37"
+version = "4.22.18"
 postinstall = "/etc/mise/aqua-registry/oc-postinstall.sh"
 
 [tools."http:oc".platforms]

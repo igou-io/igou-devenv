@@ -234,10 +234,14 @@ RUN --mount=type=secret,id=github_token set -eux; \
     # themselves symlinks into /opt/mise/http-tarballs/<hash> — without it
     # find won't traverse past the symlink and the binaries get skipped.
     mise bin-paths | while IFS= read -r d; do \
-      find -L "$d" -maxdepth 1 -type f -executable \
+      find -L "$d" -maxdepth 1 -type f -executable ! -name kubectl \
         -exec ln -sf {} /usr/local/bin/ \;; \
     done; \
-    # Sanity check: kubectl resolves to the mise-installed copy
+    # The oc archive also ships kubectl. Select the standalone upstream tool
+    # explicitly so its independently managed version always owns the command.
+    ln -sf "$(mise which kubectl --tool kubectl)" /usr/local/bin/kubectl; \
+    test "$(readlink -f /usr/local/bin/kubectl)" = \
+      "$(readlink -f "$(mise which kubectl --tool kubectl)")"; \
     kubectl version --client
 
 # oc: migrated to mise (see mise.toml / mise.lock / aqua-registry/oc-postinstall.sh).

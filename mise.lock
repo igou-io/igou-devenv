@@ -149,15 +149,15 @@ checksum = "blake3:ddcecc669ac646ca870d32817dc56f2b581982fe76f880e37fe595a0ee9da
 url = "https://github.com/googleworkspace/cli/releases/download/v0.22.5/google-workspace-cli-x86_64-unknown-linux-gnu.tar.gz"
 
 [[tools."http:oc"]]
-version = "4.21.37"
+version = "4.22.18"
 backend = "http:oc"
 
 [tools."http:oc"."platforms.linux-arm64"]
-url = "https://mirror.openshift.com/pub/openshift-v4/aarch64/clients/ocp/4.21.37/openshift-client-linux.tar.gz"
+url = "https://mirror.openshift.com/pub/openshift-v4/aarch64/clients/ocp/4.22.18/openshift-client-linux.tar.gz"
 
 [tools."http:oc"."platforms.linux-x64"]
-checksum = "blake3:97028d3d1712077af1d3f2371d7e168e67a004e9e5e51e5fe6d6019de300d689"
-url = "https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/4.21.37/openshift-client-linux.tar.gz"
+checksum = "blake3:917bc30c637745b380dd670fe6867f2b485015a34351728885cb0d68250e63f7"
+url = "https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/4.22.18/openshift-client-linux.tar.gz"
 
 [[tools."http:openshell"]]
 version = "0.1.4"
