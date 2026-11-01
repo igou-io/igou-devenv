@@ -11,7 +11,7 @@ yq==4.4.5
 kubernetes==37.0.1
 jmespath==1.1.0
 lxml==6.1.3
-paramiko==5.0.0
+paramiko==5.1.0
 scp==0.16.2
 # RouterOS API client for the read-only routeros-ro profile (community.routeros.api / direct use)
 librouteros==4.2.2
