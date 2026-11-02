@@ -760,6 +760,11 @@
       "version": "2.40.0",
       "releaseTimestamp": "2026-07-23T11:52:47.743Z",
       "isStable": true
+    },
+    {
+      "version": "2.40.1",
+      "releaseTimestamp": "2026-11-02T07:27:33.693Z",
+      "isStable": true
     }
   ]
 }
