@@ -86,7 +86,6 @@ argocd = "sha256+slsa"
 # This is exactly the same trust floor as the previous inline blocks, which
 # pinned a single sha256 in the Dockerfile and trusted it thereafter.
 "http:virtctl" = "blake3"            # binary: virtctl
-"http:openshell" = "blake3"           # binary: openshell
 
 # Task 3.2 — oc (OpenShift CLI). http: backend pins a blake3 TOFU floor in
 # mise.lock; the postinstall hook (aqua-registry/oc-postinstall.sh) re-runs

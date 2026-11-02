@@ -159,17 +159,6 @@ url = "https://mirror.openshift.com/pub/openshift-v4/aarch64/clients/ocp/4.22.18
 checksum = "blake3:917bc30c637745b380dd670fe6867f2b485015a34351728885cb0d68250e63f7"
 url = "https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/4.22.18/openshift-client-linux.tar.gz"
 
-[[tools."http:openshell"]]
-version = "0.1.4"
-backend = "http:openshell"
-
-[tools."http:openshell"."platforms.linux-arm64"]
-url = "https://github.com/NVIDIA/OpenShell/releases/download/v0.1.4/openshell-aarch64-unknown-linux-musl.tar.gz"
-
-[tools."http:openshell"."platforms.linux-x64"]
-checksum = "blake3:9bdf8048e5caea757ffe7e48cd54a56e8c75eb27630248511ea982136c26120e"
-url = "https://github.com/NVIDIA/OpenShell/releases/download/v0.1.4/openshell-x86_64-unknown-linux-musl.tar.gz"
-
 [[tools."http:rustfs-cli"]]
 version = "0.1.36"
 backend = "http:rustfs-cli"
