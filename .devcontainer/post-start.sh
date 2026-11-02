@@ -48,21 +48,17 @@ echo "==> Pruning container writable layer..."
     || echo "    WARNING (non-fatal): hygiene pass failed"
 
 # ---------------------------------------------------------------------------
-# Docker socket permissions — match the docker group GID to the socket's GID
-# so the non-root user can access it without socat proxying.
+# Docker socket permissions — reuse the group owning the socket's GID so
+# the non-root user can access it without socat proxying.
 # ---------------------------------------------------------------------------
 if [ -S /var/run/docker.sock ]; then
     SOCK_GID=$(stat -c '%g' /var/run/docker.sock)
     SOCK_GROUP=$(getent group "$SOCK_GID" | cut -d: -f1 || true)
-    if ! getent group docker &>/dev/null; then
-        if [ -z "$SOCK_GROUP" ]; then
-            sudo groupadd -g "$SOCK_GID" docker
-            SOCK_GROUP="docker"
-        fi
-    else
-        CURRENT_GID=$(getent group docker | cut -d: -f3)
-        if [ "$CURRENT_GID" != "$SOCK_GID" ]; then
+    if [ -z "$SOCK_GROUP" ]; then
+        if getent group docker &>/dev/null; then
             sudo groupmod -g "$SOCK_GID" docker
+        else
+            sudo groupadd -g "$SOCK_GID" docker
         fi
         SOCK_GROUP="docker"
     fi
