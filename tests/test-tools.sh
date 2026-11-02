@@ -29,9 +29,14 @@ else
     fail "python and python3 use RPM-owned system Python"
 fi
 
+if command -v claude >/dev/null 2>&1; then
+    fail "Claude Code is still installed"
+else
+    ok "Claude Code is absent from the image"
+fi
+
 declare -A TOOLS=(
     [python3]="python3 --version"
-    [claude]="claude --version"
     [opencode]="opencode --version"
     [codex]="codex --version"
     [agent]="agent --version"
@@ -127,7 +132,7 @@ else
 fi
 
 # The home must stay traversable by OTHER UIDs. useradd defaults it to 0700,
-# which makes the whole ~/.local/bin toolchain (claude, codex, opencode,
+# which makes the whole ~/.local/bin toolchain (codex, opencode,
 # cursor-agent, agent) unreachable for any runtime that assigns its own UID —
 # OpenShift runs containers as an arbitrary UID in group 0. The binaries are
 # world-executable; only the home's search bit stands in the way.

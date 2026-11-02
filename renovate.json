@@ -83,21 +83,6 @@
         "custom.regex"
       ],
       "matchPackageNames": [
-        "anthropics/claude-code"
-      ],
-      "groupName": "claude code",
-      "description": "Coding-agent harness, ungrouped from the SHA-pinned agent CLIs: the Dockerfile verifies it via PGP against the release signature (no *_SHA256_* ARGs), so a version bump is self-contained and safe to automerge on a green build. 3-day age gate instead of the global 10: harness releases ship protocol/feature fixes weekly and staleness has real operational cost on the Hermes terminal backend.",
-      "minimumReleaseAge": "3 days",
-      "schedule": [
-        "at any time"
-      ],
-      "automerge": true
-    },
-    {
-      "matchManagers": [
-        "custom.regex"
-      ],
-      "matchPackageNames": [
         "@opencode/cli",
         "cursor-agent",
         "openai/codex"

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Point every agent harness's skill directory at the central igou-skills
-# checkout. Idempotent; safe to re-run. A pre-existing real ~/.claude/skills
+# checkout. Idempotent; safe to re-run. A pre-existing real skills
 # directory is moved aside once, never deleted.
 set -euo pipefail
 
@@ -22,5 +22,4 @@ link() {
     echo "link-skills: ${target} -> $(readlink "${target}")"
 }
 
-link /home/igou/.claude/skills   # Claude Code; OpenCode reads ~/.claude/** too
 link /home/igou/.agents/skills   # Codex, Cursor and other cross-vendor harnesses

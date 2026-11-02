@@ -41,8 +41,8 @@ in that same full devcontainer path
 **General:** 1Password CLI, jq, yq, direnv, shellcheck, yamllint, make,
 tree, nmap, tmux, vim, htop, node
 
-**AI agent CLIs:** Claude Code (`claude`), Cursor agent (`cursor-agent`, alias `agent`),
-opencode (`opencode`) — each pinned + cryptographically verified at build time
+**AI agent CLIs:** Codex (`codex`), Cursor agent (`cursor-agent`, alias `agent`),
+OpenCode (`opencode`) — each pinned + cryptographically verified at build time
 
 ### How Tools Are Installed
 
@@ -53,7 +53,7 @@ mechanism. See [AGENTS.md](AGENTS.md) for the per-layer Renovate strategy.
 |---|---|---|
 | Dockerfile (dnf) | podman, buildah, skopeo, jq, gnupg2, 1Password CLI, Docker CLI, base utilities | `.devcontainer/Dockerfile` |
 | Mise (`mise.toml` + `mise.lock`) | kubectl, helm, terraform, gh, argocd, kustomize, kubeseal, flux2, sops, kubeconform, kind, act, tkn, tkn-pac, rclone, direnv, age, node, oc, virtctl, openshell, rc, t3, gws | `mise.toml` (versions) + `mise.lock` (per-asset checksums) |
-| Dockerfile (binary downloads) | mise itself (GPG-signed checksums — trust anchor), Claude Code, Cursor agent, opencode | `.devcontainer/Dockerfile` (ARG + RUN) |
+| Dockerfile (binary downloads) | mise itself (GPG-signed checksums — trust anchor), Codex, Cursor agent, OpenCode | `.devcontainer/Dockerfile` (ARG + RUN) |
 | Dockerfile (pip) | Ansible ecosystem, yq, Kubernetes and API client libraries | `.devcontainer/requirements.txt` |
 
 Released Fedora supplies native Python for `python`, `python3`, and pip tooling. The current baseline is Fedora 44 and Python 3.14. Each image build pulls the current base, disables layer caching, and refreshes distro packages. Python/Ansible versions, RPM versions, and dependency-check results appear in the build log. Python has no source installer, custom Renovate feed, or runtime manifest.
@@ -111,7 +111,6 @@ after changing `.devcontainer/requirements.txt`.
    - `~/.config/op/service-account-token` — 1Password service account token
      (fallback when Connect creds are absent)
    - `~/.config/opencode/` — opencode config (bind-mounted into devcontainer + opencode container)
-   - `~/.claude/` and `~/.claude.json` — Claude Code config
 
 ### Open via Cursor
 
@@ -305,7 +304,7 @@ The host side of this (the devenv VM / physical devhost) installs the same
 
 ## Agent CLIs and credential profiles
 
-Claude Code, Codex, Cursor agent, and OpenCode run directly from their installed
+Codex, Cursor agent, and OpenCode run directly from their installed
 binaries. This repo no longer ships agent launch wrappers or the OpenCode
 1Password masking shim. OpenCode now launches its installed binary directly,
 with the current shell's credentials and filesystem access.
@@ -403,7 +402,7 @@ All tool versions are pinned and managed by [Renovate](https://docs.renovatebot.
 - **Mise-managed CLI tools** — pinned in `mise.toml`, per-asset checksums in `mise.lock`. Renovate's native `mise` manager handles aqua/npm tools; a custom regex handles all annotated `http:` tables. Both use the `mise-managed cli tools` group, whose preparation workflow regenerates the lock before enabling auto-merge.
 - **OpenShift CLI** — the shared `openshift-mirror` datasource reads `Version:` and `Created:` from Red Hat's release metadata. Its release timestamp preserves the 10-day age gate.
 - **aqua-registry pin** — the registry URL contains an immutable release commit SHA, with its tag alongside it. Renovate's `github-tags` datasource updates both together in a separate group with automerge disabled; `tests/test-mise.sh` checks for per-tool verification downgrades.
-- **Mise itself** + Claude Code + Cursor agent + opencode — pinned in `.devcontainer/Dockerfile` ARG blocks with `# renovate:` comments and the `github-releases` datasource (custom regex manager). Verified at build time: mise and Claude Code via pinned-fingerprint GPG signatures, Cursor agent and opencode via SHA256.
+- **Mise itself** + Codex + Cursor agent + OpenCode — pinned in `.devcontainer/Dockerfile` ARG blocks with `# renovate:` comments and the `github-releases` datasource (custom regex manager). Verified at build time: mise via a pinned-fingerprint GPG signature; Codex, Cursor agent and OpenCode via SHA256.
 - **Python packages** — pinned in `.devcontainer/requirements.txt`, updated by `pip_requirements` manager.
 - **VS Code extensions** — exact `publisher.name@version` pins in `.devcontainer/devcontainer.json`, including Python's extension pack members. Renovate updates the `vscode extensions` group only after each stable Marketplace release is at least 10 days old; releases without timestamps stay blocked.
 
@@ -491,7 +490,7 @@ does not necessarily provide those kernel/runtime capabilities.
 - **CLI binaries managed by `mise`** (preferred for new tools) → add to `mise.toml`, run `make mise-lock`, commit both. If the tool isn't in aqua-registry, use the `http:` backend with explicit per-platform URLs (see existing entries for `virtctl`, `openshell`, etc.). If the tool needs additional GPG verification beyond aqua-registry's defaults, add a postinstall hook in `aqua-registry/<tool>-postinstall.sh` (see `oc-postinstall.sh` for the pattern) and update `tests/mise-expected-verification.toml` to `"postinstall-gpg"`.
 - **dnf packages** → add to `.devcontainer/Dockerfile` (under the existing `dnf install` block)
 - **Python packages** → add to `.devcontainer/requirements.txt` (pinned for Renovate)
-- **Binaries not in aqua-registry that need custom verification logic** (Claude Code, Cursor agent, opencode pattern) → add a dedicated `ARG <NAME>_VERSION` + `RUN` block in `.devcontainer/Dockerfile` with a `# renovate:` comment. Keep these rare — prefer mise's `http:` backend when possible.
+- **Binaries not in aqua-registry that need custom verification logic** (Codex, Cursor agent, OpenCode pattern) → add a dedicated `ARG <NAME>_VERSION` + `RUN` block in `.devcontainer/Dockerfile` with a `# renovate:` comment. Keep these rare — prefer mise's `http:` backend when possible.
 - **Custom scripts** → add to `bin/` (symlinked to `~/bin`, on PATH)
 - **VS Code devcontainer extensions** → add an exact `publisher.name@version` pin to `customizations.vscode.extensions` in `.devcontainer/devcontainer.json`, including its dependencies and extension pack members; run the Marketplace check above
 
@@ -536,8 +535,7 @@ sudo dnf install -y docker openssh-server
 sudo systemctl enable --now docker
 sudo usermod -aG docker "$USER"   # re-login so docker works without sudo
 
-mkdir -p ~/.ssh ~/.kube ~/.config/argocd ~/.config/op ~/.config/opencode ~/.config/openshell ~/.claude
-echo '{}' > ~/.claude.json
+mkdir -p ~/.ssh ~/.kube ~/.config/argocd ~/.config/op ~/.config/opencode ~/.config/openshell
 touch ~/.gitconfig
 
 echo "Host ready. Clone devenv and open with: cursor ~/igou-devenv"

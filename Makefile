@@ -43,7 +43,7 @@ down:
 shell:
 	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) bash
 
-## Re-point ~/.claude/skills and ~/.agents/skills at /workspace/igou-skills inside the running devcontainer
+## Re-point ~/.agents/skills at /workspace/igou-skills inside the running devcontainer
 link-skills:
 	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) /workspace/igou-devenv/bin/link-skills
 

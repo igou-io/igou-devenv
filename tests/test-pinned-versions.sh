@@ -38,7 +38,6 @@ assert_version() {
 
 echo "==> Verifying pinned tool versions match Dockerfile ARGs..."
 
-assert_version "claude"       "claude --version"     "$(get_arg CLAUDE_CODE_VERSION)"
 assert_version "cursor-agent" "agent --version"      "$(get_arg CURSOR_AGENT_VERSION)"
 assert_version "opencode"     "opencode --version"   "$(get_arg OPENCODE_VERSION)"
 assert_version "codex"        "codex --version"                         "$(get_arg CODEX_VERSION)"

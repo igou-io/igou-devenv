@@ -164,7 +164,7 @@ linux-x64   = { url = "https://mirror.openshift.com/pub/openshift-v4/x86_64/clie
 linux-arm64 = { url = "https://mirror.openshift.com/pub/openshift-v4/aarch64/clients/ocp/{{ version }}/openshift-client-linux.tar.gz" }
 
 # t3 (T3 Code) — local web GUI for the coding-agent CLIs already in this image
-# (claude, codex, opencode, cursor-agent); served always-on by
+# (codex, opencode, cursor-agent); served always-on by
 # .devcontainer/post-start.sh. npm-only distribution
 # with runtime deps (incl. native node-pty), so the http-tarball form can't
 # work — the npm backend runs `npm install`, which verifies each package
