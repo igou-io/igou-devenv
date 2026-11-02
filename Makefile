@@ -3,7 +3,7 @@ WORKSPACE    = $(CURDIR)
 
 .DEFAULT_GOAL := help
 
-.PHONY: link-skills build up up-release down restart exec shell test test-all test-tools test-sandbox-primitives test-podman test-env test-mise test-ssh test-mise-lockfile test-openshell-gateway-config test-qemu clean rebuild help renovate-validate renovate-dry-run sbom sbom-devcontainer e2e mise-lock release release-dry-run release-prepare release-prepare-clis release-watch
+.PHONY: link-skills build up up-release down restart exec shell test test-all test-tools test-sandbox-primitives test-podman test-env test-mise test-ssh test-mise-lockfile test-qemu clean rebuild help renovate-validate renovate-dry-run sbom sbom-devcontainer e2e mise-lock release release-dry-run release-prepare release-prepare-clis release-watch
 
 ## Build the devcontainer image with a fresh base and distro packages
 ## Runs: Dockerfile only (no lifecycle hooks)
@@ -74,7 +74,7 @@ up-release:
 	st=$$?; rm -rf "$$(dirname "$$cfg")"; exit $$st
 
 ## Run all tests (tools, podman, env, ssh, mise lockfile freshness + audit)
-test-all: test-tools test-podman test-env test-ssh test-mise-lockfile test-mise test-openshell-gateway-config test-qemu
+test-all: test-tools test-podman test-env test-ssh test-mise-lockfile test-mise test-qemu
 
 ## Alias for test-all
 test: test-all
@@ -86,10 +86,6 @@ test-tools:
 ## Diagnostic sandbox primitive smoke test (runtime failures require REQUIRE_SANDBOX_PRIMITIVES=true to fail)
 test-sandbox-primitives:
 	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) /workspace/igou-devenv/tests/test-sandbox-primitives.sh
-
-## Verify declarative OpenShell gateway metadata and token preservation
-test-openshell-gateway-config:
-	$(DEVCONTAINER) exec --workspace-folder $(WORKSPACE) /workspace/igou-devenv/tests/test-openshell-gateway-config.sh
 
 ## Test podman pull, run, and build inside the devcontainer
 test-podman:

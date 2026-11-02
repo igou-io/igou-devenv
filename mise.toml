@@ -136,19 +136,6 @@ version = "1.9.1"
 linux-x64   = { url = "https://github.com/kubevirt/kubevirt/releases/download/v{{ version }}/virtctl-v{{ version }}-linux-amd64" }
 linux-arm64 = { url = "https://github.com/kubevirt/kubevirt/releases/download/v{{ version }}/virtctl-v{{ version }}-linux-arm64" }
 
-# OpenShell CLI. NVIDIA publishes static Linux archives plus an unsigned
-# SHA256 checksum manifest, but OpenShell is not in aqua-registry and mise's
-# http backend does not consume that manifest. The lockfile therefore pins the
-# downloaded archives with the same blake3 TOFU floor as the other http tools.
-# The global minimum_release_age gate still applies.
-# renovate: datasource=github-releases depName=NVIDIA/OpenShell
-[tools."http:openshell"]
-version = "0.1.4"
-
-[tools."http:openshell".platforms]
-linux-x64   = { url = "https://github.com/NVIDIA/OpenShell/releases/download/v{{ version }}/openshell-x86_64-unknown-linux-musl.tar.gz" }
-linux-arm64 = { url = "https://github.com/NVIDIA/OpenShell/releases/download/v{{ version }}/openshell-aarch64-unknown-linux-musl.tar.gz" }
-
 # Task 3.2 — oc (OpenShift CLI). mise's http backend gives the same blake3
 # TOFU floor as the rest of the http: tools, plus a postinstall hook that
 # independently re-verifies Red Hat's GPG-signed sha256sum.txt.gpg against
