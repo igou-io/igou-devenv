@@ -193,9 +193,8 @@ after the relevant test has actually passed.
 - The mise binary is bootstrapped by verifying release checksums with a pinned
   GPG fingerprint. Mise-managed tools are pinned in `mise.lock`, and
   `tests/test-mise.sh` audits the expected verification method.
-- `codex`, Claude Code, Cursor agent, and OpenCode installed in the main
-  devcontainer are pinned and Renovate-managed. Cursor, OpenCode, and Codex
-  use the CLI SHA-recapture workflow; Claude verifies vendor-signed checksums.
+- `codex`, Cursor agent, and OpenCode installed in the main devcontainer are
+  pinned and Renovate-managed through the CLI SHA-recapture workflow.
   Persistent agent state is mounted from host directories, not baked into the
   image.
 - QEMU/libvirt tooling is available in the full devcontainer for molecule

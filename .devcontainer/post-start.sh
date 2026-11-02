@@ -139,7 +139,7 @@ done
 
 # ---------------------------------------------------------------------------
 # t3 serve — T3 Code, a headless web GUI for the coding-agent CLIs in this
-# image (claude/codex/opencode/cursor-agent), started always-on.
+# image (codex/opencode/cursor-agent), started always-on.
 # State (device pairing credentials, thread history) lives
 # in ~/.t3, a persistent bind mount, so paired browsers survive container
 # rebuilds. Binds all interfaces (the container is --network=host), so the
@@ -167,16 +167,5 @@ if command -v t3 >/dev/null 2>&1; then
         setsid nohup t3 serve --host "$T3_HOST" >> "$HOME/.t3/serve.log" 2>&1 < /dev/null &
         disown || true
         wait_for_listen "$T3_PORT" "t3 serve" "$HOME/.t3/serve.log"
-    fi
-fi
-
-# ---------------------------------------------------------------------------
-# Restore Claude Code config if missing (backup lives in mounted ~/.claude/)
-# ---------------------------------------------------------------------------
-if [ ! -f "$HOME/.claude.json" ] && [ -d "$HOME/.claude/backups" ]; then
-    BACKUP=$(ls -t "$HOME/.claude/backups/.claude.json.backup."* 2>/dev/null | head -1)
-    if [ -n "$BACKUP" ]; then
-        cp "$BACKUP" "$HOME/.claude.json"
-        echo "==> Restored Claude config from backup"
     fi
 fi

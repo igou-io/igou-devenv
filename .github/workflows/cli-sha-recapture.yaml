@@ -32,7 +32,6 @@ concurrency:
 jobs:
   recapture:
     # Only the Renovate coding-agent group branch — other Dockerfile PRs
-    # (including claude-code, which has no SHA ARGs and automerges on its own)
     # must not get auto-merge enabled by this job. workflow_dispatch is the
     # manual retry path and runs unconditionally.
     if: >-

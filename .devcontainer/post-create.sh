@@ -63,10 +63,9 @@ EOF
 ln -sfn /workspace/igou-devenv/bin /home/igou/bin
 
 # ---------------------------------------------------------------------------
-# Point every harness (Claude Code, Codex, OpenCode, Cursor) at the central
-# skills repo in /workspace/igou-skills. ~/.agents is on the ephemeral
-# container fs, so this must run on every build; ~/.claude persists but the
-# script is idempotent.
+# Point Codex, OpenCode and Cursor at the central skills repo in
+# /workspace/igou-skills. ~/.agents is on the ephemeral container fs,
+# so this must run on every build; the script is idempotent.
 # ---------------------------------------------------------------------------
 /workspace/igou-devenv/bin/link-skills
 

@@ -286,57 +286,6 @@ RUN mkdir -p /home/igou/.config/containers
 COPY .devcontainer/containers-storage.conf /home/igou/.config/containers/storage.conf
 RUN chown -R igou:igou /home/igou/.config
 
-# Baked CLAUDE.md at the managed enterprise path Claude Code reads automatically.
-# This describes the devcontainer to in-container Claude sessions without writing
-# to ~/.claude/CLAUDE.md (which is bind-mounted from the host).
-RUN mkdir -p /etc/claude-code
-COPY .devcontainer/CLAUDE.md /etc/claude-code/CLAUDE.md
-
-# Claude Code — pinned download, verified via Anthropic-signed SHASUMS256.txt.sig.
-# Trust anchor is the pinned key fingerprint below: the key is fetched from
-# Anthropic's HTTPS endpoint at build time but rejected if its fingerprint
-# doesn't match. An attacker would need to both control downloads.claude.ai
-# AND produce a colliding SHA-1 fingerprint (computationally infeasible).
-# Key UID (out-of-band-verified): "Anthropic Claude Code Release Signing <security@anthropic.com>"
-# renovate: datasource=github-releases depName=anthropics/claude-code
-ARG CLAUDE_CODE_VERSION="v2.1.314"
-ARG CLAUDE_CODE_PGP_FPR="31DDDE24DDFAB679F42D7BD2BAA929FF1A7ECACE"
-ARG CLAUDE_CODE_PGP_URL="https://downloads.claude.ai/keys/claude-code.asc"
-USER igou
-RUN set -eux; \
-    ARCH_RAW=$(uname -m); \
-    case "$ARCH_RAW" in \
-      x86_64)  ARCH="x64" ;; \
-      aarch64) ARCH="arm64" ;; \
-      *) echo "Unsupported arch: $ARCH_RAW" >&2; exit 1 ;; \
-    esac; \
-    TARBALL="claude-linux-${ARCH}.tar.gz"; \
-    BASE="https://github.com/anthropics/claude-code/releases/download/${CLAUDE_CODE_VERSION}"; \
-    WORK=$(mktemp -d); \
-    export GNUPGHOME="$WORK/gnupg"; \
-    mkdir -p -m 0700 "$GNUPGHOME"; \
-    cd "$WORK"; \
-    curl -fsSL -o key.asc "${CLAUDE_CODE_PGP_URL}"; \
-    gpg --batch --import key.asc; \
-    # Reject any key whose fingerprint doesn't match the pinned anchor.
-    gpg --list-keys --with-colons --with-fingerprint \
-      | awk -F: '$1=="fpr"{print $10}' \
-      | grep -qFx "${CLAUDE_CODE_PGP_FPR}"; \
-    curl -fsSL -o "$TARBALL" "${BASE}/${TARBALL}"; \
-    curl -fsSL -o SHASUMS256.txt "${BASE}/SHASUMS256.txt"; \
-    curl -fsSL -o SHASUMS256.txt.sig "${BASE}/SHASUMS256.txt.sig"; \
-    # Require not just a valid signature, but one from our pinned key.
-    # gpg's --status-fd emits "VALIDSIG <fpr>" only on a good signature from <fpr>.
-    gpg --batch --status-fd 1 --verify SHASUMS256.txt.sig SHASUMS256.txt 2>/dev/null \
-      | grep -qF "VALIDSIG ${CLAUDE_CODE_PGP_FPR}"; \
-    grep " ${TARBALL}\$" SHASUMS256.txt | sha256sum -c -; \
-    mkdir -p "$HOME/.local/share/claude" "$HOME/.local/bin"; \
-    tar -xzf "$TARBALL" -C "$HOME/.local/share/claude"; \
-    ln -sfn "$HOME/.local/share/claude/claude" "$HOME/.local/bin/claude"; \
-    cd / && rm -rf "$WORK"; \
-    "$HOME/.local/bin/claude" --version
-USER root
-
 # Refuse to install unsigned upstream Cursor releases
 # younger than this many days. Defense-in-depth against compromised releases
 # that haven't been publicly noticed yet — mirrors the coding-agent
@@ -450,8 +399,8 @@ USER root
 # openai/codex "package" release assets. The native installer
 # (https://chatgpt.com/codex/install.sh) lays the standalone payload under
 # ~/.codex/packages/standalone; we instead extract it to ~/.local/share/codex
-# (like the Claude block above) so the bind-mounted ~/.codex — which holds
-# config/auth/state — is never shadowed by an image-baked payload.
+# so the bind-mounted ~/.codex config/auth/state directory is never shadowed
+# by an image-baked payload.
 # Per-asset SHA256s are published in the release's codex-package_SHA256SUMS;
 # cli-sha-recapture.yaml (bin/release-prepare-clis) re-captures them on
 # Renovate bumps; for a manual bump:
@@ -507,15 +456,15 @@ RUN set -eux; \
 # you ARE igou. It is wrong for every runtime that assigns a UID of its own:
 # OpenShift runs containers as an arbitrary UID in group 0, and Kubernetes
 # pods may set any runAsUser. Those processes cannot traverse a 0700 home, so
-# the whole user-installed toolchain under ~/.local/bin — claude, codex,
-# opencode, cursor-agent, agent — is unreachable no matter what PATH says.
+# the whole user-installed toolchain under ~/.local/bin — codex, opencode,
+# cursor-agent, agent — is unreachable no matter what PATH says.
 # The binaries are already world-executable; only the home's search bit is in
 # the way.
 #
 # 0755 grants traverse+read, not write: another UID can RUN the tools but
-# cannot modify them, and secrets are never baked here (~/.codex, ~/.claude
-# and friends are bind-mounted or injected at runtime). Consumers that need a
-# writable home should point HOME (or CODEX_HOME, CLAUDE_CONFIG_DIR, ...) at
+# cannot modify them, and secrets are never baked here. State directories such
+# as ~/.codex are bind-mounted or injected at runtime. Consumers that need a
+# writable home should point HOME (or CODEX_HOME, ...) at
 # their own writable path.
 RUN chmod 0755 /home/igou
 

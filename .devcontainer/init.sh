@@ -4,7 +4,7 @@
 # (including CI runners) where these paths may not exist yet.
 set -euo pipefail
 
-for dir in "$HOME/.claude-container" "$HOME/.codex" "$HOME/.config/cursor" "$HOME/.config/opencode" "$HOME/.config/openshell" "$HOME/.local/share/opencode" "$HOME/.t3" "$HOME/.local/share/igou-devenv" "$HOME/.ssh" "$HOME/.kube" "$HOME/.config/argocd" "$HOME/.config/op" "$HOME/workspace"; do
+for dir in "$HOME/.codex" "$HOME/.config/cursor" "$HOME/.config/opencode" "$HOME/.config/openshell" "$HOME/.local/share/opencode" "$HOME/.t3" "$HOME/.local/share/igou-devenv" "$HOME/.ssh" "$HOME/.kube" "$HOME/.config/argocd" "$HOME/.config/op" "$HOME/workspace"; do
     if [ ! -d "$dir" ]; then
         mkdir -p "$dir"
         echo "[init] Created $dir"
@@ -12,10 +12,6 @@ for dir in "$HOME/.claude-container" "$HOME/.codex" "$HOME/.config/cursor" "$HOM
 done
 
 # Ensure file-based bind mounts exist (files, not directories)
-if [ ! -f "$HOME/.claude.json" ]; then
-    echo '{}' > "$HOME/.claude.json"
-    echo "[init] Created $HOME/.claude.json"
-fi
 if [ ! -f "$HOME/.gitconfig" ]; then
     touch "$HOME/.gitconfig"
     echo "[init] Created $HOME/.gitconfig"
