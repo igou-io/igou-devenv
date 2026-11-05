@@ -370,6 +370,11 @@
       "version": "26.8.2",
       "releaseTimestamp": "2026-08-26T03:25:15.463Z",
       "isStable": true
+    },
+    {
+      "version": "26.11.0",
+      "releaseTimestamp": "2026-11-05T09:44:46.163Z",
+      "isStable": true
     }
   ]
 }

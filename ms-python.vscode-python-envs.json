@@ -110,6 +110,11 @@
       "version": "1.40.0",
       "releaseTimestamp": "2026-10-14T21:42:23.120Z",
       "isStable": true
+    },
+    {
+      "version": "1.42.0",
+      "releaseTimestamp": "2026-11-04T23:05:26.040Z",
+      "isStable": true
     }
   ]
 }
