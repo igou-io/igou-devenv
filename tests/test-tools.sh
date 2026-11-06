@@ -148,6 +148,14 @@ else
     fail "passwordless sudo"
 fi
 
+# A root-run build diagnostic can leave Ansible's cache and temp directory
+# unwritable even when the home itself has the correct owner.
+if molecule --version >/dev/null 2>&1 && [ -w "$HOME/.ansible/tmp" ]; then
+    ok "Molecule starts with writable Ansible state"
+else
+    fail "Molecule starts with writable Ansible state"
+fi
+
 # ---------------------------------------------------------------------------
 # Results
 # ---------------------------------------------------------------------------
