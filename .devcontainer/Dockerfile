@@ -479,10 +479,14 @@ RUN chmod 0755 /home/igou
 # size cost, kept last so it never invalidates earlier layers.
 # ---------------------------------------------------------------------------
 ENV HOME=/home/igou
+
+# Keep runtime diagnostics in the build log. Ansible creates ~/.ansible/tmp,
+# so run as igou before applying the shared-home permissions below.
+USER igou
+RUN python3 --version && rpm -q python3 python3-libs && ansible --version && python3 -m pip check
+USER root
+
 RUN chgrp -R 0 /home/igou /etc/passwd /etc/group && \
     chmod -R g=u /home/igou /etc/passwd /etc/group
 
 WORKDIR /workspace
-
-# Keep runtime diagnostics in the build log.
-RUN python3 --version && rpm -q python3 python3-libs && ansible --version && python3 -m pip check
