@@ -352,7 +352,7 @@ USER root
 # OpenCode bypasses the release-age delay; per-architecture SHA256 verification
 # remains mandatory, matching Codex.
 # renovate: datasource=npm depName=@opencode/cli
-ARG OPENCODE_VERSION="2.2.5"
+ARG OPENCODE_VERSION="2.2.6"
 ARG OPENCODE_SHA256_X64="92690eee07a680d3cb760ca02ba43878de9eab1b4e5d5dfae8795518c53628f4"
 ARG OPENCODE_SHA256_ARM64="f8c5a82075fede9b5b044ed6c8a6d13ad807a7e62caea1cd0a878adef49eb053"
 # Shell functions + the profile resolver baked into the image so NON-devcontainer
@@ -409,7 +409,7 @@ USER root
 # Codex bypasses the release-age delay; per-architecture SHA256 verification
 # and the required build/tests remain the install gate.
 # renovate: datasource=github-releases depName=openai/codex extractVersion=^rust-v(?<version>.+)$
-ARG CODEX_VERSION="0.166.0"
+ARG CODEX_VERSION="0.167.0"
 ARG CODEX_SHA256_X64="1d44b28bc4ac9937d7d3532264baa68a507ce364956a0d4ebb856f331cdee254"
 ARG CODEX_SHA256_ARM64="7821b77dda2e6283fb1f63f3165177a271da8833e857cf673c6ca1c9db3bfcc6"
 USER igou
