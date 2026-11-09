@@ -8,9 +8,9 @@
 # Source of truth for "what verification did mise use" is the lockfile
 # at /etc/mise/mise.lock (or the repo's mise.lock when run from a
 # checkout). Lockfile checksums are prefixed with the algorithm name:
-#   checksum = "sha256:..."   # aqua-published checksum, verified upstream
-#   checksum = "blake3:..."   # TOFU: mise computed it on first install
-# The prefix is the audit signal.
+#   checksum = "sha256:..." or "blake3:..."
+# A checksum prefix identifies the digest algorithm, not its source. TOFU
+# tools accept either strong pin; upstream provenance is checked separately.
 set -euo pipefail
 
 # Locate the lockfile. Inside the built devcontainer it lives at /etc/mise;

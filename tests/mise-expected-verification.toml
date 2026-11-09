@@ -9,6 +9,8 @@
 #   "gpg"              — aqua-registry GPG-verified against pinned fingerprint
 #   "slsa"             — SLSA L3 provenance verified by mise's built-in SLSA verifier
 #   "blake3"           — TOFU on first install (mise computed the digest itself)
+#   "tofu"             — one SHA256 or BLAKE3 pin per recorded platform; the
+#                        algorithm alone makes no upstream authenticity claim
 #   "core"             — uses a mise core backend whose verification happens
 #                        inside the mise binary and is not recorded in mise.lock
 #                        (e.g. core:node, which verifies against nodejs.org's
@@ -47,7 +49,7 @@ tekton-cli = "sha256"   # binary: tkn
 rclone = "sha256"
 direnv = "sha256"
 age = "sha256"
-node = "blake3"   # aliased to aqua:nodejs/node in mise.toml [tool_alias]; aqua-registry has no SHASUMS reference; mise pins blake3 TOFU. Strictly better than the prior unverified curl|tar.
+node = "tofu"   # aqua:nodejs/node; checksum pin without a required upstream signature
 
 # Task 2.2 — flux2 + sops.
 # Plan expected "cosign-keyless"; aqua-registry actually verifies SLSA L3
@@ -82,10 +84,10 @@ argocd = "sha256+slsa"
 
 # Task 3.1 — off-registry tools via mise's http backend.
 # The http backend does not consult any upstream checksum file, so mise
-# generates a blake3 digest on first fetch and pins it in mise.lock (TOFU).
+# records a SHA256 or BLAKE3 digest in mise.lock (TOFU).
 # This is exactly the same trust floor as the previous inline blocks, which
 # pinned a single sha256 in the Dockerfile and trusted it thereafter.
-"http:virtctl" = "blake3"            # binary: virtctl
+"http:virtctl" = "tofu"            # binary: virtctl
 
 # Task 3.2 — oc (OpenShift CLI). http: backend pins a blake3 TOFU floor in
 # mise.lock; the postinstall hook (aqua-registry/oc-postinstall.sh) re-runs
@@ -95,12 +97,12 @@ argocd = "sha256+slsa"
 # Trust anchor: Red Hat key 2, fpr 567E347AD0044ADE55BA8A5F199E2F91FD431D51.
 "http:oc" = "postinstall-gpg"   # binary: oc
 
-# rustfs-cli (`rc`). Not in aqua-registry; the http backend pins a blake3 TOFU
-# floor in mise.lock. Upstream ships .sha256/SHA256SUMS but no GPG/SLSA/
-# attestation, so blake3 is the strongest available floor (same as the http:
-# tools above). The archive's binary is named `rc`, so the launch check runs
+# rustfs-cli (`rc`). Not in aqua-registry; the http backend pins a TOFU
+# floor in mise.lock. This backend does not verify an upstream signature or
+# attestation, so the digest pin is the floor. The archive's binary is named
+# `rc`, so the launch check runs
 # `rc --version` via the binary override.
-"http:rustfs-cli" = "blake3"   # binary: rc
+"http:rustfs-cli" = "tofu"   # binary: rc
 
 # t3 (T3 Code). npm-only distribution with runtime deps (native node-pty), so
 # it installs via mise's npm backend: `npm install` verifies every package
@@ -111,7 +113,7 @@ argocd = "sha256+slsa"
 "npm:t3" = "npm"   # binary: t3
 
 # gws (Google Workspace CLI). Not in aqua-registry; the http backend pins a
-# blake3 TOFU floor in mise.lock. Upstream ships per-asset .sha256 files and
+# checksum TOFU floor in mise.lock. Upstream ships per-asset .sha256 files and
 # GitHub artifact attestations, but the http backend consumes neither, so
-# blake3 is the strongest available floor (same as the http: tools above).
-"http:gws" = "blake3"   # binary: gws
+# the digest pin is the floor (same as the http: tools above).
+"http:gws" = "tofu"   # binary: gws
