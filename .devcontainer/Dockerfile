@@ -1,4 +1,4 @@
-FROM registry.fedoraproject.org/fedora:44
+FROM registry.fedoraproject.org/fedora:45
 
 # Create igou user. UID 1000 is a conventional default; the devcontainer runtime's
 # updateRemoteUserUID remaps it to match the host user at startup.
