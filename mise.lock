@@ -6,11 +6,13 @@ backend = "aqua:nektos/act"
 
 [tools.act."platforms.linux-arm64"]
 checksum = "sha256:b604e8f3e5d844e2221caedd2396bd8455dcb10fb3b2f0a43b5d67a65f883e4a"
+checksum_source = "mise-versions"
 url = "https://github.com/nektos/act/releases/download/v0.2.92/act_Linux_arm64.tar.gz"
 url_api = "https://api.github.com/repos/nektos/act/releases/assets/685898566"
 
 [tools.act."platforms.linux-x64"]
 checksum = "sha256:c9e13f0eb77948a6d02eb2e06fa7220addfc5b9927ed2a1b35bcdae5441ac7a1"
+checksum_source = "mise-versions"
 url = "https://github.com/nektos/act/releases/download/v0.2.92/act_Linux_x86_64.tar.gz"
 url_api = "https://api.github.com/repos/nektos/act/releases/assets/685898463"
 
@@ -36,33 +38,35 @@ backend = "aqua:tektoncd/pipelines-as-code"
 
 [tools."aqua:tektoncd/pipelines-as-code"."platforms.linux-arm64"]
 checksum = "sha256:bf1b328fd4bbd80fe14f67bb01a2a9284e0c864e33d75b6b2df3007050453f58"
+checksum_source = "mise-versions"
 url = "https://github.com/tektoncd/pipelines-as-code/releases/download/v0.52.0/tkn-pac_0.52.0_linux_arm64.tar.gz"
 url_api = "https://api.github.com/repos/tektoncd/pipelines-as-code/releases/assets/636330895"
 
 [tools."aqua:tektoncd/pipelines-as-code"."platforms.linux-x64"]
 checksum = "sha256:943d8da4393d997154a9dd723e754ecc4daa3797df44f7a1c3f4a6b893c32cba"
+checksum_source = "mise-versions"
 url = "https://github.com/tektoncd/pipelines-as-code/releases/download/v0.52.0/tkn-pac_0.52.0_linux_x86_64.tar.gz"
 url_api = "https://api.github.com/repos/tektoncd/pipelines-as-code/releases/assets/636330899"
 
 [[tools.argocd]]
-version = "3.5.5"
+version = "3.5.6"
 backend = "aqua:argoproj/argo-cd"
 
 [tools.argocd."platforms.linux-arm64"]
-checksum = "sha256:13f423b9014e212a3e0052b7826e1d6b95ee5ac156f2436fc856f2eb8c827537"
-url = "https://github.com/argoproj/argo-cd/releases/download/v3.5.5/argocd-linux-arm64"
-url_api = "https://api.github.com/repos/argoproj/argo-cd/releases/assets/633520284"
+checksum = "sha256:281aea75a1eaea15e2839f12626e78684f76099f09ffb0b05d35f64344ed1256"
+url = "https://github.com/argoproj/argo-cd/releases/download/v3.5.6/argocd-linux-arm64"
+url_api = "https://api.github.com/repos/argoproj/argo-cd/releases/assets/660262203"
 
 [tools.argocd."platforms.linux-arm64".provenance.slsa]
-url = "https://github.com/argoproj/argo-cd/releases/download/v3.5.5/argocd-cli.intoto.jsonl"
+url = "https://github.com/argoproj/argo-cd/releases/download/v3.5.6/argocd-cli.intoto.jsonl"
 
 [tools.argocd."platforms.linux-x64"]
-checksum = "sha256:c3ddfa606fc3e89ab14f55bda6600b207c355b028f8eaabe69b817a4c4621aba"
-url = "https://github.com/argoproj/argo-cd/releases/download/v3.5.5/argocd-linux-amd64"
-url_api = "https://api.github.com/repos/argoproj/argo-cd/releases/assets/633519800"
+checksum = "sha256:db9d17b70593d3f86a4dcf08d9ebbb85a42e995426ac5f928b737260656102d3"
+url = "https://github.com/argoproj/argo-cd/releases/download/v3.5.6/argocd-linux-amd64"
+url_api = "https://api.github.com/repos/argoproj/argo-cd/releases/assets/660261478"
 
 [tools.argocd."platforms.linux-x64".provenance.slsa]
-url = "https://github.com/argoproj/argo-cd/releases/download/v3.5.5/argocd-cli.intoto.jsonl"
+url = "https://github.com/argoproj/argo-cd/releases/download/v3.5.6/argocd-cli.intoto.jsonl"
 
 [[tools.direnv]]
 version = "2.38.2"
@@ -70,48 +74,50 @@ backend = "aqua:direnv/direnv"
 
 [tools.direnv."platforms.linux-arm64"]
 checksum = "sha256:ec2a32dbe2f19dd085bd9315a1b4ea88b55ec288aa7eabe8723490baf466cb23"
+checksum_source = "mise-versions"
 url = "https://github.com/direnv/direnv/releases/download/v2.38.2/direnv.linux-arm64"
 url_api = "https://api.github.com/repos/direnv/direnv/releases/assets/627455481"
 
 [tools.direnv."platforms.linux-x64"]
 checksum = "sha256:148820a187930d36ca6a204504e5cdb30d8396cd1a97e64c3b3f10d793c11247"
+checksum_source = "mise-versions"
 url = "https://github.com/direnv/direnv/releases/download/v2.38.2/direnv.linux-amd64"
 url_api = "https://api.github.com/repos/direnv/direnv/releases/assets/627455476"
 
 [[tools.flux2]]
-version = "2.9.6"
+version = "2.10.0"
 backend = "aqua:fluxcd/flux2"
 
 [tools.flux2."platforms.linux-arm64"]
-checksum = "sha256:6663c154755b732f43dc993d72321f71c2fc1ff0bcb94b2696e0a8638fa562b4"
-url = "https://github.com/fluxcd/flux2/releases/download/v2.9.6/flux_2.9.6_linux_arm64.tar.gz"
-url_api = "https://api.github.com/repos/fluxcd/flux2/releases/assets/602941235"
+checksum = "sha256:c3c435052e5e18156858bc73f26bcadb62821a6e30951b4b302beb4e65a532c2"
+url = "https://github.com/fluxcd/flux2/releases/download/v2.10.0/flux_2.10.0_linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/fluxcd/flux2/releases/assets/678609576"
 
 [tools.flux2."platforms.linux-arm64".provenance.slsa]
-url = "https://github.com/fluxcd/flux2/releases/download/v2.9.6/provenance.intoto.jsonl"
+url = "https://github.com/fluxcd/flux2/releases/download/v2.10.0/provenance.intoto.jsonl"
 
 [tools.flux2."platforms.linux-x64"]
-checksum = "sha256:b4d22673e9246cbd628881f1a9ef3b090085dced291e42d804555cee8e8d42c5"
-url = "https://github.com/fluxcd/flux2/releases/download/v2.9.6/flux_2.9.6_linux_amd64.tar.gz"
-url_api = "https://api.github.com/repos/fluxcd/flux2/releases/assets/602941244"
+checksum = "sha256:208dd7012c04fedeed5b2d0b6e63df3b15b1c34a381527811685c098bc9f8659"
+url = "https://github.com/fluxcd/flux2/releases/download/v2.10.0/flux_2.10.0_linux_amd64.tar.gz"
+url_api = "https://api.github.com/repos/fluxcd/flux2/releases/assets/678609567"
 
 [tools.flux2."platforms.linux-x64".provenance.slsa]
-url = "https://github.com/fluxcd/flux2/releases/download/v2.9.6/provenance.intoto.jsonl"
+url = "https://github.com/fluxcd/flux2/releases/download/v2.10.0/provenance.intoto.jsonl"
 
 [[tools.gh]]
-version = "2.102.0"
+version = "2.103.3"
 backend = "aqua:cli/cli"
 
 [tools.gh."platforms.linux-arm64"]
-checksum = "sha256:7862c86c72f43df3a2d93ddde6f473285b4e2af61b494849846827e513ef6484"
-url = "https://github.com/cli/cli/releases/download/v2.102.0/gh_2.102.0_linux_arm64.tar.gz"
-url_api = "https://api.github.com/repos/cli/cli/releases/assets/599854680"
+checksum = "sha256:ee32df2323c8847f5fac6cb6b4b69ca75828e9329a8f22f677021f7b3306ce63"
+url = "https://github.com/cli/cli/releases/download/v2.103.3/gh_2.103.3_linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/cli/cli/releases/assets/679195636"
 provenance = "github-attestations"
 
 [tools.gh."platforms.linux-x64"]
-checksum = "sha256:bb766f710eef8ede859c18578c72c327597cd4c8a85b06001b1f3843c6019386"
-url = "https://github.com/cli/cli/releases/download/v2.102.0/gh_2.102.0_linux_amd64.tar.gz"
-url_api = "https://api.github.com/repos/cli/cli/releases/assets/599854672"
+checksum = "sha256:4c806978ffce1cec70853302a56d70ac6da4f19bae7adca4e1a8ab00633dd91d"
+url = "https://github.com/cli/cli/releases/download/v2.103.3/gh_2.103.3_linux_amd64.tar.gz"
+url_api = "https://api.github.com/repos/cli/cli/releases/assets/679195621"
 provenance = "github-attestations"
 
 [[tools.helm]]
@@ -135,7 +141,7 @@ checksum = "sha256:94490295d9580e1e88574e715a0a162991747d12d62f8c7b8dcc8268b6c1c
 url = "https://github.com/googleworkspace/cli/releases/download/v0.22.5/google-workspace-cli-aarch64-unknown-linux-gnu.tar.gz"
 
 [tools."http:gws"."platforms.linux-x64"]
-checksum = "blake3:ddcecc669ac646ca870d32817dc56f2b581982fe76f880e37fe595a0ee9dae73"
+checksum = "sha256:de78ecdbd2f1a84cca0063a7ecbc440240fc14b6ebccbb17f4646b792a8c5c1f"
 url = "https://github.com/googleworkspace/cli/releases/download/v0.22.5/google-workspace-cli-x86_64-unknown-linux-gnu.tar.gz"
 
 [[tools."http:oc"]]
@@ -147,7 +153,7 @@ checksum = "sha256:ee42ed2ab10a8c6ff83f13914f7aaef44ba45e9d2932c1ca82f950d68a04d
 url = "https://mirror.openshift.com/pub/openshift-v4/aarch64/clients/ocp/4.22.18/openshift-client-linux.tar.gz"
 
 [tools."http:oc"."platforms.linux-x64"]
-checksum = "blake3:917bc30c637745b380dd670fe6867f2b485015a34351728885cb0d68250e63f7"
+checksum = "sha256:07751676809553e012448cdb3a755ffa7b11d7e25b8a6cc60a5a62a9f4b18159"
 url = "https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/4.22.18/openshift-client-linux.tar.gz"
 
 [[tools."http:rustfs-cli"]]
@@ -159,7 +165,7 @@ checksum = "sha256:20e09f70095ff2f83c92c68253cd44c1a86b15f4906e9630d396ec5b0e351
 url = "https://github.com/rustfs/cli/releases/download/v0.1.36/rustfs-cli-linux-arm64-gnu-v0.1.36.tar.gz"
 
 [tools."http:rustfs-cli"."platforms.linux-x64"]
-checksum = "blake3:d1a537b70c028894502a92bc8b5b98adf5f1f37ebbf1b56b4fdc734f19b97565"
+checksum = "sha256:4f784f8e3715fbd27105e9b932998b54faf1149782ec80954a7b8e743bbeab3a"
 url = "https://github.com/rustfs/cli/releases/download/v0.1.36/rustfs-cli-linux-amd64-gnu-v0.1.36.tar.gz"
 
 [[tools."http:virtctl"]]
@@ -171,7 +177,7 @@ checksum = "sha256:12a26aa4f1088594eeafb76b209e1c9752fa6a10d968b6c98364f96f6c1ec
 url = "https://github.com/kubevirt/kubevirt/releases/download/v1.9.1/virtctl-v1.9.1-linux-arm64"
 
 [tools."http:virtctl"."platforms.linux-x64"]
-checksum = "blake3:85acae44f19c32aab2673ffb7bfefb420948e35e8bc394a8da52ca75c0980732"
+checksum = "sha256:c289393c8186a258653594605f5199b4c171a3131e6e409ed204a96b491b782a"
 url = "https://github.com/kubevirt/kubevirt/releases/download/v1.9.1/virtctl-v1.9.1-linux-amd64"
 
 [[tools.kind]]
@@ -180,11 +186,13 @@ backend = "aqua:kubernetes-sigs/kind"
 
 [tools.kind."platforms.linux-arm64"]
 checksum = "sha256:20022bee6cfcd5086cb7234d218e3454e6090022f2a8f55d1fa7fcf42c3867a2"
+checksum_source = "mise-versions"
 url = "https://github.com/kubernetes-sigs/kind/releases/download/v0.33.0/kind-linux-arm64"
 url_api = "https://api.github.com/repos/kubernetes-sigs/kind/releases/assets/531396478"
 
 [tools.kind."platforms.linux-x64"]
 checksum = "sha256:aee6151561422756b764a4ae28e7f44cda5af5a9eead3cc9985112b1de8d8e0d"
+checksum_source = "mise-versions"
 url = "https://github.com/kubernetes-sigs/kind/releases/download/v0.33.0/kind-linux-amd64"
 url_api = "https://api.github.com/repos/kubernetes-sigs/kind/releases/assets/531396433"
 
@@ -194,39 +202,43 @@ backend = "aqua:yannh/kubeconform"
 
 [tools.kubeconform."platforms.linux-arm64"]
 checksum = "sha256:1f53fc8e81258197a35e8603054162a5af1de8c5af13746c71ab680d9534ed87"
+checksum_source = "mise-versions"
 url = "https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-linux-arm64.tar.gz"
 url_api = "https://api.github.com/repos/yannh/kubeconform/releases/assets/438612685"
 
 [tools.kubeconform."platforms.linux-x64"]
 checksum = "sha256:9bc2bffbf71f261128533edaf912153948b7ff238f9a531ae6d34466ec287883"
+checksum_source = "mise-versions"
 url = "https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-linux-amd64.tar.gz"
 url_api = "https://api.github.com/repos/yannh/kubeconform/releases/assets/438612666"
 
 [[tools.kubectl]]
-version = "1.37.1"
+version = "1.37.2"
 backend = "aqua:kubernetes/kubernetes/kubectl"
 
 [tools.kubectl."platforms.linux-arm64"]
-checksum = "sha256:ff749f4b78d9c4f1ec87307df9b50119ed819e2094aa9810cb9acffc3286c8c7"
-url = "https://dl.k8s.io/v1.37.1/bin/linux/arm64/kubectl"
+checksum = "sha256:fcc16f63186659d9722014b7e02d5fdd2d4e669cb8c0ab66365d7d3b8ba03509"
+url = "https://dl.k8s.io/v1.37.2/bin/linux/arm64/kubectl"
 
 [tools.kubectl."platforms.linux-x64"]
-checksum = "sha256:65691ff77eb6fa44c908b77a1082c9f092c3b9733b5cefabec0d1104890e21a8"
-url = "https://dl.k8s.io/v1.37.1/bin/linux/amd64/kubectl"
+checksum = "sha256:c04487523e7aa7d1493f7808174c899db93d7a9cf57531420cd76b9bd415f8f4"
+url = "https://dl.k8s.io/v1.37.2/bin/linux/amd64/kubectl"
 
 [[tools.kubeseal]]
-version = "0.40.0"
+version = "0.41.2"
 backend = "aqua:bitnami-labs/sealed-secrets"
 
 [tools.kubeseal."platforms.linux-arm64"]
-checksum = "sha256:d82f01e9226d194ca7ebc13e3619edefd596b5b433582bcec3d5a8e8b1a03123"
-url = "https://github.com/bitnami/sealed-secrets/releases/download/v0.40.0/kubeseal-0.40.0-linux-arm64.tar.gz"
-url_api = "https://api.github.com/repos/bitnami/sealed-secrets/releases/assets/555346329"
+checksum = "sha256:8a73c0b252f6c0e8752a7a749da51f55a6e99dc5603e3bd29ed3c00ff9e82db2"
+checksum_source = "mise-versions"
+url = "https://github.com/bitnami/sealed-secrets/releases/download/v0.41.2/kubeseal-0.41.2-linux-arm64.tar.gz"
+url_api = "https://api.github.com/repos/bitnami/sealed-secrets/releases/assets/678156095"
 
 [tools.kubeseal."platforms.linux-x64"]
-checksum = "sha256:9314c35916646e9d59c8f06b1314574b4e79c4d76f079433607ed7b697bb5eb7"
-url = "https://github.com/bitnami/sealed-secrets/releases/download/v0.40.0/kubeseal-0.40.0-linux-amd64.tar.gz"
-url_api = "https://api.github.com/repos/bitnami/sealed-secrets/releases/assets/555346331"
+checksum = "sha256:666b5db6788ad1dedb56e2d97064e1cc3779aa77bbd6f4b56b62beeb1941ed79"
+checksum_source = "mise-versions"
+url = "https://github.com/bitnami/sealed-secrets/releases/download/v0.41.2/kubeseal-0.41.2-linux-amd64.tar.gz"
+url_api = "https://api.github.com/repos/bitnami/sealed-secrets/releases/assets/678156109"
 
 [[tools.kustomize]]
 version = "5.8.3"
@@ -234,28 +246,30 @@ backend = "aqua:kubernetes-sigs/kustomize"
 
 [tools.kustomize."platforms.linux-arm64"]
 checksum = "sha256:9867b76482cfc6d25b546abc1d2b5a32bd137505aba640649b4b378f64f6d68f"
+checksum_source = "mise-versions"
 url = "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/v5.8.3/kustomize_v5.8.3_linux_arm64.tar.gz"
 url_api = "https://api.github.com/repos/kubernetes-sigs/kustomize/releases/assets/621661325"
 
 [tools.kustomize."platforms.linux-x64"]
 checksum = "sha256:cb9e31198d3f63b44848bd0afc4c8efc56e6cfef9c93a4a39a211940e6decd61"
+checksum_source = "mise-versions"
 url = "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/v5.8.3/kustomize_v5.8.3_linux_amd64.tar.gz"
 url_api = "https://api.github.com/repos/kubernetes-sigs/kustomize/releases/assets/621661332"
 
 [[tools.node]]
-version = "26.12.0"
+version = "26.13.0"
 backend = "aqua:nodejs/node"
 
 [tools.node."platforms.linux-arm64"]
-checksum = "sha256:ec53c915c3fdd8786c5685abd25ae3fe9fba0692307f9811d7caaadea1bcaf03"
-url = "https://nodejs.org/dist/v26.12.0/node-v26.12.0-linux-arm64.tar.gz"
+checksum = "sha256:439e9c438acdf6a6ffe47418da709153d66c4bed812e30a473faacb107dd2791"
+url = "https://nodejs.org/dist/v26.13.0/node-v26.13.0-linux-arm64.tar.gz"
 
 [tools.node."platforms.linux-x64"]
-checksum = "blake3:bbdb63b1980a354cad2733ae7ffe30b0047bf889126bf7ef45a0459b8309d3b9"
-url = "https://nodejs.org/dist/v26.12.0/node-v26.12.0-linux-x64.tar.gz"
+checksum = "sha256:5848553868b402d3fabb5b09270649977780a390f832155721025a08b5104455"
+url = "https://nodejs.org/dist/v26.13.0/node-v26.13.0-linux-x64.tar.gz"
 
 [[tools."npm:t3"]]
-version = "0.1.4"
+version = "0.1.7"
 backend = "npm:t3"
 
 [tools."npm:t3".options]
@@ -267,11 +281,13 @@ backend = "aqua:rclone/rclone"
 
 [tools.rclone."platforms.linux-arm64"]
 checksum = "sha256:7e1e8d69654941b7b7df84ee74c5f7fb09cce7d5496947fb7bf16b55ff427d10"
+checksum_source = "mise-versions"
 url = "https://github.com/rclone/rclone/releases/download/v1.75.2/rclone-v1.75.2-linux-arm64.zip"
 url_api = "https://api.github.com/repos/rclone/rclone/releases/assets/624698085"
 
 [tools.rclone."platforms.linux-x64"]
 checksum = "sha256:349ac8fba6ff65d6247043f1750cdcb518ec5d500ef91463a10d37c0ccdf3702"
+checksum_source = "mise-versions"
 url = "https://github.com/rclone/rclone/releases/download/v1.75.2/rclone-v1.75.2-linux-amd64.zip"
 url_api = "https://api.github.com/repos/rclone/rclone/releases/assets/624695998"
 
@@ -296,27 +312,29 @@ url_api = "https://api.github.com/repos/getsops/sops/releases/assets/486808201"
 url = "https://github.com/getsops/sops/releases/download/v3.13.3/sops-v3.13.3.intoto.jsonl"
 
 [[tools.tekton-cli]]
-version = "0.46.1"
+version = "0.46.2"
 backend = "aqua:tektoncd/cli"
 
 [tools.tekton-cli."platforms.linux-arm64"]
-checksum = "sha256:85144fc34f40bc1b19be48434327044f306e66cc2814663d7abd2092845b0948"
-url = "https://github.com/tektoncd/cli/releases/download/v0.46.1/tkn_0.46.1_Linux_aarch64.tar.gz"
-url_api = "https://api.github.com/repos/tektoncd/cli/releases/assets/580113264"
+checksum = "sha256:a3e6445161734d97211d6ec9fa255378ed2f15723951d2b46aa75c7e801d4b53"
+checksum_source = "mise-versions"
+url = "https://github.com/tektoncd/cli/releases/download/v0.46.2/tkn_0.46.2_Linux_aarch64.tar.gz"
+url_api = "https://api.github.com/repos/tektoncd/cli/releases/assets/667726493"
 
 [tools.tekton-cli."platforms.linux-x64"]
-checksum = "sha256:bc9fe51595af87cee422ae19a62ab46c8cdcb0a74f7157ffa8b9a9ef39b3d390"
-url = "https://github.com/tektoncd/cli/releases/download/v0.46.1/tkn_0.46.1_Linux_x86_64.tar.gz"
-url_api = "https://api.github.com/repos/tektoncd/cli/releases/assets/580113257"
+checksum = "sha256:f6d86bc7960d85af94eb46f8f480ac8d113aa78e78b15d6f8d2f53d80daab2ce"
+checksum_source = "mise-versions"
+url = "https://github.com/tektoncd/cli/releases/download/v0.46.2/tkn_0.46.2_Linux_x86_64.tar.gz"
+url_api = "https://api.github.com/repos/tektoncd/cli/releases/assets/667726495"
 
 [[tools.terraform]]
-version = "1.16.6"
+version = "1.17.1"
 backend = "aqua:hashicorp/terraform"
 
 [tools.terraform."platforms.linux-arm64"]
-checksum = "sha256:a750b5a11038f165846b2658c40c88cd7070aa67a61bab431a14ba27928ea9ea"
-url = "https://releases.hashicorp.com/terraform/1.16.6/terraform_1.16.6_linux_arm64.zip"
+checksum = "sha256:988e950a1c23058093b0e66ab2d5fb53fc18345ecfbd5871acf51dbac9325edd"
+url = "https://releases.hashicorp.com/terraform/1.17.1/terraform_1.17.1_linux_arm64.zip"
 
 [tools.terraform."platforms.linux-x64"]
-checksum = "sha256:38034b38d03096399a7a1264a14561a8029b2b496fd1f169452656e53968f1b7"
-url = "https://releases.hashicorp.com/terraform/1.16.6/terraform_1.16.6_linux_amd64.zip"
+checksum = "sha256:4638628058e71a55212b1c563712eac03b902128f40740f3dc8174df12135061"
+url = "https://releases.hashicorp.com/terraform/1.17.1/terraform_1.17.1_linux_amd64.zip"
