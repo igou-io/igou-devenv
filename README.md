@@ -56,7 +56,7 @@ mechanism. See [AGENTS.md](AGENTS.md) for the per-layer Renovate strategy.
 | Dockerfile (binary downloads) | mise itself (GPG-signed checksums — trust anchor), Codex, Cursor agent, OpenCode | `.devcontainer/Dockerfile` (ARG + RUN) |
 | Dockerfile (pip) | Ansible ecosystem, yq, Kubernetes and API client libraries | `.devcontainer/requirements.txt` |
 
-Released Fedora supplies native Python for `python`, `python3`, and pip tooling. The current baseline is Fedora 44 and Python 3.14. Each image build pulls the current base, disables layer caching, and refreshes distro packages. Python/Ansible versions, RPM versions, and dependency-check results appear in the build log. Python has no source installer, custom Renovate feed, or runtime manifest.
+Released Fedora supplies native Python for `python`, `python3`, and pip tooling. The current baseline is Fedora 45, Python 3.15, and Ansible Core 2.22. Each image build pulls the current base, disables layer caching, and refreshes distro packages. Python/Ansible versions, RPM versions, and dependency-check results appear in the build log. Python has no source installer, custom Renovate feed, or runtime manifest.
 
 Devenv has one stable channel: `main` publishes
 `ghcr.io/igou-io/igou-devenv:latest` after the existing CI suite passes.
