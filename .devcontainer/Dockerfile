@@ -304,9 +304,9 @@ ARG MINIMUM_RELEASE_AGE_DAYS=3
 #   curl -sL "https://downloads.cursor.com/lab/<VER>/linux/x64/agent-cli-package.tar.gz" | sha256sum
 #   (repeat for arm64)
 # renovate: datasource=custom.cursor-agent depName=cursor-agent versioning=loose
-ARG CURSOR_AGENT_VERSION="2026.10.22-27dcf5f"
-ARG CURSOR_AGENT_SHA256_X64="85296944e4600a83c4b764f578d1502bf9c416db200d33a593e8f3ecabfdc294"
-ARG CURSOR_AGENT_SHA256_ARM64="22a36df9720830668ccd4d707e5190204ab9c8a0efb2f068cc914895f804d3ec"
+ARG CURSOR_AGENT_VERSION="2026.11.05-86047df"
+ARG CURSOR_AGENT_SHA256_X64="170b77786cbf4c93064d64fff12b71a178b968730561c64afc2e8e752535442e"
+ARG CURSOR_AGENT_SHA256_ARM64="131554bfdbf683d8ebfef83a2bb46ac4e5d060f198711040b07ed063c2471871"
 USER igou
 RUN set -eux; \
     ARCH_RAW=$(uname -m); \
@@ -352,9 +352,9 @@ USER root
 # OpenCode bypasses the release-age delay; per-architecture SHA256 verification
 # remains mandatory, matching Codex.
 # renovate: datasource=npm depName=@opencode/cli
-ARG OPENCODE_VERSION="2.2.5"
-ARG OPENCODE_SHA256_X64="92690eee07a680d3cb760ca02ba43878de9eab1b4e5d5dfae8795518c53628f4"
-ARG OPENCODE_SHA256_ARM64="f8c5a82075fede9b5b044ed6c8a6d13ad807a7e62caea1cd0a878adef49eb053"
+ARG OPENCODE_VERSION="2.2.6"
+ARG OPENCODE_SHA256_X64="dfcd69f1d511ae10ed626768b41d84b8100cc4aa64cecb69da38ba7a29d33551"
+ARG OPENCODE_SHA256_ARM64="22352e200630ec61a48a65b9f5c2b627328ae5002658d81c067f67c5fb689898"
 # Shell functions + the profile resolver baked into the image so NON-devcontainer
 # consumers (Hermes kubernetes-backend session pods run this image with
 # BASH_ENV=/home/igou/.bashrc and no /workspace/igou-devenv checkout) get
@@ -409,9 +409,9 @@ USER root
 # Codex bypasses the release-age delay; per-architecture SHA256 verification
 # and the required build/tests remain the install gate.
 # renovate: datasource=github-releases depName=openai/codex extractVersion=^rust-v(?<version>.+)$
-ARG CODEX_VERSION="0.166.0"
-ARG CODEX_SHA256_X64="1d44b28bc4ac9937d7d3532264baa68a507ce364956a0d4ebb856f331cdee254"
-ARG CODEX_SHA256_ARM64="7821b77dda2e6283fb1f63f3165177a271da8833e857cf673c6ca1c9db3bfcc6"
+ARG CODEX_VERSION="0.167.0"
+ARG CODEX_SHA256_X64="3bbf75e83de6b58aed28f2cf6e33ad423ec31fd4700a1457b94be557ea5a7c6e"
+ARG CODEX_SHA256_ARM64="0de261ecf1e7f3028a7952f03fca2093f749277d38590b78bb32f8567756bbb7"
 USER igou
 RUN set -eux; \
     ARCH_RAW=$(uname -m); \
