@@ -57,11 +57,22 @@ for platform in $platforms; do
             }
         }
         in_platform && /^checksum *= *"/ {
-            if (match($0, /"[^:]+:/)) print "checksum:" substr($0, RSTART+1, RLENGTH-2)
+            if (match($0, /"[^"]+"/)) print "checksum:" substr($0, RSTART+1, RLENGTH-2)
         }
     ' "$LOCK")
     checksums=$(awk -F: '/^checksum:/{print $2}' <<< "$signals")
-    if ! grep -qx platform <<< "$signals" || [[ "$checksums" != "$algorithm" ]]; then
+    checksum_matches=false
+    if [[ "$algorithm" == tofu ]]; then
+        # A digest algorithm does not establish who published the checksum.
+        # Both formats pin downloaded bytes for tools with a TOFU trust floor.
+        digest=$(awk '/^checksum:/{sub(/^checksum:[^:]*:/, ""); print}' <<< "$signals")
+        if [[ "$checksums" =~ ^(sha256|blake3)$ && "$digest" =~ ^[a-f0-9]{64}$ ]]; then
+            checksum_matches=true
+        fi
+    elif [[ "$checksums" == "$algorithm" ]]; then
+        checksum_matches=true
+    fi
+    if ! grep -qx platform <<< "$signals" || [[ "$checksum_matches" != true ]]; then
         echo "${TOOL}/${platform}: expected one ${algorithm} checksum; found ${checksums:-none}" >&2
         status=1
     fi
