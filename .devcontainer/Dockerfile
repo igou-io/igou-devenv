@@ -352,9 +352,9 @@ USER root
 # OpenCode bypasses the release-age delay; per-architecture SHA256 verification
 # remains mandatory, matching Codex.
 # renovate: datasource=npm depName=@opencode/cli
-ARG OPENCODE_VERSION="2.2.6"
-ARG OPENCODE_SHA256_X64="dfcd69f1d511ae10ed626768b41d84b8100cc4aa64cecb69da38ba7a29d33551"
-ARG OPENCODE_SHA256_ARM64="22352e200630ec61a48a65b9f5c2b627328ae5002658d81c067f67c5fb689898"
+ARG OPENCODE_VERSION="2.3.0"
+ARG OPENCODE_SHA256_X64="408f854b5fac7857a3b4df4e783d3a8b70f5cc8c7c3187aac09c5be0576c14ae"
+ARG OPENCODE_SHA256_ARM64="be30066353bb592c43919b31072ff4099e069636c31a16806b088737e0287cea"
 # Shell functions + the profile resolver baked into the image so NON-devcontainer
 # consumers (Hermes kubernetes-backend session pods run this image with
 # BASH_ENV=/home/igou/.bashrc and no /workspace/igou-devenv checkout) get
@@ -409,9 +409,9 @@ USER root
 # Codex bypasses the release-age delay; per-architecture SHA256 verification
 # and the required build/tests remain the install gate.
 # renovate: datasource=github-releases depName=openai/codex extractVersion=^rust-v(?<version>.+)$
-ARG CODEX_VERSION="0.167.0"
-ARG CODEX_SHA256_X64="3bbf75e83de6b58aed28f2cf6e33ad423ec31fd4700a1457b94be557ea5a7c6e"
-ARG CODEX_SHA256_ARM64="0de261ecf1e7f3028a7952f03fca2093f749277d38590b78bb32f8567756bbb7"
+ARG CODEX_VERSION="0.169.0"
+ARG CODEX_SHA256_X64="3b8ed091149cc63a59046b9f094bcfa21cdb4dda15ede441ce369bcee4a71ba0"
+ARG CODEX_SHA256_ARM64="c8d0b4ab2a97c595b70b10412d36d0d5464dcef1e1d3246b073d48017cdf5a4f"
 USER igou
 RUN set -eux; \
     ARCH_RAW=$(uname -m); \
