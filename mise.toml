@@ -65,7 +65,7 @@ kustomize = "5.8.3"
 kubeseal = "0.41.2"
 kubeconform = "0.8.0"
 kind = "0.33.0"
-act = "0.2.92"
+act = "0.2.96"
 tekton-cli = "0.46.2"   # binary is `tkn`; mise registry key is tekton-cli
 # Pipelines-as-Code CLI (binary: tkn-pac). No short alias in mise's registry,
 # so use the explicit aqua: key form.
@@ -95,7 +95,7 @@ slsa_signer_identity = "https://github.com/slsa-framework/slsa-github-generator/
 slsa_signer_issuer = "https://token.actions.githubusercontent.com"
 
 [tools.argocd]
-version = "3.5.6"
+version = "3.6.0"
 slsa_signer_identity = "https://github.com/slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@refs/tags/v2.1.0"
 slsa_signer_issuer = "https://token.actions.githubusercontent.com"
 
@@ -169,7 +169,7 @@ linux-arm64 = { url = "https://mirror.openshift.com/pub/openshift-v4/aarch64/cli
 # blocked. The build needs gcc-c++/make/python3 (present in the Dockerfile
 # layer and the bin/run-pinned-mise bootstrap).
 [tools."npm:t3"]
-version = "0.1.7"
+version = "0.1.9"
 # Keep fresh t3 releases and their npm dependencies available immediately.
 minimum_release_age = "0s"
 allow_builds = ["node-pty"]
@@ -189,7 +189,7 @@ allow_builds = ["node-pty"]
 # tests/mise-expected-verification.toml points at `rc`.
 # renovate: datasource=github-releases depName=rustfs/cli
 [tools."http:rustfs-cli"]
-version = "0.1.36"
+version = "0.1.37"
 
 [tools."http:rustfs-cli".platforms]
 linux-x64   = { url = "https://github.com/rustfs/cli/releases/download/v{{ version }}/rustfs-cli-linux-amd64-gnu-v{{ version }}.tar.gz" }
