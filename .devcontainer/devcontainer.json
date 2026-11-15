@@ -58,12 +58,12 @@
         "vscode": {
             "extensions": [
                 "redhat.ansible@26.8.2",
-                "hashicorp.terraform@2.40.0",
+                "hashicorp.terraform@2.40.1",
                 "redhat.vscode-yaml@2.0.0",
                 "ms-vscode.makefile-tools@0.12.17",
                 "ms-python.python@2026.10.0",
                 "ms-python.debugpy@2026.6.0",
-                "ms-python.vscode-python-envs@1.40.0",
+                "ms-python.vscode-python-envs@1.42.0",
                 "ms-python.vscode-pylance@2026.4.1"
             ],
             "settings": {
