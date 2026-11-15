@@ -44,7 +44,7 @@ github_attestations = true
 # Pin upstream registry to a release commit. Renovate updates the tag and SHA; PR review
 # + tests/test-mise.sh audit catch verification downgrades.
 # renovate: datasource=github-tags depName=aquaproj/aqua-registry
-registry_url = "https://raw.githubusercontent.com/aquaproj/aqua-registry/8f0673524c2126c938d898039a2e19534415f885/registry.yaml" # v4.579.0
+registry_url = "https://raw.githubusercontent.com/aquaproj/aqua-registry/3d21b372298b0a26e913c13d4b1102b57fe17b97/registry.yaml" # v4.581.1
 
 [tool_alias]
 # npm: backend tools (t3) declare a dependency on a tool literally named
