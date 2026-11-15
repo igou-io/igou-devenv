@@ -57,7 +57,7 @@
     "customizations": {
         "vscode": {
             "extensions": [
-                "redhat.ansible@26.8.2",
+                "redhat.ansible@26.11.0",
                 "hashicorp.terraform@2.40.1",
                 "redhat.vscode-yaml@2.0.0",
                 "ms-vscode.makefile-tools@0.12.17",
