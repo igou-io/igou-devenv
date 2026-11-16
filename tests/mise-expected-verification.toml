@@ -104,12 +104,10 @@ argocd = "sha256+slsa"
 # `rc --version` via the binary override.
 "http:rustfs-cli" = "tofu"   # binary: rc
 
-# t3 (T3 Code). npm-only distribution with runtime deps (native node-pty), so
-# it installs via mise's npm backend: `npm install` verifies every package
-# against the registry's per-tarball sha512 integrity metadata. Like "core",
-# that verification happens outside mise.lock — the lockfile entry is
-# version+backend only — so the audit asserts lockfile presence, not a
-# checksum prefix. `locked = true` still pins the exact version fail-closed.
+# t3 (T3 Code) installs through mise's npm backend using aube, which supports
+# the provenance checks required by paranoid mode. The npm backend verifies
+# registry integrity outside mise.lock; its lock entry pins the version and
+# backend, so this audit checks presence rather than a checksum prefix.
 "npm:t3" = "npm"   # binary: t3
 
 # gws (Google Workspace CLI). Not in aqua-registry; the http backend pins a
