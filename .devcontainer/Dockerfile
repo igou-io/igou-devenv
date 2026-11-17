@@ -286,6 +286,45 @@ RUN mkdir -p /home/igou/.config/containers
 COPY .devcontainer/containers-storage.conf /home/igou/.config/containers/storage.conf
 RUN chown -R igou:igou /home/igou/.config
 
+# Claude Code — native binary verified against Anthropic's GPG-signed manifest.
+# Renovate tracks the npm release version in the shared coding-agent CLI group.
+# The signed manifest supplies per-platform checksums, so version bumps need no
+# SHA recapture. Like Codex/OpenCode, Claude bypasses the release-age delay.
+# renovate: datasource=npm depName=@anthropic-ai/claude-code
+ARG CLAUDE_CODE_VERSION="2.1.326"
+ARG CLAUDE_CODE_PGP_FPR="31DDDE24DDFAB679F42D7BD2BAA929FF1A7ECACE"
+# Keep image pins authoritative rather than updating binaries at runtime.
+ENV DISABLE_AUTOUPDATER=1
+USER igou
+RUN set -eux; \
+    ARCH_RAW=$(uname -m); \
+    case "$ARCH_RAW" in \
+      x86_64)  ARCH="x64" ;; \
+      aarch64) ARCH="arm64" ;; \
+      *) echo "Unsupported arch: $ARCH_RAW" >&2; exit 1 ;; \
+    esac; \
+    BASE="https://downloads.claude.ai/claude-code-releases/${CLAUDE_CODE_VERSION}"; \
+    WORK=$(mktemp -d); \
+    export GNUPGHOME="$WORK/gnupg"; \
+    mkdir -m 0700 "$GNUPGHOME"; \
+    cd "$WORK"; \
+    curl -fsSL -o key.asc https://downloads.claude.ai/keys/claude-code.asc; \
+    gpg --batch --import key.asc; \
+    gpg --batch --export "${CLAUDE_CODE_PGP_FPR}" > release-key.gpg; \
+    curl -fsSL -o manifest.json "${BASE}/manifest.json"; \
+    curl -fsSL -o manifest.json.sig "${BASE}/manifest.json.sig"; \
+    gpgv --keyring "$WORK/release-key.gpg" manifest.json.sig manifest.json; \
+    EXPECTED_SHA=$(jq -er --arg version "$CLAUDE_CODE_VERSION" --arg platform "linux-${ARCH}" \
+      'select(.version == $version) | .platforms[$platform].checksum | select(test("^[0-9a-f]{64}$"))' manifest.json); \
+    curl -fsSL -o claude "${BASE}/linux-${ARCH}/claude"; \
+    echo "${EXPECTED_SHA}  claude" | sha256sum -c -; \
+    mkdir -p "$HOME/.local/share/claude/versions" "$HOME/.local/bin"; \
+    install -m 0755 claude "$HOME/.local/share/claude/versions/${CLAUDE_CODE_VERSION}"; \
+    ln -sfn "$HOME/.local/share/claude/versions/${CLAUDE_CODE_VERSION}" "$HOME/.local/bin/claude"; \
+    cd / && rm -rf "$WORK"; \
+    "$HOME/.local/bin/claude" --version
+USER root
+
 # Refuse to install unsigned upstream Cursor releases
 # younger than this many days. Defense-in-depth against compromised releases
 # that haven't been publicly noticed yet — mirrors the coding-agent

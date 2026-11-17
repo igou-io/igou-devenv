@@ -56,7 +56,7 @@ EOF
 ln -sfn /workspace/igou-devenv/bin /home/igou/bin
 
 # ---------------------------------------------------------------------------
-# Point Codex, OpenCode and Cursor at the central skills repo in
+# Point Claude, Codex, OpenCode and Cursor at the central skills repo in
 # /workspace/igou-skills. ~/.agents is on the ephemeral container fs,
 # so this must run on every build; the script is idempotent.
 # ---------------------------------------------------------------------------

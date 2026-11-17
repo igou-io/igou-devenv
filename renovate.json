@@ -83,12 +83,13 @@
         "custom.regex"
       ],
       "matchPackageNames": [
+        "@anthropic-ai/claude-code",
         "@opencode/cli",
         "cursor-agent",
         "openai/codex"
       ],
       "groupName": "coding agent clis",
-      "description": "CLI SHA preparation owns merging this group. Its generated-artifact author is recognized by gitIgnoredAuthors so Renovate can refresh prepared branches; human edits still freeze them. Cursor retains its 3-day gate; OpenCode and Codex are exempted separately.",
+      "description": "CLI SHA preparation owns merging this group. Its generated-artifact author is recognized by gitIgnoredAuthors so Renovate can refresh prepared branches; human edits still freeze them. Claude verifies its signed manifest without SHA recapture. Cursor retains its 3-day gate; Claude, OpenCode and Codex are exempted separately.",
       "minimumReleaseAge": "3 days",
       "schedule": [
         "at any time"
@@ -96,11 +97,12 @@
       "automerge": false
     },
     {
-      "description": "OpenCode and Codex releases are time-sensitive; bypass the age gate while retaining checksum recapture and required CI.",
+      "description": "Claude, OpenCode and Codex releases are time-sensitive; bypass the age gate while retaining signature/checksum verification and required CI.",
       "matchManagers": [
         "custom.regex"
       ],
       "matchPackageNames": [
+        "@anthropic-ai/claude-code",
         "@opencode/cli",
         "openai/codex"
       ],

@@ -9,6 +9,7 @@ on:
       - renovate-base.json
       - mise.toml
       - .devcontainer/devcontainer.json
+      - .devcontainer/Dockerfile
       - .github/scripts/vscode-extension-releases.mjs
       - tests/test-renovate.mjs
       - .github/workflows/renovate-check.yaml

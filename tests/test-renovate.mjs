@@ -77,6 +77,35 @@ assert.equal(lockPolicy.automerge, true, 'lock-only maintenance remains self-con
 const kubectlPolicy = await route({ depName: 'kubectl' }, 'patch', 'mise');
 assert.equal(kubectlPolicy.minimumReleaseAge, '10 days', 'upstream kubectl retains the release-age gate');
 
+// Harnesses share the same preparation/merge path. Claude's signed manifest
+// makes a version-only bump sufficient; the other group members recapture SHAs.
+const dockerfilePath = '.devcontainer/Dockerfile';
+const dockerfileContent = await fs.readFile(dockerfilePath, 'utf8');
+const harnessDeps = config.customManagers.flatMap((manager) => {
+  if (!manager.managerFilePatterns.includes('/Dockerfile$/')) return [];
+  const result = extractPackageFile(dockerfileContent, dockerfilePath, manager);
+  return (result?.deps ?? []).map((dep, depIndex) => ({ ...manager, ...result, ...dep, depIndex }));
+});
+for (const [name, age] of [
+  ['@anthropic-ai/claude-code', null], ['@opencode/cli', null],
+  ['openai/codex', null], ['cursor-agent', '3 days'],
+]) {
+  const matches = harnessDeps.filter(dep => dep.depName === name);
+  assert.equal(matches.length, 1, `${name} must be extracted exactly once`);
+  const dep = matches[0];
+  assert.ok(dep.datasource && !dep.skipReason, `${name} must have a datasource`);
+  for (const updateType of ['patch', 'minor', 'major']) {
+    const policy = await route({ ...dep, packageFile: dockerfilePath }, updateType);
+    assert.equal(policy.groupName, 'coding agent clis', name);
+    assert.equal(policy.minimumReleaseAge, age, name);
+    assert.deepEqual(policy.schedule, ['at any time'], name);
+    assert.equal(policy.automerge, false, `${name} must use CLI preparation`);
+  }
+  const updated = await doAutoReplace({ ...dep, manager: 'regex',
+    packageFile: dockerfilePath, newValue: '99.99.99' }, dockerfileContent, false);
+  assert.ok(updated.includes(dep.replaceString.replace(dep.currentValue, '99.99.99')), name);
+}
+
 const devcontainerPath = '.devcontainer/devcontainer.json';
 const devcontainerContent = await fs.readFile(devcontainerPath, 'utf8');
 const extensionPins = JSON.parse(devcontainerContent).customizations.vscode.extensions;

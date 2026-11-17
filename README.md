@@ -41,7 +41,7 @@ in that same full devcontainer path
 **General:** 1Password CLI, jq, yq, direnv, shellcheck, yamllint, make,
 tree, nmap, tmux, vim, htop, node
 
-**AI agent CLIs:** Codex (`codex`), Cursor agent (`cursor-agent`, alias `agent`),
+**AI agent CLIs:** Claude Code (`claude`), Codex (`codex`), Cursor agent (`cursor-agent`, alias `agent`),
 OpenCode (`opencode`) — each pinned + cryptographically verified at build time
 
 ### How Tools Are Installed
@@ -111,6 +111,7 @@ after changing `.devcontainer/requirements.txt`.
    - `~/.config/op/service-account-token` — 1Password service account token
      (fallback when Connect creds are absent)
    - `~/.config/opencode/` — opencode config (bind-mounted into devcontainer + opencode container)
+   - `~/.claude/` and `~/.claude.json` — Claude Code config, authentication and session state (bind-mounted)
 
 ### Open via Cursor
 
@@ -402,7 +403,7 @@ All tool versions are pinned and managed by [Renovate](https://docs.renovatebot.
 - **Mise-managed CLI tools** — pinned in `mise.toml`, per-asset checksums in `mise.lock`. Renovate's native `mise` manager handles aqua/npm tools; a custom regex handles all annotated `http:` tables. Both use the `mise-managed cli tools` group, whose preparation workflow regenerates the lock before enabling auto-merge.
 - **OpenShift CLI** — the shared `openshift-mirror` datasource reads `Version:` and `Created:` from Red Hat's release metadata. Its release timestamp preserves the 10-day age gate.
 - **aqua-registry pin** — the registry URL contains an immutable release commit SHA, with its tag alongside it. Renovate's `github-tags` datasource updates both together in a separate group with automerge disabled; `tests/test-mise.sh` checks for per-tool verification downgrades.
-- **Mise itself** + Codex + Cursor agent + OpenCode — pinned in `.devcontainer/Dockerfile` ARG blocks with `# renovate:` comments and the `github-releases` datasource (custom regex manager). Verified at build time: mise via a pinned-fingerprint GPG signature; Codex, Cursor agent and OpenCode via SHA256.
+- **Mise itself** + Claude Code + Codex + Cursor agent + OpenCode — pinned in `.devcontainer/Dockerfile` ARG blocks with `# renovate:` comments (custom regex manager). Verified at build time: mise and Claude via pinned-fingerprint GPG signatures; Codex, Cursor agent and OpenCode via SHA256. Claude and OpenCode use npm version metadata; the other tools use GitHub releases or Cursor's custom datasource.
 - **Python packages** — pinned in `.devcontainer/requirements.txt`, updated by `pip_requirements` manager.
 - **VS Code extensions** — exact `publisher.name@version` pins in `.devcontainer/devcontainer.json`, including Python's extension pack members. Renovate updates the `vscode extensions` group only after each stable Marketplace release is at least 10 days old; releases without timestamps stay blocked.
 
@@ -426,6 +427,12 @@ configuration are separate from this devcontainer setup.
 Trust anchors (mise itself, aqua-registry pin) are routed into their own
 Renovate groups in `renovate.json` so they get reviewed separately from
 routine tool bumps.
+
+Claude shares the `coding agent clis` Renovate group and unrestricted update
+schedule with the other harnesses. Claude, Codex and OpenCode have no release-age
+delay; Cursor retains three days. Claude's signed manifest supplies its binary
+checksums on each build, so it needs no SHA recapture. Background self-updates
+are disabled with `DISABLE_AUTOUPDATER=1`; image builds deliver the pinned version.
 
 To test Renovate config locally:
 ```bash
