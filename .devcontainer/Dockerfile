@@ -392,8 +392,8 @@ USER root
 # remains mandatory, matching Codex.
 # renovate: datasource=npm depName=@opencode/cli
 ARG OPENCODE_VERSION="2.3.2"
-ARG OPENCODE_SHA256_X64="408f854b5fac7857a3b4df4e783d3a8b70f5cc8c7c3187aac09c5be0576c14ae"
-ARG OPENCODE_SHA256_ARM64="be30066353bb592c43919b31072ff4099e069636c31a16806b088737e0287cea"
+ARG OPENCODE_SHA256_X64="845468e35aa5a2b574945a0b96675e64c604f5279ced9aa7245068d8c0b6f6bb"
+ARG OPENCODE_SHA256_ARM64="91a937129efdae8eb8c0c5018ae533f9f35117f26ffd9a4d1f7a5f9da1e69306"
 # Shell functions + the profile resolver baked into the image so NON-devcontainer
 # consumers (Hermes kubernetes-backend session pods run this image with
 # BASH_ENV=/home/igou/.bashrc and no /workspace/igou-devenv checkout) get
@@ -449,8 +449,8 @@ USER root
 # and the required build/tests remain the install gate.
 # renovate: datasource=github-releases depName=openai/codex extractVersion=^rust-v(?<version>.+)$
 ARG CODEX_VERSION="0.171.0"
-ARG CODEX_SHA256_X64="3b8ed091149cc63a59046b9f094bcfa21cdb4dda15ede441ce369bcee4a71ba0"
-ARG CODEX_SHA256_ARM64="c8d0b4ab2a97c595b70b10412d36d0d5464dcef1e1d3246b073d48017cdf5a4f"
+ARG CODEX_SHA256_X64="8391d67757496bfd14893eca6cbf0c96994bf2627566ff1f018f70600c9ef6b3"
+ARG CODEX_SHA256_ARM64="d8c43bee6cf11b01eb18b95f4d7961092bc40228180808859e70dabb7784c1c9"
 USER igou
 RUN set -eux; \
     ARCH_RAW=$(uname -m); \
