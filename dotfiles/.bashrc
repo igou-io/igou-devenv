@@ -24,22 +24,12 @@ esac
 
 export PATH=$PATH:/home/igou/.local/bin:/home/igou/bin
 
-# GitHub App runtime tokens (ghapp). Point the CLI + git credential helper at the
-# per-user config seeded by post-create.sh. Exported unconditionally (not just for
-# interactive shells) so `git`'s ghapp credential helper finds the config when git
-# is invoked from scripts. The App private key is never on disk here — it is read
-# from 1Password at mint time (config's private_key_cmd), so tokens are repo-scoped
-# and expire within the hour. See README "GitHub Authentication (ghapp)".
-export GHAPP_CONFIG="$HOME/.config/ghapp/config.yaml"
-
 # 1Password auth. Prefer Connect (self-hosted, no service-account API rate
 # limit); fall back to the service-account token when Connect creds are absent.
 # All files are bind-mounted read-only from the host's ~/.config/op.
-# Exported before the interactive check: ghapp resolves the App private key
-# from 1Password at mint time, so gh-app, ghapp and git's credential helper
-# fail in non-interactive shells (agent tool calls, scripts) with "No accounts
-# configured for use with 1Password CLI" if these are only set for interactive
-# shells. Skipped in Cursor agent shells to keep the secret-strip above intact.
+# Exported before the interactive check so `use`/`ssh-use` work in
+# non-interactive shells (agent tool calls, scripts) too. Skipped in Cursor
+# agent shells to keep the secret-strip above intact.
 if [ -z "${CURSOR_AGENT:-}" ]; then
     if [ -f ~/.config/op/connect-host ] && [ -f ~/.config/op/connect-token ]; then
         export OP_CONNECT_HOST=$(cat ~/.config/op/connect-host)
@@ -49,7 +39,7 @@ if [ -z "${CURSOR_AGENT:-}" ]; then
     fi
 fi
 
-# Shell functions (use/unuse, ssh-use/ssh-unuse, ght, ...) live in ~/.bashrc.d/
+# Shell functions (use/unuse, ssh-use/ssh-unuse, ...) live in ~/.bashrc.d/
 # and are sourced for every shell, before the interactive check, so agent tool
 # calls (`bash -c`) and scripts can `use ocp-cluster-reader && oc get nodes`
 # without spawning an interactive shell. Installed from dotfiles/.bashrc.d by

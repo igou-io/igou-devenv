@@ -148,7 +148,7 @@ published image instead of a local build.
 ### After First Build
 
 The `post-create.sh` script automatically:
-- Configures `.bashrc` (prompt, aliases, direnv) and installs `~/.bashrc.d/` (`use`/`unuse`, `ssh-use`/`ssh-unuse`, `ght`) — sourced for every shell, interactive or not
+- Configures `.bashrc` (prompt, aliases, direnv) and installs `~/.bashrc.d/` (`use`/`unuse`, `ssh-use`/`ssh-unuse`) — sourced for every shell, interactive or not
 - Symlinks `bin/` into `~/bin` (on PATH) for custom scripts
 - Creates a `homelab.code-workspace` file
 
@@ -214,7 +214,7 @@ See `envs/quay.env` for the shape.
 
 ### Non-interactive shells (agents and scripts)
 
-The shell functions (`use`, `unuse`, `ssh-use`, `ssh-unuse`, `ght`, `k8s-unset`,
+The shell functions (`use`, `unuse`, `ssh-use`, `ssh-unuse`, `k8s-unset`,
 `ansible-unset`) live in `dotfiles/.bashrc.d/*.sh`, installed to `~/.bashrc.d/` by
 `post-create.sh`. `.bashrc` sources that directory *before* its interactive-only
 early return, so agent tool calls and scripts get them without `bash -i`:
@@ -227,56 +227,32 @@ bash -c 'ssh-use ansible'                          # persists: the key lives in 
 `use` env vars only last for the shell that ran them; `ssh-use` has a durable side
 effect because it loads into the container-local agent on `$SSH_AUTH_SOCK`.
 
-## GitHub Authentication (ghapp)
+## GitHub Authentication
 
-GitHub auth uses **runtime-minted, repo-scoped GitHub App tokens** (`ghapp`)
-rather than static Personal Access Tokens. Every token is bound to a **single
-repository**, carries only the permissions the operation needs, expires within
-an hour, and is never written to disk — the App private key is read from
-1Password (`op read`) at mint time.
+GitHub auth is the **gh CLI's own login**, shared by `gh`, `git` and T3 Code's
+source-control integration (PR status, checks, linking). One OAuth login covers
+every repository the account can reach (`david-igou/*`, `igou-io/*`,
+`aiops-ansible-software-factory-demojam/*`).
 
-The old static PAT profiles have been removed. Use `gh-app`, `ghapp`, or
-`ght` for repository-scoped GitHub authentication.
+- The login lives in `~/.config/gh/hosts.yml`, bind-mounted from the host so it
+  survives rebuilds. There is no keyring in the container, so the token is
+  stored in that file — treat it like an SSH private key.
+- `/etc/gitconfig` sets `gh auth git-credential` as the credential helper for
+  `https://github.com` and `https://gist.github.com` (`~/.gitconfig` is
+  read-only, so `gh auth setup-git` can't write there).
+- T3 Code resolves credentials as Settings token → `GH_TOKEN`/`GITHUB_TOKEN` →
+  `gh auth token`. Leave `GH_TOKEN` unset so everything uses the gh login.
 
-The App (`igou-dev`) is installed on multiple accounts; the owner half of
-`OWNER/REPO` picks the installation, so `david-igou/*`, `igou-io/*`, and
-`aiops-ansible-software-factory-demojam/*` work from one config
-(`~/.config/ghapp/config.yaml`, seeded by `post-create.sh`).
-
-Three ways to authenticate:
+One-time setup (and after revoking the token):
 
 ```bash
-# 1. Plain git over HTTPS — just works. The ghapp credential helper (baked into
-#    /etc/gitconfig) mints a contents:write token for exactly the repo pushed.
-git clone https://github.com/igou-io/igou-ansible.git
-git -C igou-ansible push
-
-# 2. gh, scoped to one repo — nothing exported into your shell:
-gh-app --repo igou-io/igou-devenv -- pr list
-gh-app --repo david-igou/ansible-collection-devhost --permission contents=read -- release list
-
-# 3. Export a fresh repo-scoped GH_TOKEN into the current shell (for tools that
-#    read GH_TOKEN and can't use gh-app), then clear it:
-ght igou-io/igou-ansible          # default permissions
-ght david-igou/hermes contents=read
-ght-unset
+gh auth login --hostname github.com --git-protocol https --web
+gh auth status
 ```
 
-Other entry points from the same identity: `git-app --repo OWNER/REPO -- push
-...` (askpass variant, no helper needed), `ghapp token --repo OWNER/REPO
-[--permission NAME=LEVEL]` (print a raw token), `ghapp api /repos/OWNER/REPO/...`,
-and `ghapp doctor --repo OWNER/REPO` (diagnostics). `--repo` is required
-anywhere a token is minted — tokens are per-repository by design, so there is no
-org-wide token.
-
-> SSH remotes bypass the App identity — use HTTPS remotes for App-authenticated
-> (bot) work. `op` must be authenticated in the shell (it is by default via the
-> bind-mounted `~/.config/op`), since the private key is fetched from 1Password
-> on every mint.
-
-The host side of this (the devenv VM / physical devhost) installs the same
-`ghapp` CLI and credential helper via the `david_igou.devhost.ghapp` role in
-`igou-ansible`'s `playbooks/devenv/bootstrap.yml`.
+If an org restricts OAuth app access, approve the GitHub CLI app for it in the
+org settings. Revoke the login at github.com → Settings → Applications →
+Authorized OAuth Apps.
 
 ## Makefile Targets
 
@@ -372,19 +348,19 @@ https://devspaces.apps.ocp.igou.systems/#https://github.com/igou-io/igou-devenv
 [`devfile.yaml`](devfile.yaml) defines the workspace: the container is the
 published image, Dev Spaces injects its own che-code editor, and
 [`.devcontainer/devspaces-bootstrap.sh`](.devcontainer/devspaces-bootstrap.sh)
-replaces the devcontainer lifecycle hooks (dotfiles, ghapp config, ssh-agent).
+replaces the devcontainer lifecycle hooks (dotfiles, ssh-agent). Run
+`gh auth login` once per workspace; there is no `~/.config/gh` mount.
 
 What carries over, and how:
 
 - **1Password**: `OP_CONNECT_HOST`/`OP_CONNECT_TOKEN` are auto-mounted into
   the workspace from a per-user secret managed in igou-openshift
   (`components/devspaces/chart/devspaces-users`), so `op read`/`op inject` —
-  and everything layered on them: `use`/`unuse`, `ssh-use`, ghapp token
-  minting — work with no host mounts (ADR-0003 Connect mode).
+  and everything layered on them: `use`/`unuse`, `ssh-use` — work with no host mounts (ADR-0003 Connect mode).
 - **Cluster access**: Dev Spaces logs `oc` in as your OpenShift user
   automatically; no kubeconfig mount.
-- **Repos**: cloned under `/projects` on your per-user PVC (the plain-HTTPS
-  ghapp credential helper is baked into the image), not the host `/workspace`.
+- **Repos**: cloned under `/projects` on your per-user PVC (the gh
+  credential helper is baked into the image), not the host `/workspace`.
 - **Nested podman**: partial. Workspaces run under the `container-build` SCC;
   with the env recipe in igou-devenv#209, image pulls, COPY-only builds, and
   push work — but `RUN` steps and `podman run` are blocked by the SCC (masked
@@ -437,7 +413,7 @@ are disabled with `DISABLE_AUTOUPDATER=1`; image builds deliver the pinned versi
 To test Renovate config locally:
 ```bash
 make renovate-validate                     # validate config syntax
-GITHUB_TOKEN="$(ghapp token --repo igou-io/igou-devenv --permission contents=read)" make renovate-dry-run
+GITHUB_TOKEN="$(gh auth token)" make renovate-dry-run
 ```
 
 The `Renovate coverage` PR check exercises Renovate's real extraction and
@@ -514,10 +490,7 @@ The 1Password CLI authenticates via **1Password Connect**
 Connect creds are absent. Connect reads hit the self-hosted server, so
 they aren't subject to the 1password.com service-account API rate limit.
 The export happens before `.bashrc`'s interactive-shell check, so
-non-interactive shells (agent tool calls, scripts) get it too — `ghapp`
-reads the GitHub App key from 1Password at mint time, so without it
-`gh-app` and git's credential helper fail with "No accounts configured for
-use with 1Password CLI".
+non-interactive shells (agent tool calls, scripts) get it too.
 
 Use the `use` function for environment switching — see
 [ADR-0001](https://github.com/igou-io/igou-docs/blob/main/devenv/Devenv%20Environment%20and%20Credential%20Decisions.md) and

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Dev Spaces postStart bootstrap — the devfile equivalent of post-create.sh.
 # Devcontainer lifecycle hooks don't run under Dev Spaces and the workspace
-# has no host bind mounts, so seed shell/ghapp config from the cloned repo,
+# has no host bind mounts, so seed shell config from the cloned repo,
 # register the arbitrary runtime UID, and start the ssh-agent ssh-use expects.
 set -euo pipefail
 
@@ -20,14 +20,9 @@ mkdir -p /home/igou/.bashrc.d
 cp "$REPO/dotfiles/.bashrc.d"/*.sh /home/igou/.bashrc.d/
 cp "$REPO/dotfiles/tmux.conf" /home/igou/.tmux.conf
 
-# ghapp config: seed only if absent, mirroring post-create.sh (non-secret —
-# IDs only; the App private key is read from 1Password at mint time).
-echo "==> Installing ghapp config (first run only)..."
-mkdir -p /home/igou/.config/ghapp
-if [ ! -f /home/igou/.config/ghapp/config.yaml ]; then
-    cp "$REPO/dotfiles/ghapp/config.yaml" /home/igou/.config/ghapp/config.yaml
-    chmod 600 /home/igou/.config/ghapp/config.yaml
-fi
+# GitHub: no host bind mounts here, so ~/.config/gh starts empty. Run
+# `gh auth login --hostname github.com --git-protocol https --web` once per
+# workspace; the system git credential helper (Dockerfile) then uses it.
 
 ln -sfn "$REPO/bin" /home/igou/bin
 

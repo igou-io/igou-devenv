@@ -48,6 +48,7 @@
         "source=${localEnv:HOME}/.kube,target=/home/igou/.kube,type=bind",
         "source=${localEnv:HOME}/.config/op,target=/home/igou/.config/op,type=bind,readonly",
         "source=${localEnv:HOME}/.config/cursor,target=/home/igou/.config/cursor,type=bind",
+        "source=${localEnv:HOME}/.config/gh,target=/home/igou/.config/gh,type=bind",
         "source=${localEnv:HOME}/.config/opencode,target=/home/igou/.config/opencode,type=bind",
         "source=${localEnv:HOME}/.local/share/opencode,target=/home/igou/.local/share/opencode,type=bind",
         "source=${localEnv:HOME}/.t3,target=/home/igou/.t3,type=bind",
