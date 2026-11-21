@@ -25,19 +25,6 @@ mkdir -p "$TESTDIR/bin"
 cp "$SCRIPT_DIR/mock-op.sh" "$TESTDIR/bin/op"
 export PATH="$TESTDIR/bin:$PATH"
 
-# Mock ghapp binary — ght() calls `ghapp token --repo OWNER/REPO [--permission ...]`.
-# The real ghapp mints via the GitHub App (network + 1Password); the mock just
-# returns a fixed token so we can test the shell plumbing offline.
-cat > "$TESTDIR/bin/ghapp" << 'GHAPP_EOF'
-#!/usr/bin/env bash
-if [ "$1" = "token" ]; then
-    echo "ghs_mockedtoken0123456789"
-    exit 0
-fi
-exit 1
-GHAPP_EOF
-chmod +x "$TESTDIR/bin/ghapp"
-
 # Always source the function files from dotfiles/.bashrc.d: the REPO copy is
 # what is under test, even when the calling shell already has ~/.bashrc.d's
 # (possibly older) definitions loaded.
@@ -840,45 +827,6 @@ else
 fi
 
 # =========================================================================
-#  Tests: ght() — GitHub App repo-scoped token export
-# =========================================================================
-echo ""
-echo "==> Testing ght() / ght-unset()..."
-if [ -n "$(type -t ght)" ]; then ok "ght() defined"; else fail "ght() defined"; fi
-if [ -n "$(type -t ght-unset)" ]; then ok "ght-unset() defined"; else fail "ght-unset() defined"; fi
-
-# No-arg usage: returns non-zero and prints usage.
-if type -t ght >/dev/null; then
-    ght_usage=$(ght 2>&1); ght_rc=$?
-    if [ "$ght_rc" -ne 0 ] && echo "$ght_usage" | grep -q "usage: ght"; then
-        ok "ght with no args shows usage and fails"
-    else
-        fail "ght with no args shows usage and fails"
-    fi
-
-    # Mint: exports a repo-scoped GH_TOKEN/GITHUB_TOKEN from the mocked ghapp.
-    unset GH_TOKEN GITHUB_TOKEN GHT_REPO 2>/dev/null || true
-    ght igou-io/igou-devenv > /dev/null 2>&1
-    if [ "${GH_TOKEN:-}" = "ghs_mockedtoken0123456789" ] \
-       && [ "${GITHUB_TOKEN:-}" = "ghs_mockedtoken0123456789" ] \
-       && [ "${GHT_REPO:-}" = "igou-io/igou-devenv" ]; then
-        ok "ght exports repo-scoped GH_TOKEN/GITHUB_TOKEN"
-    else
-        fail "ght exports repo-scoped GH_TOKEN/GITHUB_TOKEN"
-    fi
-
-    # ght-unset clears the exported token.
-    ght-unset > /dev/null 2>&1
-    if [ -z "${GH_TOKEN:-}" ] && [ -z "${GITHUB_TOKEN:-}" ] && [ -z "${GHT_REPO:-}" ]; then
-        ok "ght-unset clears GH_TOKEN"
-    else
-        fail "ght-unset clears GH_TOKEN"
-    fi
-else
-    fail "ght() available for token tests"
-fi
-
-# =========================================================================
 #  Bundles (INCLUDE=): several kubeconfigs merge into one KUBECONFIG list
 # =========================================================================
 echo ""
@@ -953,11 +901,11 @@ mkdir -p "$_ni_home/.bashrc.d"
 cp "$REPO_DIR"/dotfiles/.bashrc.d/*.sh "$_ni_home/.bashrc.d/"
 # Non-interactive bash reads $BASH_ENV, not ~/.bashrc; point both at the copy.
 _ni_out=$(env -i HOME="$_ni_home" PATH="$PATH" BASH_ENV="$_ni_home/.bashrc" \
-    bash -c 'type -t use unuse ssh-use ssh-unuse ght k8s-unset ansible-unset 2>&1' | sort -u | tr '\n' ' ')
+    bash -c 'type -t use unuse ssh-use ssh-unuse k8s-unset ansible-unset 2>&1' | sort -u | tr '\n' ' ')
 if [ "$_ni_out" = "function " ]; then
-    ok "use/unuse/ssh-use/ssh-unuse/ght available in a non-interactive shell"
+    ok "use/unuse/ssh-use/ssh-unuse available in a non-interactive shell"
 else
-    fail "use/unuse/ssh-use/ssh-unuse/ght available in a non-interactive shell (got: $_ni_out)"
+    fail "use/unuse/ssh-use/ssh-unuse available in a non-interactive shell (got: $_ni_out)"
 fi
 # The interactive-only tail (prompt, aliases, direnv) must NOT run non-interactively.
 _ni_out=$(env -i HOME="$_ni_home" PATH="$PATH" BASH_ENV="$_ni_home/.bashrc" \
