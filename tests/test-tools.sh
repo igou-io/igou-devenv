@@ -44,6 +44,7 @@ declare -A TOOLS=(
     [rg]="rg --version"
     [jq]="jq --version"
     [shellcheck]="shellcheck --version"
+    [ghapp]="ghapp --help"
     [yamllint]="yamllint --version"
     [nmap]="nmap --version"
     [dig]="dig -v"
