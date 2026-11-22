@@ -259,6 +259,14 @@ COPY .devcontainer/requirements.txt /tmp/requirements.txt
 RUN python3 -m pip install --break-system-packages --ignore-installed -r /tmp/requirements.txt && \
     rm /tmp/requirements.txt
 
+# ghapp CLI only, for Hermes session pods that run this image and mint tokens
+# from their in-cluster broker (GHAPP_BROKER_URL). The devcontainer itself uses
+# the gh login below: no ghapp config or credential helper is wired here.
+# renovate: datasource=github-tags depName=david-igou/hermes_github_app_plugin
+ARG GHAPP_VERSION="v0.3.0"
+RUN python3 -m pip install --break-system-packages \
+      "hermes-github-app-plugin @ git+https://github.com/david-igou/hermes_github_app_plugin@${GHAPP_VERSION}"
+
 # ---------------------------------------------------------------------------
 # GitHub auth — the gh CLI's own login (~/.config/gh, bind-mounted from the
 # host). gh is the git credential helper for github.com at the SYSTEM scope:
