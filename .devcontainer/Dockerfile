@@ -288,7 +288,7 @@ RUN chown -R igou:igou /home/igou/.config
 # The signed manifest supplies per-platform checksums, so version bumps need no
 # SHA recapture. Like Codex/OpenCode, Claude bypasses the release-age delay.
 # renovate: datasource=npm depName=@anthropic-ai/claude-code
-ARG CLAUDE_CODE_VERSION="2.1.330"
+ARG CLAUDE_CODE_VERSION="2.1.331"
 ARG CLAUDE_CODE_PGP_FPR="31DDDE24DDFAB679F42D7BD2BAA929FF1A7ECACE"
 # Keep image pins authoritative rather than updating binaries at runtime.
 ENV DISABLE_AUTOUPDATER=1
