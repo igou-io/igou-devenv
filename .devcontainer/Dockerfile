@@ -445,7 +445,7 @@ USER root
 # Codex bypasses the release-age delay; per-architecture SHA256 verification
 # and the required build/tests remain the install gate.
 # renovate: datasource=github-releases depName=openai/codex extractVersion=^rust-v(?<version>.+)$
-ARG CODEX_VERSION="0.171.0"
+ARG CODEX_VERSION="0.172.0"
 ARG CODEX_SHA256_X64="8391d67757496bfd14893eca6cbf0c96994bf2627566ff1f018f70600c9ef6b3"
 ARG CODEX_SHA256_ARM64="d8c43bee6cf11b01eb18b95f4d7961092bc40228180808859e70dabb7784c1c9"
 USER igou
