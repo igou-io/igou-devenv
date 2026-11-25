@@ -340,7 +340,7 @@ ARG MINIMUM_RELEASE_AGE_DAYS=3
 #   curl -sL "https://downloads.cursor.com/lab/<VER>/linux/x64/agent-cli-package.tar.gz" | sha256sum
 #   (repeat for arm64)
 # renovate: datasource=custom.cursor-agent depName=cursor-agent versioning=loose
-ARG CURSOR_AGENT_VERSION="2026.11.13-eacade1"
+ARG CURSOR_AGENT_VERSION="2026.11.22-e9042b2"
 ARG CURSOR_AGENT_SHA256_X64="c02e4321f20d691ee03af94d29948dc3a81c6c34e7328da7bb1afade4c75812f"
 ARG CURSOR_AGENT_SHA256_ARM64="e4ba0611045a24d1cf78f021d34c19461680fc7234c19c1f981f1cc169f70cdc"
 USER igou
