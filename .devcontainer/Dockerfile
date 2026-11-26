@@ -388,7 +388,7 @@ USER root
 # OpenCode bypasses the release-age delay; per-architecture SHA256 verification
 # remains mandatory, matching Codex.
 # renovate: datasource=npm depName=@opencode/cli
-ARG OPENCODE_VERSION="2.4.1"
+ARG OPENCODE_VERSION="2.4.2"
 ARG OPENCODE_SHA256_X64="9dbef68f231a311b56441c73c7bec01f6d87ebe44523ad14a7ba4716ff5c2031"
 ARG OPENCODE_SHA256_ARM64="9eb4567ff0fab90b6dac106f786652a0ec15d65e25ffbcbb106e5ed1cee4f4e2"
 # Shell functions + the profile resolver baked into the image so NON-devcontainer
