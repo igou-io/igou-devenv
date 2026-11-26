@@ -375,6 +375,11 @@
       "version": "26.11.0",
       "releaseTimestamp": "2026-11-05T09:44:46.163Z",
       "isStable": true
+    },
+    {
+      "version": "26.11.1",
+      "releaseTimestamp": "2026-11-26T07:35:12.150Z",
+      "isStable": true
     }
   ]
 }
