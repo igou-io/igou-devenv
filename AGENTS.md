@@ -80,9 +80,20 @@ make release-dry-run    # Resolve + plan release only
 make release-prepare    # Regenerate mise.lock on the open Renovate mise PR
 ```
 
-Pre-push requirement: do not push changes to the remote unless `make rebuild`
-followed by `make test` passes locally, unless the user explicitly asks to push
-anyway.
+Validation: push to a PR branch freely. The `main` ruleset requires a PR whose
+`build` check (full image build plus `tests/ci-run.sh`) and `dependency-review`
+pass, so that gates merges. Before pushing, run the local checks for what you
+changed:
+
+| Change | Local check |
+|---|---|
+| `renovate.json`, `renovate-base.json` | `make renovate-validate`; CI `coverage` runs `tests/test-renovate.mjs` |
+| Shell scripts, dotfiles | The `shellcheck` command under Linting |
+| `mise.toml` | `make mise-lock` and `make test-mise-lockfile`; commit both files |
+| Dockerfile, requirements, lifecycle scripts | PR CI builds the image; run `make build` locally to get the image before pushing |
+
+Never run `make rebuild` from inside the devcontainer. It replaces the
+container you are running in.
 
 ## Architecture
 
@@ -215,8 +226,8 @@ separately.
 # 1. Edit mise.toml
 # 2. Regenerate the lockfile
 make mise-lock
-# 3. Validate
-make test
+# 3. Validate the lockfile; PR CI runs the full suite
+make test-mise-lockfile
 # 4. Commit mise.toml and mise.lock together
 ```
 
