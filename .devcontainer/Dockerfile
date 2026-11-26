@@ -388,9 +388,9 @@ USER root
 # OpenCode bypasses the release-age delay; per-architecture SHA256 verification
 # remains mandatory, matching Codex.
 # renovate: datasource=npm depName=@opencode/cli
-ARG OPENCODE_VERSION="2.4.1"
-ARG OPENCODE_SHA256_X64="9dbef68f231a311b56441c73c7bec01f6d87ebe44523ad14a7ba4716ff5c2031"
-ARG OPENCODE_SHA256_ARM64="9eb4567ff0fab90b6dac106f786652a0ec15d65e25ffbcbb106e5ed1cee4f4e2"
+ARG OPENCODE_VERSION="2.4.2"
+ARG OPENCODE_SHA256_X64="99d288cb5c68411622cbd5a5629afb8f07110cd0a748d7cdd7eb34b08cf56f5a"
+ARG OPENCODE_SHA256_ARM64="d0847f587adca7339c69e22631c50edd6e4f97dee99cec8596e1ec810b98ae95"
 # Shell functions + the profile resolver baked into the image so NON-devcontainer
 # consumers (Hermes kubernetes-backend session pods run this image with
 # BASH_ENV=/home/igou/.bashrc and no /workspace/igou-devenv checkout) get
