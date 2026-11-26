@@ -131,6 +131,17 @@ for (const pin of extensionPins) {
     extensionPins.map(value => value === pin ? `${id}@99.99.99` : value));
 }
 
+// The docker datasource only dates Docker Hub tags; requiring a timestamp
+// would pend every ghcr/quay/OCI-chart update forever. Dated releases still age.
+const dockerPolicy = await route({ depName: 'ghcr.io/example/app', datasource: 'docker' },
+  'minor', 'kubernetes');
+assert.equal(dockerPolicy.minimumReleaseAge, '10 days', 'docker tags keep the age gate');
+assert.equal(dockerPolicy.minimumReleaseAgeBehaviour, 'timestamp-optional',
+  'undated docker releases must not pend forever');
+const githubPolicy = await route({ depName: 'example/tool', datasource: 'github-releases' });
+assert.notEqual(githubPolicy.minimumReleaseAgeBehaviour, 'timestamp-optional',
+  'dated datasources keep requiring a release timestamp');
+
 // Include misleading text plus the upstream's indentation and CRLF format.
 // A missing Created line must not become an undated release that can silently
 // bypass or indefinitely pend the supply-chain age gate.
