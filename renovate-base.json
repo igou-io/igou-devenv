@@ -23,6 +23,13 @@
         "pinDigest"
       ],
       "minimumReleaseAge": null
+    },
+    {
+      "description": "The docker datasource only returns release timestamps for Docker Hub. Under the default timestamp-required behaviour, tags on ghcr.io, quay.io, registry.k8s.io, nvcr.io, Codeberg, and OCI Helm charts never pass the age gate, so their branches are never created. Allow undated docker releases through on the weekly schedule; dated ones keep the 10-day lag.",
+      "matchDatasources": [
+        "docker"
+      ],
+      "minimumReleaseAgeBehaviour": "timestamp-optional"
     }
   ],
   "customDatasources": {
